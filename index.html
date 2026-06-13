@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תכנות מערכות מתקדם · אתר הלמידה</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💻</text></svg>" />
+</head>
+<body>
+  <header class="hero">
+    <h1>💻 תכנות מערכות מתקדם</h1>
+    <p class="subtitle">אתר הלמידה האישי שלי — סיכומים, דוגמאות קוד וטריקים</p>
+
+    <div class="hero-progress">
+      <div class="bar"><span id="progress-fill"></span></div>
+      <div class="label" id="progress-label">0 מתוך 24 שיעורים מוכנים</div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="board">
+      <h2 class="section-title"><span class="emoji">🎓</span> הרצאות</h2>
+      <div class="grid" id="lectures-grid"></div>
+    </section>
+
+    <section class="board">
+      <h2 class="section-title"><span class="emoji">🛠️</span> תרגולים</h2>
+      <div class="grid" id="tutorials-grid"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>נבנה לשימוש אישי · התוכן מתעדכן עם כל מצגת חדשה שמוזנת</p>
+  </footer>
+
+  <script>
+    const COUNT = 12;
+
+    /* רשימת השיעורים שכבר יש להם תוכן מוכן.
+       כשמוסיפים תוכן לעמוד — מוסיפים כאן את המספר, והכרטיס יסומן "מוכן". */
+    const READY = {
+      lecture:  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],   // למשל: [1, 2, 3]
+      tutorial: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    };
+
+    function buildGrid(containerId, type, basePath, label, emoji) {
+      const grid = document.getElementById(containerId);
+      for (let i = 1; i <= COUNT; i++) {
+        const n = String(i).padStart(2, '0');
+        const ready = READY[type].includes(i);
+
+        const a = document.createElement('a');
+        a.className = 'card ' + type;
+        a.href = `${basePath}/${type}-${n}.html`;
+        a.style.animationDelay = (i * 0.035) + 's';
+        a.innerHTML = `
+          <span class="card-status ${ready ? 'ready' : 'soon'}">${ready ? 'מוכן' : 'בקרוב'}</span>
+          <span class="card-emoji">${emoji}</span>
+          <span class="card-number">${i}</span>
+          <span class="card-label">${label}</span>
+        `;
+        grid.appendChild(a);
+      }
+    }
+
+    buildGrid('lectures-grid', 'lecture', 'lectures', 'הרצאה', '🎓');
+    buildGrid('tutorials-grid', 'tutorial', 'tutorials', 'תרגול', '🛠️');
+
+    /* פס התקדמות */
+    const done = READY.lecture.length + READY.tutorial.length;
+    const total = COUNT * 2;
+    const pct = Math.round((done / total) * 100);
+    document.getElementById('progress-label').textContent =
+      `${done} מתוך ${total} שיעורים מוכנים`;
+    requestAnimationFrame(() => {
+      document.getElementById('progress-fill').style.width = pct + '%';
+    });
+  </script>
+</body>
+</html>

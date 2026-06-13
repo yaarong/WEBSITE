@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 9 · גישה לנתונים — SQL, ORM, NoSQL ו-MongoDB</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 9 · גישה לנתונים</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 9</div>
+      <h1>גישה לנתונים — ממסדים רלציוניים (SQL) ו-ORM ועד NoSQL, MongoDB ו-Mongoose</h1>
+      <p>בהרצאה 7 ה-<strong>Model</strong> של אתר ה-Foo News היה מערך כתבות <em>קשיח בזיכרון</em> — הבטחנו שנחליף אותו במסד נתונים אמיתי. הגיע הרגע. ההרצאה הזו עוסקת ב<strong>גישה לנתונים מתמשכים (persistence)</strong>: נתחיל ממסדים <strong>רלציוניים</strong> ו-SQL, נראה את הבעיה של חיבור קוד מונחה-עצמים למסד מונחה-טבלאות (<strong>JDBC</strong>, <strong>ORM</strong> והביקורת עליו), ומשם נעבור ל-<strong>NoSQL</strong> ול-<strong>MongoDB</strong> — ונבנה את שכבת הנתונים המלאה של Foo News ב-<strong>Mongoose</strong> (ה-MERN stack).</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי — למה ההרצאה בנויה ככה</span>
+        קל לקפוץ ישר ל-"איך עושים MongoDB". אבל כדי להבין <em>למה</em> MongoDB ו-Mongoose נראים כמו שהם נראים, צריך קודם להכיר את העולם שקדם להם: מסדים רלציוניים, והכאב של לחבר אליהם קוד מונחה-עצמים. כל פתרון בהרצאה הזו נולד מבעיה של הפתרון הקודם — וזו בדיוק הדרך הנכונה ללמוד את הנושא.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — המוטיבציה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#why">דפים דינמיים — ולמה צריך מסד נתונים</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — מסדים רלציוניים (SQL)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#relational">טבלאות, שורות ו-SQL</a></li>
+            <li><a class="link" href="#relations">קשרים — one-to-many ו-many-to-many</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — לחבר קוד למסד: JDBC ו-ORM</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#mismatch">ה-mismatch בין OOP לטבלאות + Driver/API</a></li>
+            <li><a class="link" href="#jdbc">JDBC — גישה גולמית</a></li>
+            <li><a class="link" href="#orm">ORM — מיפוי אובייקטים ↔ טבלאות</a></li>
+            <li><a class="link" href="#orm-criticism">ביקורת על ORM</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — NoSQL ו-MongoDB</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#nosql">NoSQL — גישה לא-רלציונית</a></li>
+            <li><a class="link" href="#mongo-terms">MongoDB — Document ו-Collection</a></li>
+            <li><a class="link" href="#modeling">מודלינג — Embedding מול Referencing</a></li>
+            <li><a class="link" href="#mongo-crud">CRUD ב-MongoDB</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ה' — Mongoose וה-MERN stack</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#mongoose">Mongoose (ODM) — Schema ו-Model</a></li>
+            <li><a class="link" href="#service">שכבת ה-Service (ה-DAL)</a></li>
+            <li><a class="link" href="#controller-routes">Controller ו-Routes (RESTful)</a></li>
+            <li><a class="link" href="#appjs">app.js — חיבור, env ו-CORS</a></li>
+            <li><a class="link" href="#react-fetch">צד ה-React — fetch מה-API</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · המוטיבציה</h2>
+
+    <!-- 1 -->
+    <section id="why">
+      <h3><span class="num">1.</span> דפים דינמיים — ולמה צריך מסד נתונים</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אתר אמיתי הוא <strong>דינמי</strong>: כתובת כמו <code>news.foo.com/article/1</code> צריכה להציג כתבה מס' 1 — תמונה, כותרת, גוף, ותגובות — והכל מגיע מ<em>נתונים שמורים</em>. הכתבות נוצרות, נערכות ונמחקות, וצריך שהן <strong>יישמרו</strong> גם אחרי שהשרת נכבה. מערך בזיכרון (כמו בהרצאה 7) נעלם ברגע שמפעילים מחדש. צריך <strong>persistence</strong> — מסד נתונים.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">המשך ישיר מהרצאה 7</span>
+          זוכרים את ה-<code>models/articles.js</code> מהרצאה 7? הוא החזיק מערך כתבות בקוד, עם <code>getArticle(id)</code>. אמרנו אז: "ה-controller לא יודע אם זה מערך, קובץ או מסד נתונים — הוא רק קורא לפונקציה". בזכות אותה הפרדה (ה-<strong>DAL</strong>), נחליף עכשיו את המערך במסד נתונים אמיתי — <em>בלי לגעת ב-controller או ב-routes</em>. זה בדיוק התשלום על ההשקעה בארכיטקטורה נקייה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · מסדים רלציוניים (SQL)</h2>
+
+    <!-- 2 -->
+    <section id="relational">
+      <h3><span class="num">2.</span> טבלאות, שורות ו-SQL</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הגישה הקלאסית והנפוצה ביותר היא <strong>מסד נתונים רלציוני</strong> (Relational DB): הנתונים מאוחסנים ב<strong>טבלאות</strong>. כל טבלה היא אוסף <strong>שורות (rows)</strong>, וכל שורה היא רשומה אחת עם <strong>עמודות (columns)</strong> קבועות. שואלים את המסד בשפה ייעודית — <strong>SQL</strong> (Structured Query Language).
+        </div>
+      </div>
+
+      <p>למשל, טבלת כתבות:</p>
+      <table>
+        <thead><tr><th>Id</th><th>Title</th><th>Body</th><th>...</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Foo</td><td>Bar bar</td><td>...</td></tr>
+          <tr><td>2</td><td>Hello</td><td>World</td><td>...</td></tr>
+        </tbody>
+      </table>
+      <p style="text-align:center;color:var(--text-dim);margin-top:-.6rem">\u200FTable: Articles\u200F</p>
+
+      <p>שולפים נתונים עם פקודת <code>SELECT</code>, ומסננים עם <code>WHERE</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">sql · שליפת כתבה לפי id</span><button class="copy-btn">העתק</button></div>
+        <pre><code>SELECT Title, Body FROM Articles
+WHERE Id = 1;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אנטומיה של שאילתת SQL</span>
+          <ul style="margin:0">
+            <li><code>SELECT Title, Body</code> — אילו עמודות להחזיר (<code>*</code> = הכל).</li>
+            <li><code>FROM Articles</code> — מאיזו טבלה.</li>
+            <li><code>WHERE Id = 1</code> — תנאי הסינון: אילו שורות.</li>
+          </ul>
+          התוצאה היא <em>טבלה</em> (תת-קבוצה של השורות והעמודות) — כאן שורה אחת: <code>Foo | Bar bar</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="relations">
+      <h3><span class="num">3.</span> קשרים — one-to-many ו-many-to-many</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מאיפה ה-"רלציוני"</span>
+          העוצמה של המסד הרלציוני היא ב<strong>קשרים</strong> בין טבלאות. במקום לשכפל נתונים, מקשרים שורות בעזרת <strong>מפתחות</strong> (id-ים). שני סוגי קשר נפוצים:
+        </div>
+      </div>
+
+      <p><strong>One-to-many (אחד-לרבים)</strong> — לכתבה אחת יש הרבה תגובות. כל תגובה מחזיקה <code>ArticleId</code> שמצביע על הכתבה שלה:</p>
+      <table>
+        <thead><tr><th>Id</th><th>ArticleId</th><th>Title</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>1</td><td>Yes I agree</td></tr>
+          <tr><td>2</td><td>1</td><td>Bla bla</td></tr>
+        </tbody>
+      </table>
+      <p style="text-align:center;color:var(--text-dim);margin-top:-.6rem">\u200FTable: Comments — שתי התגובות שייכות לכתבה 1\u200F</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">sql · כל התגובות של כתבה 1</span><button class="copy-btn">העתק</button></div>
+        <pre><code>SELECT Id, Title FROM Comments
+WHERE ArticleId = 1;</code></pre>
+      </div>
+
+      <p><strong>Many-to-many (רבים-לרבים)</strong> — לכתבה יכולים להיות כמה מחברים, ולמחבר כמה כתבות. אי אפשר לייצג זאת בעמודה אחת, אז משתמשים ב<strong>טבלת קישור (join table)</strong>:</p>
+      <table>
+        <thead><tr><th>ArticleId</th><th>AuthorId</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>1</td></tr>
+          <tr><td>1</td><td>2</td></tr>
+          <tr><td>2</td><td>1</td></tr>
+        </tbody>
+      </table>
+      <p style="text-align:center;color:var(--text-dim);margin-top:-.6rem">\u200FTable: Articles-Authors — כתבה 1 נכתבה ע"י מחברים 1 ו-2\u200F</p>
+      <p>כל שורה בטבלת הקישור היא "צמד" שמקשר כתבה למחבר. כדי לקבל את מחברי כתבה 1, מבצעים <strong>JOIN</strong> בין שלוש הטבלאות. זה גמיש מאוד — אבל גם מתחיל להיות מסורבל. נחזיק את הדוגמה הזו, כי בהמשך נראה איך MongoDB מייצג את אותם קשרים אחרת לגמרי.</p>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · לחבר קוד למסד — JDBC ו-ORM</h2>
+
+    <!-- 4 -->
+    <section id="mismatch">
+      <h3><span class="num">4.</span> ה-mismatch בין OOP לטבלאות + Driver/API</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה המרכזית</span>
+          השרת שלנו (ה-client של המסד) מדבר בשאילתות SQL, מבצע אותן במסד, ומקבל בחזרה <em>טבלאות</em>. אבל הקוד שלנו <strong>מונחה-עצמים</strong> — אנחנו רוצים לעבוד עם אובייקטים (<code>Article</code>), לא עם שורות וטבלאות. הפער הזה נקרא <em>"object-relational impedance mismatch"</em>, וכל הסיפור של חלק ג' הוא איך לגשר עליו.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>  ┌──────────────────────┐   "SELECT * FROM Article..."   ┌──────────┐
+  │   Client (web server)│ ──────────────────────────────▶│ Database │
+  │   קוד מונחה-עצמים    │ ◀──────────────────────────────│          │
+  └──────────────────────┘     טבלה: Id | Title | Body    └──────────┘
+            │
+            ▼   צריך להמיר את הטבלה לאובייקטים:  List&lt;Article&gt;</code></pre>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Driver ו-API</span>
+          כדי שהקוד יוכל לדבר עם המסד, צריך <strong>driver</strong> — ספרייה שמתרגמת בין הקוד למסד. ה-driver ממומש מול <strong>API</strong> סטנדרטי. בעולם ה-Java/Windows: <strong>JDBC</strong> (Java DataBase Connectivity), <strong>ODBC</strong> (Open DB Connectivity), <strong>OLEDB</strong>. כל driver הוא מימוש ספציפי של ה-API עבור טכנולוגיית מסד מסוימת (MySQL, PostgreSQL...).
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="jdbc">
+      <h3><span class="num">5.</span> JDBC — גישה גולמית למסד</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>JDBC</strong> היא ה-API של Java לתקשורת עם מסדים. זו הגישה ה"גולמית": אנחנו כותבים את ה-SQL כ<em>מחרוזת</em>, מריצים אותו, ועוברים על התוצאות שורה-שורה כדי לבנות אובייקטים. נתחיל מהמחלקה <code>Article</code> (POJO — אובייקט פשוט):</p>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Article.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class Article {
+    private int id;
+    private String title;
+    private String body;
+
+    public Article(int id, String title, String body) {
+        this.id = id;
+        this.title = title;
+        this.body = body;
+    }
+    public int getId()     { return id; }
+    public String getTitle() { return title; }
+    public String getBody()  { return body; }
+}</code></pre>
+      </div>
+
+      <p><strong>קריאה (Read)</strong> — מתחברים, מריצים שאילתה, וממירים כל שורה לאובייקט:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · JDBC — שליפה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Connection connection = DriverManager.getConnection(
+    "jdbc:mysql://localhost/news",
+    "username",
+    "password");
+
+Statement statement = connection.createStatement();
+ResultSet results = statement.executeQuery(
+    "SELECT id, title, body FROM Article");
+
+List&lt;Article&gt; articles = new ArrayList&lt;&gt;();
+while (results.next()) {
+    int id       = results.getInt(1);
+    String title = results.getString(2);
+    String body  = results.getString(3);
+    Article article = new Article(id, title, body);
+    articles.add(article);
+}
+/* יש לסגור כראוי את האובייקטים (Connection/Statement/ResultSet) —
+   הושמט כאן לקיצור. */</code></pre>
+      </div>
+
+      <p><strong>עדכון (Update)</strong> — עם <code>PreparedStatement</code> וסימני שאלה <code>?</code> כ-placeholders:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · JDBC — עדכון מאובטח</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Article article = new Article(1, "Yoo hoooo!", "yada yada");
+
+String query = "UPDATE Article SET title = ?, body = ? WHERE id = ?";
+PreparedStatement statement = connection.prepareStatement(query);
+statement.setString(1, article.getTitle());
+statement.setString(2, article.getBody());
+statement.setInt(3, article.getId());
+statement.execute();</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה <code>PreparedStatement</code> עם <code>?</code></span>
+          ה-<code>?</code> הם מקומות שמורים לערכים, שממלאים בנפרד עם <code>setString</code>/<code>setInt</code>. זה לא רק נוח — זה <strong>קריטי לאבטחה</strong>: אם נשרשר את הקלט ישירות למחרוזת ה-SQL, תוקף יוכל להזריק SQL זדוני (<em>SQL Injection</em>). ה-driver "בורח" (escapes) את הערכים בבטחה. כלל ברזל: <strong>לעולם לא לשרשר קלט משתמש לתוך שאילתה</strong>.
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">😣</span>
+        <div class="body">
+          <span class="title">למה זה כואב</span>
+          שימו לב לכמות ה"בּוֹילֶרְפְּלֵייט": חיבור ידני, לולאה ידנית, המרה ידנית שורה→אובייקט, וסגירת משאבים. וגרוע מזה — ה-SQL הוא <strong>מחרוזת טקסט</strong>: טעות כתיב או שם עמודה שגוי יתגלו רק ב-<em>זמן ריצה</em>, בלי בדיקת-טיפוסים והשלמה אוטומטית. זו בדיוק הבעיה שה-ORM בא לפתור.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="orm">
+      <h3><span class="num">6.</span> ORM — מיפוי אובייקטים ↔ טבלאות</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>ORM</strong> = <em>Object-Relational Mapping</em>. הרעיון: ספרייה שתמפה אוטומטית בין <strong>אובייקטים</strong> בקוד ל<strong>שורות</strong> בטבלה, ותייצר את ה-SQL בשבילנו. במקום לכתוב SQL ולהמיר ידנית — עובדים עם אובייקטים, וה-ORM מתרגם. דוגמאות: <strong>Hibernate</strong> ו-<strong>JPA</strong> (Java), <strong>Entity Framework</strong> (.NET).
+        </div>
+      </div>
+
+      <p>מסמנים את המחלקה כ-<strong>Entity</strong> עם annotations — וה-ORM יודע למפות אותה לטבלה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Hibernate + JPA — Entity</span><button class="copy-btn">העתק</button></div>
+        <pre><code>@Entity
+public class Article {
+    @Id
+    private int id;
+    private String title;
+    private String body;
+
+    public Article() { }
+    public Article(int id, String title, String body) {
+        this.id = id;
+        this.title = title;
+        this.body = body;
+    }
+    public void setTitle(String title) { this.title = title; }
+    // ...
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Annotations</span>
+          <code>@Entity</code> אומר ל-ORM "המחלקה הזו ממופה לטבלה". <code>@Id</code> מסמן את המפתח הראשי (primary key). מכאן ה-ORM יודע ליצור/לקרוא/לעדכן שורות בטבלת <code>Article</code> בלי שנכתוב SQL.
+        </div>
+      </div>
+
+      <p><strong>CRUD</strong> (Create / Read / Update / Delete) דרך <code>EntityManager</code>, בתוך <strong>טרנזקציות</strong>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Create</span><button class="copy-btn">העתק</button></div>
+        <pre><code>EntityManagerFactory emf = Persistence.createEntityManagerFactory("News");
+EntityManager em = emf.createEntityManager();
+
+em.getTransaction().begin();
+Article article1 = new Article(1, "Foo", "Bar bar");
+Article article2 = new Article(2, "Hello", "World");
+em.persist(article1);     // ← הוספה
+em.persist(article2);
+em.getTransaction().commit();
+
+em.close();
+emf.close();</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Read / Update / Delete</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// Read
+Article article = em.find(Article.class, 1);    // לפי id
+
+// Update — פשוט משנים את האובייקט, וה-ORM מזהה ושומר
+em.getTransaction().begin();
+Article a = em.find(Article.class, 1);
+a.setTitle("Yoo hoooo!");
+em.getTransaction().commit();
+
+// Delete
+em.getTransaction().begin();
+Article del = em.find(Article.class, 1);
+em.remove(del);
+em.getTransaction().commit();</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">✨</span>
+        <div class="body">
+          <span class="title">היופי</span>
+          שימו לב ב-Update: רק שינינו שדה באובייקט (<code>setTitle</code>) ו-commit — וה-ORM זיהה את השינוי וייצר את ה-<code>UPDATE</code> בעצמו. אין SQL בקוד שלנו. <em>נראה</em> אידיאלי. אבל...
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="orm-criticism">
+      <h3><span class="num">7.</span> ביקורת על ORM — האם זה anti-pattern?</h3>
+
+      <div class="callout warn">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">הטענה: ORM הוא anti-pattern</span>
+          <em>Anti-pattern</em> = פתרון נפוץ ופופולרי לבעיה שכיחה, ש<em>נראה</em> כמו רעיון טוב — אבל בפועל בעייתי. קשה להתווכח עם הפופולריות של ORM, אבל יש עליו ביקורת רצינית:
+          <ul style="margin:.5rem 0 0">
+            <li><strong>מבטיח להפשיט את ה-SQL — אבל לא באמת:</strong> כדי לכתוב שאילתות לא-טריוויאליות עדיין צריך להבין SQL, ולעיתים ללמוד <em>שפת שאילתות נוספת</em> של ה-ORM עצמו.</li>
+            <li><strong>מאבדים שליטה:</strong> ה-ORM עדיין מייצר SQL מאחורי הקלעים — אבל אתם לא רואים אותו ולא שולטים בו. זה יכול לפגוע <strong>בביצועים</strong> בצורה משמעותית (למשל בעיית ה-"N+1 queries").</li>
+            <li><strong>תרגום מייגע:</strong> ההמרה הלוך-ושוב בין ייצוג-אובייקטים לייצוג-נתונים מסובכת מטבעה.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">המסקנה — ומכאן הגשר ל-MongoDB</span>
+          ההצעה של מבקרי ה-ORM: במקום להילחם בפער בין אובייקטים לטבלאות עם שכבת תרגום — <strong>השתמשו במסד שמתאים מלכתחילה לאובייקטים</strong>. וזה בדיוק מה ש-NoSQL ו-<strong>MongoDB</strong> מציעים: לאחסן נתונים כמסמכים דמויי-JSON, שכבר נראים כמו האובייקטים שלנו. נעבור לשם.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · NoSQL ו-MongoDB</h2>
+
+    <!-- 8 -->
+    <section id="nosql">
+      <h3><span class="num">8.</span> NoSQL — גישה לא-רלציונית</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>NoSQL</strong> (Not Only SQL) הוא שם כולל למסדים ש<em>לא</em> מאחסנים נתונים בצורה רלציונית (טבלאות עם סכמה נוקשה). יש כמה גישות שונות (document, key-value, graph, column). המכנה המשותף: <strong>גמישות</strong> (אין סכמה קשיחה) ו<strong>ביצועים</strong> (מותאמים לסקייל גדול). MongoDB הוא מסד <strong>document-oriented</strong> — אחד הפופולריים ביותר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="mongo-terms">
+      <h3><span class="num">9.</span> MongoDB — Document ו-Collection</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — המילון</span>
+          כדי לעבוד עם MongoDB צריך להחליף את אוצר המילים הרלציוני. ההקבלה כמעט אחד-לאחד:
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>רלציוני (SQL)</th><th>MongoDB</th><th>מה זה</th></tr></thead>
+        <tbody>
+          <tr><td>Row (שורה)</td><td><strong>Document</strong></td><td>יחידת נתונים — ייצוג בינארי של אובייקט JSON (נקרא BSON)</td></tr>
+          <tr><td>Table (טבלה)</td><td><strong>Collection</strong></td><td>קבוצת documents</td></tr>
+          <tr><td>Column (עמודה)</td><td>Field (שדה)</td><td>זוג מפתח-ערך בתוך document</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">🪄</span>
+        <div class="body">
+          <span class="title">ההבדל הגדול — Schema-less</span>
+          בטבלה רלציונית כל השורות <em>חייבות</em> אותן עמודות. ב-MongoDB, <strong>documents באותו collection יכולים להיות בעלי שדות שונים!</strong> כתבה אחת יכולה להחזיק שדה <code>video</code> ואחרת לא. זו הגמישות של NoSQL — מצד אחד נוחה מאוד, מצד שני מעבירה את האחריות על העקביות אלינו (לכן Mongoose יוסיף סכמה רכה מרצוננו, בהמשך).
+        </div>
+      </div>
+
+      <p>document לדוגמה (זה פשוט נראה כמו אובייקט JSON — בדיוק מה ש-ORM ניסה להגיע אליו בעמל):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · document בקולקציית articles</span><button class="copy-btn">העתק</button></div>
+        <pre><code>{
+    _id: 1,
+    title: "Foo",
+    body: "Bar bar"
+}</code></pre>
+      </div>
+      <p>ה-<code>_id</code> הוא מזהה ייחודי שכל document מקבל (MongoDB מייצר אותו אוטומטית אם לא סיפקנו).</p>
+    </section>
+
+    <!-- 10 -->
+    <section id="modeling">
+      <h3><span class="num">10.</span> מודלינג — Embedding מול Referencing</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          זוכרים את הקשרים מחלק ב' (כתבות↔תגובות, כתבות↔מחברים)? ב-MongoDB אין JOIN רלציוני. במקום זאת יש <strong>שתי דרכים</strong> לייצג קשרים, וזו אחת ההחלטות החשובות במודלינג של MongoDB.
+        </div>
+      </div>
+
+      <p><strong>One-to-many (כתבה ↔ תגובות):</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · Referencing — תגובות נפרדות עם הצבעה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// document בקולקציית articles
+{ _id: 1, title: "Foo", body: "Bar bar" }
+
+// documents בקולקציית comments — כל אחד "מצביע" על הכתבה
+{ _id: 1, articleId: 1, title: "Yes I agree" }
+{ _id: 2, articleId: 1, title: "Bla bla" }</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · Embedding — התגובות בתוך הכתבה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>{
+    _id: 1,
+    title: "Foo",
+    body: "Bar bar",
+    comments: [
+        { title: "Yes I agree" },
+        { title: "Bla bla" }
+    ]
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מתי כל אחד?</span>
+          <ul style="margin:0">
+            <li><strong>Embedding</strong> (הטמעה) — שומרים את הנתונים הקשורים <em>בתוך</em> ה-document. מהיר לקריאה (הכל במקום אחד, בלי JOIN), אבל מנפח את ה-document. מתאים כשהנתונים "שייכים" ונקראים יחד (כמו תגובות של כתבה).</li>
+            <li><strong>Referencing</strong> (הפנייה) — שומרים רק <em>הפניה</em> (id) לנתונים שיושבים בקולקציה אחרת. דומה למסד רלציוני. מתאים כשהנתונים גדולים, משותפים, או נקראים בנפרד.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>Many-to-many (כתבות ↔ מחברים)</strong> — עם referencing דו-כיווני (כל צד מחזיק מערך id-ים), בלי טבלת קישור נפרדת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · many-to-many ב-MongoDB</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// authors
+{ _id: 1, name: "Alice", articles: [1, 2] }
+{ _id: 2, name: "Bob",   articles: [2] }
+
+// articles
+{ _id: 1, title: "Foo",   body: "Bar bar", author: [1, 2] }
+{ _id: 2, title: "Hello", body: "World",   author: [1]    }</code></pre>
+      </div>
+      <p>במקום טבלת קישור (כמו ב-SQL), כל צד פשוט מחזיק <strong>מערך</strong> של ה-id-ים הקשורים. ככה הקשר רבים-לרבים מיוצג ישירות בתוך ה-documents.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="mongo-crud">
+      <h3><span class="num">11.</span> CRUD ב-MongoDB</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הפעולות הבסיסיות ב-MongoDB מקבלות <strong>אובייקטי JSON</strong> כפרמטרים — גם הנתונים וגם תנאי הסינון. כל הפעולות מתבצעות על <code>collection</code> (אובייקט הקולקציה). נעבור על ארבע פעולות ה-CRUD.
+        </div>
+      </div>
+
+      <p><strong>Create</strong> — <code>insertOne</code> / <code>insertMany</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · MongoDB — Create</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// מוסיף document אחד שבו השדה foo שווה 1
+collection.insertOne({ foo: 1 })
+
+// מוסיף שני documents
+collection.insertMany([ { foo: 1 }, { foo: 2 } ])</code></pre>
+      </div>
+
+      <p><strong>Read</strong> — <code>find</code>. הפרמטר הוא אובייקט <em>שאילתה (filter)</em>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · MongoDB — Read</span><button class="copy-btn">העתק</button></div>
+        <pre><code>collection.find({})                  // כל ה-documents בקולקציה
+collection.find({ foo: 1 })          // כל ה-documents שבהם foo == 1
+collection.find({ foo: 1, bar: "2" })// foo == 1 וגם bar == "2"  (AND)
+collection.find({ $or: [ { foo: 1 }, { bar: "2" } ] })  // foo==1 או bar=="2"</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תחביר השאילתות</span>
+          <ul style="margin:0">
+            <li>שדות מרובים באובייקט אחד = <strong>AND</strong> (כל התנאים חייבים להתקיים).</li>
+            <li><code>$or</code> = <strong>OR</strong> — מקבל מערך תנאים, מספיק שאחד יתקיים. ה-<code>$</code> מסמן <strong>אופרטור</strong> של MongoDB.</li>
+            <li>שימו לב: <code>bar: "2"</code> (מחרוזת) שונה מ-<code>bar: 2</code> (מספר) — הטיפוס חשוב.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>Update</strong> — <code>updateOne</code> / <code>updateMany</code>. שני ארגומנטים: <em>מי</em> לעדכן, ו<em>מה</em> לשנות (עם <code>$set</code>):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · MongoDB — Update</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// בעדכון הראשון שבו foo==1, קבע את השדה bar למחרוזת "3"
+collection.updateOne({ foo: 1 }, { $set: { bar: "3" } })
+
+// אותו דבר על כל ה-documents שבהם foo==1
+collection.updateMany({ foo: 1 }, { $set: { bar: "3" } })</code></pre>
+      </div>
+
+      <p><strong>Delete</strong> — <code>deleteOne</code> / <code>deleteMany</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · MongoDB — Delete</span><button class="copy-btn">העתק</button></div>
+        <pre><code>collection.deleteOne({ foo: 1 })    // מוחק את הראשון שבו foo==1
+collection.deleteMany({ foo: 1 })   // מוחק את כל אלו שבהם foo==1</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">התבנית החוזרת</span>
+          שמו לב לסימטריה: כל פעולה מגיעה בגרסת <code>...One</code> (הראשון שמתאים) ו-<code>...Many</code> (כל המתאימים). ותמיד הפרמטרים הם אובייקטי JSON — לא מחרוזות SQL. אין שאילתה טקסטואלית, אין mismatch, אין שכבת תרגום — הנתונים <em>כבר</em> אובייקטים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ה' · Mongoose וה-MERN stack</h2>
+
+    <div class="callout info">
+      <span class="ic">🧱</span>
+      <div class="body">
+        <span class="title">מה נבנה בחלק הזה</span>
+        עכשיו נחבר הכל: נבנה את שכבת הנתונים של Foo News על <strong>MongoDB</strong> דרך <strong>Mongoose</strong>, בתוך מבנה ה-MVC מהרצאה 7 — אבל הפעם עם שכבת <strong>service</strong> נוספת ופעולות <strong>אסינכרוניות</strong>. נעלה את הקוד מלמטה למעלה: Model → Service → Controller → Routes → app.js, ולסיום נחבר את צד ה-React. זהו ה-<strong>MERN stack</strong>: <strong>M</strong>ongo, <strong>E</strong>xpress, <strong>R</strong>eact, <strong>N</strong>ode.
+      </div>
+    </div>
+
+    <!-- 12 -->
+    <section id="mongoose">
+      <h3><span class="num">12.</span> Mongoose (ODM) — Schema ו-Model</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Mongoose</strong> היא ספריית <strong>ODM</strong> (Object-Document Mapping) ל-Node — המקבילה של MongoDB ל-ORM, אבל למסמכים. היא נותנת לנו להגדיר <strong>Schema</strong> (סכמה "רכה" מרצוננו, על אף ש-MongoDB עצמו schema-less) ולקבל <strong>Model</strong> — אובייקט שדרכו מבצעים את כל פעולות הנתונים.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · models/article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const Article = new Schema({
+    title : {
+        type: String,
+        required: true
+    },
+    published: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+module.exports = mongoose.model('Article', Article);</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פירוק ה-Schema</span>
+          <ul style="margin:0">
+            <li><code>new Schema({...})</code> — מגדיר את מבנה ה-document: אילו שדות, מאיזה טיפוס, ואילו אילוצים.</li>
+            <li><code>title: { type: String, required: true }</code> — שדה מסוג מחרוזת, <strong>חובה</strong> (Mongoose יזרוק שגיאה אם ננסה לשמור בלעדיו).</li>
+            <li><code>published: { type: Date, default: Date.now }</code> — תאריך, וברירת מחדל "עכשיו" אם לא סופק. (שימו לב: <code>Date.now</code> בלי סוגריים — מעבירים את הפונקציה, היא תיקרא בעת היצירה. המלכודת המוכרת מהרצאות 6-8!)</li>
+            <li><code>mongoose.model('Article', Article)</code> — יוצר ומייצא את ה-<strong>Model</strong> בשם <code>Article</code>. דרכו נבצע <code>find</code>, <code>save</code> וכו'.</li>
+          </ul>
+          ה-Schema נותן לנו את היתרונות של ORM (בדיקות, מבנה) — אבל מרצון, בלי לאבד את הגמישות של MongoDB.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="service">
+      <h3><span class="num">13.</span> שכבת ה-Service — ה-DAL החדש</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — שכבה חדשה</span>
+          בהרצאה 7 ה-controller פנה ישירות ל-Model. עכשיו, כשהגישה לנתונים מורכבת יותר (אסינכרונית, לוגיקה), מוסיפים שכבת <strong>service</strong> ביניהם. ה-service היא ה-<strong>DAL</strong> האמיתי: <em>היחיד</em> שמכיר את Mongoose ומבצע את פעולות המסד. ה-controller רק יקרא לו.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · services/article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Article = require('../models/article');
+
+const createArticle = async (title, published) =&gt; {
+    const article = new Article({ title : title });
+    if (published) article.published = published;
+    return await article.save();
+};
+
+const getArticleById = async (id) =&gt; {
+    return await Article.findById(id);
+};
+
+const getArticles = async () =&gt; {
+    return await Article.find({});
+};
+
+const updateArticle = async (id, title) =&gt; {
+    const article = await getArticleById(id);
+    if (!article) return null;
+    article.title = title;
+    await article.save();
+    return article;
+};
+
+const deleteArticle = async (id) =&gt; {
+    await article.remove();
+};
+
+module.exports = { createArticle, getArticleById, getArticles,
+                   updateArticle, deleteArticle };</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">async / await ופעולות Mongoose</span>
+          <ul style="margin:0">
+            <li>כל פעולות המסד הן <strong>אסינכרוניות</strong> (לוקחות זמן, לא חוסמות): מסמנים את הפונקציה <code>async</code> ומשתמשים ב-<code>await</code> כדי לחכות לתוצאה. (זוכרים אסינכרוניות מ-JavaScript בהרצאה 6.)</li>
+            <li><code>new Article({...})</code> + <code>.save()</code> — יצירה ושמירה (Create).</li>
+            <li><code>Article.findById(id)</code> — שליפה לפי <code>_id</code> (Read).</li>
+            <li><code>Article.find({})</code> — שליפת הכל (Read) — בדיוק כמו <code>collection.find({})</code> שראינו, אבל דרך ה-Model.</li>
+            <li>עדכון: שולפים, משנים שדה, ו-<code>save()</code> שוב — בדיוק כמו ה-ORM (Hibernate), אבל ל-documents.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">זה בדיוק ה-getArticle מהרצאה 7 — רק "התבגר"</span>
+          השוו: בהרצאה 7 היה <code>getArticle = (id) =&gt; articles.filter(...)[0]</code> על מערך. עכשיו זה <code>getArticleById = async (id) =&gt; await Article.findById(id)</code> על מסד. <strong>אותה חתימה רעיונית</strong> — קלט id, פלט כתבה — והשכבות שמעל (controller, routes) לא מרגישות בהבדל. זה התשלום על ה-DAL.
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="controller-routes">
+      <h3><span class="num">14.</span> Controller ו-Routes — API מסוג RESTful</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-controller מתאם בין הבקשה ל-service, ומחזיר <strong>JSON</strong> (כי עכשיו אנחנו API שמשרת את ה-React, לא מרנדר HTML). ה-routes ממפים מתודות HTTP לפעולות — בדיוק לפי עקרונות <strong>REST</strong> מהרצאה 5.
+        </div>
+      </div>
+
+      <p><strong>ה-controller</strong> — אסינכרוני, עוטף את ה-service ומחזיר JSON:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articleService = require('../services/article');
+
+const createArticle = async (req, res) =&gt; {
+    res.json(await articleService.createArticle(req.body.title));
+};
+
+const getArticles = async (req, res) =&gt; {
+    res.json(await articleService.getArticles());
+};
+
+const getArticle = async (req, res) =&gt; {
+    const article = await articleService.getArticleById(req.params.id);
+    if (!article) {
+        return res.status(404).json({ errors: ['Article not found'] });
+    }
+    res.json(article);
+};
+// ... updateArticle, deleteArticle
+
+module.exports = { createArticle, getArticles, getArticle,
+                   updateArticle, deleteArticle };</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">נקודות תחביר</span>
+          <ul style="margin:0">
+            <li><code>res.json(...)</code> — שולח את התשובה כ-JSON (במקום <code>res.render</code> שהחזיר HTML בהרצאה 7).</li>
+            <li><code>await articleService...</code> — ה-controller <em>מחכה</em> ל-service. ה-service הוא היחיד שנוגע במסד.</li>
+            <li><code>res.status(404).json({...})</code> — אם הכתבה לא נמצאה, מחזירים קוד סטטוס <strong>404 Not Found</strong> עם הודעת שגיאה. טיפול שגיאות נכון = חלק מ-API טוב.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>ה-routes</strong> — שימו לב לתחביר <code>router.route()</code> ששרשר כמה מתודות לאותו נתיב:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · routes/article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express');
+var router = express.Router();
+const articleController = require('../controllers/article');
+
+router.route('/')
+    .get(articleController.getArticles)      // GET    /articles      → כל הכתבות
+    .post(articleController.createArticle);  // POST   /articles      → יצירה
+
+router.route('/:id')
+    .get(articleController.getArticle)       // GET    /articles/:id  → כתבה אחת
+    .patch(articleController.updateArticle)  // PATCH  /articles/:id  → עדכון
+    .delete(articleController.deleteArticle);// DELETE /articles/:id  → מחיקה
+
+module.exports = router;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">CRUD ↔ HTTP ↔ REST</span>
+          ראו את ההתאמה המושלמת: <strong>C</strong>reate→<code>POST</code>, <strong>R</strong>ead→<code>GET</code>, <strong>U</strong>pdate→<code>PATCH</code>, <strong>D</strong>elete→<code>DELETE</code>. זה לב ה-REST מהרצאה 5: אותו משאב (<code>/articles/:id</code>), פעולות שונות לפי מתודת ה-HTTP. <code>router.route('/:id')</code> פשוט מקבץ את כל המתודות של אותו נתיב במקום אחד — קריא ונקי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section id="appjs">
+      <h3><span class="num">15.</span> app.js — חיבור למסד, env ו-CORS</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          נקודת הכניסה מרכיבה את הכל: מתחברת ל-MongoDB דרך Mongoose, טוענת קונפיגורציה לפי סביבה, רושמת middleware (כולל CORS), ומחברת את ה-router. זה ה-<code>app.js</code> מהרצאה 7 — עם תוספות לעולם ה-API והמסד.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const articles = require('./routes/article');
+
+require('custom-env').env(process.env.NODE_ENV, './config');
+
+mongoose.connect(process.env.CONNECTION_STRING, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
+var app = express();
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use('/articles', articles);
+
+app.listen(process.env.PORT);</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מה כל שורה עושה</span>
+          <ul style="margin:0">
+            <li><code>mongoose.connect(CONNECTION_STRING, ...)</code> — פותח חיבור למסד. ה-connection string מצביע על שרת ה-MongoDB (מקומי או בענן, למשל MongoDB Atlas).</li>
+            <li><code>require('custom-env').env(process.env.NODE_ENV, './config')</code> — טוען משתני סביבה <em>לפי הסביבה</em> (development / production). זה מאפשר connection string וסיסמאות שונים בלי לכתוב אותם בקוד — וזו גם הסיבה שמשתמשים ב-<code>process.env.X</code> במקום ערכים קשיחים.</li>
+            <li><code>app.use(cors())</code> — מאפשר <strong>CORS</strong>: בקשות מ-origin אחר. צריך אותו כי ה-React (למשל על פורט 3000) הוא דומיין נפרד מה-API (פורט 8080), והדפדפן חוסם cross-origin כברירת מחדל.</li>
+            <li><code>app.use(express.json())</code> — מפענח גוף בקשות JSON ל-<code>req.body</code> (המקבילה של <code>urlencoded</code> מהרצאה 7, אבל ל-JSON — כי ה-React שולח JSON).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🔐</span>
+        <div class="body">
+          <span class="title">למה env וקונפיגורציה?</span>
+          סיסמת המסד וה-connection string הם <strong>סודות</strong> — אסור לכתוב אותם בקוד שעולה ל-git. מחזיקים אותם בקבצי קונפיגורציה/סביבה נפרדים (שלא נכנסים ל-git), וטוענים דרך <code>process.env</code>. בונוס: אותו קוד רץ בפיתוח ובפרודקשן עם הגדרות שונות — רק הסביבה משתנה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section id="react-fetch">
+      <h3><span class="num">16.</span> צד ה-React — fetch מה-API</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — סוגרים את המעגל</span>
+          בהרצאה 8 ה-React הציג נתונים מקובץ <code>db.json</code> מקומי. עכשיו הנתונים אמיתיים — צד ה-React <strong>מושך</strong> אותם מה-API שבנינו, עם <code>fetch</code>. נחבר שני Hooks חדשים: <code>useEffect</code> (להרצת קוד אחרי הרינדור — כמו קריאת רשת) ו-<code>useParams</code> (לקרוא את ה-<code>id</code> מה-URL בצד הלקוח).
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · Article.js (צד React)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { useState, useEffect } from "react";
+import { useParams } from 'react-router-dom';
+
+function Article() {
+    const { id } = useParams();
+    const [article, setArticle] = useState({
+        title: '', published: '', author: '', content: ''
+    });
+
+    useEffect(() =&gt; {
+        const fetchArticles = async () =&gt; {
+            try {
+                const response = await fetch('http://localhost:8080/articles/' + id);
+                const article = await response.json();
+                setArticle(article);
+            } catch (error) {
+                // handle error
+            }
+        };
+        fetchArticles();
+    }, [id]);
+
+    return (
+        &lt;article&gt;
+            &lt;h1&gt;{ article.title }&lt;/h1&gt;
+            &lt;p&gt;Published on: { article.published }&lt;/p&gt;
+            &lt;p&gt;Author: { article.author }&lt;/p&gt;
+            &lt;p&gt;{ article.content }&lt;/p&gt;
+        &lt;/article&gt;
+    );
+}
+
+export default Article;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שני ה-Hooks החדשים + fetch</span>
+          <ul style="margin:0">
+            <li><code>const { id } = useParams()</code> — קורא פרמטר מה-URL בצד הלקוח (react-router). מקביל ל-<code>req.params.id</code> בצד השרת מהרצאה 7 — אבל זה ה-routing של ה-React.</li>
+            <li><code>useEffect(fn, [id])</code> — מריץ את <code>fn</code> <strong>אחרי הרינדור</strong>, ושוב בכל פעם ש-<code>id</code> משתנה (זה ה-"dependency array"). כאן: כשנכנסים לכתבה או שה-id משתנה — מביאים את הנתונים. (בלי זה, fetch בתוך הרכיב היה רץ בכל רינדור ויוצר לולאה.)</li>
+            <li><code>fetch(url)</code> — בקשת HTTP מהדפדפן ל-API. אסינכרוני, לכן <code>await</code>. <code>response.json()</code> ממיר את התשובה לאובייקט.</li>
+            <li><code>setArticle(article)</code> — מעדכן את ה-state → React מרנדר מחדש עם הנתונים האמיתיים (בדיוק מנגנון ה-state מהרצאה 8).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">התמונה המלאה של MERN</span>
+          הנה כל המסע של בקשה: משתמש פותח כתבה ב-React → <code>useEffect</code> עושה <code>fetch</code> ל-<code>localhost:8080/articles/1</code> → Express <strong>route</strong> מנתב ל-<strong>controller</strong> → ה-controller קורא ל-<strong>service</strong> → ה-service שואל את <strong>MongoDB</strong> דרך <strong>Mongoose</strong> → ה-document חוזר כ-JSON עד ה-React → ה-state מתעדכן → המסך מצייר את הכתבה. <strong>זה ה-MERN stack המלא</strong>, ובדיוק מה שבנינו חתיכה-חתיכה לאורך הרצאות 7-9.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה — שרשרת של בעיות ופתרונות</span>
+          <ul style="margin:0">
+            <li><strong>צריך persistence</strong> — מערך בזיכרון (הרצאה 7) נעלם; צריך מסד נתונים.</li>
+            <li><strong>מסד רלציוני (SQL)</strong> — טבלאות, שורות, <code>SELECT/WHERE</code>, וקשרים: one-to-many (FK) ו-many-to-many (join table).</li>
+            <li><strong>ה-mismatch</strong> — קוד מונחה-עצמים מול מסד מונחה-טבלאות. מגשרים דרך driver/API (JDBC/ODBC).</li>
+            <li><strong>JDBC</strong> — גישה גולמית: SQL כמחרוזת, המרה ידנית, <code>PreparedStatement</code> נגד SQL injection. מסורבל ולא בטוח-טיפוסים.</li>
+            <li><strong>ORM</strong> (Hibernate/JPA, Entity Framework) — ממפה אובייקטים↔טבלאות אוטומטית (<code>@Entity</code>, EntityManager CRUD). נוח — אבל יש הטוענים שזה <strong>anti-pattern</strong> (מאבדים שליטה ב-SQL, ביצועים).</li>
+            <li><strong>NoSQL / MongoDB</strong> — פתרון object-friendly: <strong>Document</strong> (=row, JSON/BSON) ב-<strong>Collection</strong> (=table), schema-less. מודלינג ב-<strong>embedding</strong> מול <strong>referencing</strong>. CRUD עם אובייקטי JSON: <code>insertOne/find/$or/updateOne/$set/deleteOne</code>.</li>
+            <li><strong>Mongoose (ODM)</strong> — <code>Schema</code> + <code>model</code> ל-Node. שכבת <strong>service</strong> (DAL אסינכרוני) → <strong>controller</strong> (res.json, status) → <strong>routes</strong> (<code>router.route</code>, RESTful: POST/GET/PATCH/DELETE) → <strong>app.js</strong> (mongoose.connect, env, cors, json).</li>
+            <li><strong>צד React</strong> — <code>fetch</code> מה-API עם <code>useEffect</code> + <code>useParams</code> → state → render. זהו ה-<strong>MERN stack</strong> המלא.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבורים להרצאות קודמות</span>
+          זו הרצאת ה"איחוד": ה-<strong>Model</strong> מהרצאה 7 הוחלף סוף-סוף במסד אמיתי, בלי לגעת בשאר השכבות (כוח ה-DAL). ה-<strong>REST</strong> וה-GET/POST מהרצאה 5 הם ה-routes כאן. ה-<strong>async</strong> מהרצאה 6 הוא ה-service. ה-<strong>React/state/props</strong> מהרצאה 8 הם צד הלקוח. ו-<code>Date.now</code> בלי סוגריים ב-Schema — שוב המלכודת "מעבירים פונקציה, לא קוראים לה".
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-08.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 8 · ממשק משתמש (GUI)</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-09.html">
+        <span class="dir">תרגול 9 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

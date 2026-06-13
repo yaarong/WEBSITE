@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 8 · React — Components, State ו-Router</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 8 · React</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 8</div>
+      <h1>React — Components, Props, State ו-Router</h1>
+      <p>תרגול מעשי ב-<strong>React</strong> (משלים את הרצאה 8): רכיבים <strong>פונקציונליים מול מחלקתיים</strong>, <strong>props</strong> ורינדור מותנה, <strong>state</strong> (<code>setState</code>), אופטימיזציה עם <strong>React.memo</strong>, וניווט בין דפים עם <strong>React Router</strong>.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#components">יצירת אפליקציה ו-Components</a></li>
+        <li><a class="link" href="#props">Props ורינדור מותנה</a></li>
+        <li><a class="link" href="#state">State — setState</a></li>
+        <li><a class="link" href="#memo">React.memo — אופטימיזציה</a></li>
+        <li><a class="link" href="#router">React Router</a></li>
+      </ol>
+    </div>
+
+    <!-- 1 -->
+    <section id="components">
+      <h3><span class="num">1.</span> יצירת אפליקציה ו-Components</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · create-react-app</span><button class="copy-btn">העתק</button></div>
+        <pre><code>npx create-react-app my-app
+cd my-app
+npm start                 # שרת פיתוח ב-http://localhost:3000</code></pre>
+      </div>
+      <p><strong>רכיב</strong> ב-React = פונקציה (או מחלקה) שמחזירה JSX. שתי הצורות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · hello.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import ReactDOM from 'react-dom/client';
+
+// Functional Component (מועדף):
+function Hello(props) {
+    return &lt;h1&gt;Hello React!&lt;/h1&gt;;
+}
+
+// Class Component (סגנון ישן יותר):
+// class Hello extends React.Component {
+//     render() { return &lt;h1&gt;Welcome to React!&lt;/h1&gt;; }
+// }
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(&lt;Hello /&gt;);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פונקציונלי מול מחלקתי</span>
+          <strong>Functional component</strong> = פונקציה שמחזירה JSX (קצר, מודרני, ועם Hooks). <strong>Class component</strong> = מחלקה שיורשת מ-<code>React.Component</code> עם מתודת <code>render()</code>. שניהם עובדים — היום מעדיפים functional.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="props">
+      <h3><span class="num">2.</span> Props ורינדור מותנה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · condition.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function HelloReact(props)  { return &lt;h1&gt;Hello React {props.val}!&lt;/h1&gt;; }
+function HelloReact2(props) { return &lt;h1&gt;Hello React again {props.val}!&lt;/h1&gt;; }
+
+function Hello(props) {
+    const flag = props.flag;
+    if (flag) {
+        return &lt;HelloReact val={props.val} /&gt;;     // רינדור מותנה
+    }
+    return &lt;HelloReact2 val={props.val} /&gt;;
+}
+
+root.render(&lt;Hello flag={true} val={5} /&gt;);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">props ורינדור מותנה</span>
+          <ul style="margin:0">
+            <li><strong>props</strong> — הנתונים שמעבירים לרכיב כ"מאפיינים" (<code>val={5}</code>, <code>flag={true}</code>). מזריקים ל-JSX עם <code>{props.val}</code>.</li>
+            <li><strong>רינדור מותנה</strong> — רכיב יכול להחזיר JSX שונה לפי תנאי (<code>if</code>). כך מציגים תוכן שונה לפי ה-state/props.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="state">
+      <h3><span class="num">3.</span> State — <code>setState</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>State</strong> = נתונים שהרכיב מנהל ושמשתנים בזמן ריצה. כשה-state משתנה — React מרנדר מחדש. ברכיב מחלקתי משתמשים ב-<code>this.state</code> ו-<code>this.setState</code>:
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · counter.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Counter extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { count: 0 };           // אתחול state
+    }
+
+    increment = () =&gt; {
+        this.setState({ count: this.state.count + 1 });   // עדכון state
+    };
+
+    render() {
+        return (
+            &lt;div&gt;
+                &lt;p&gt;Count: {this.state.count}&lt;/p&gt;
+                &lt;button onClick={this.increment}&gt;Increment&lt;/button&gt;
+            &lt;/div&gt;
+        );
+    }
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">תמיד <code>setState</code> — לא השמה ישירה</span>
+          משנים state <em>רק</em> דרך <code>this.setState(...)</code> — לעולם לא <code>this.state.count = ...</code> ישירות (React לא ירנדר מחדש). לעדכון שתלוי בערך הקודם, עדיף הצורה הפונקציונלית: <code>this.setState(prev =&gt; ({ count: prev.count + 1 }))</code>. (ברכיב פונקציונלי זה ה-Hook <code>useState</code> מהרצאה 8.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="memo">
+      <h3><span class="num">4.</span> <code>React.memo</code> — אופטימיזציה</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">הבעיה</span>
+          כשרכיב הורה מרנדר מחדש — <em>כל</em> רכיבי הילד מרנדרים מחדש, גם אם ה-props שלהם לא השתנו. זה מבזבז עבודה. <code>React.memo</code> "זוכר" את התוצאה ומדלג על רינדור אם ה-props לא השתנו.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// ילד רגיל — מרנדר תמיד מחדש כשההורה מרנדר:
+const RegularChild = ({ value }) =&gt; {
+    console.log("RegularChild Rendered");
+    return &lt;h3&gt;Regular Child: {value}&lt;/h3&gt;;
+};
+
+// ילד ממוטב — מרנדר רק כש-value שלו משתנה:
+const MemoizedChild = memo(({ value }) =&gt; {
+    console.log("MemoizedChild Rendered");
+    return &lt;h3&gt;Memoized Child: {value}&lt;/h3&gt;;
+});</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">מה רואים</span>
+          אם ההורה מחזיק <code>count</code> ו-<code>otherValue</code>, ולוחצים "Increment Count": <code>RegularChild</code> ירנדר מחדש (גם אם ה-value שלו לא קשור), אבל <code>MemoizedChild</code> (שתלוי ב-<code>otherValue</code>) <em>לא</em> ירנדר — נראה זאת בקונסול. אופטימיזציה ל-UI גדול.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="router">
+      <h3><span class="num">5.</span> React Router</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אפליקציית React היא לרוב <strong>SPA</strong> (Single Page Application) — דף אחד שמחליף תוכן בלי לטעון מחדש. <strong>React Router</strong> (<code>react-router-dom</code>) ממפה <strong>נתיב URL → רכיב</strong>, בלי רענון העמוד.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · main.jsx — הגדרת הנתיבים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Navbar from "./pages/Navbar";
+import User from "./pages/User";
+import NotFound from "./pages/NotFound";
+
+export default function App() {
+    return (
+        &lt;BrowserRouter&gt;
+            &lt;Navbar /&gt;
+            &lt;Routes&gt;
+                &lt;Route index element={&lt;Home /&gt;} /&gt;
+                &lt;Route path="/about"   element={&lt;About /&gt;} /&gt;
+                &lt;Route path="/user/:username" element={&lt;User /&gt;} /&gt;
+                &lt;Route path="*" element={&lt;NotFound /&gt;} /&gt;  {/* 404 */}
+            &lt;/Routes&gt;
+        &lt;/BrowserRouter&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · Navbar.jsx + User.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { Link } from "react-router-dom";
+const Navbar = () =&gt; (
+    &lt;nav&gt;
+        &lt;Link to="/"&gt;Home&lt;/Link&gt;
+        &lt;Link to="/about"&gt;About&lt;/Link&gt;
+        &lt;Link to="/user/john"&gt;User&lt;/Link&gt;
+    &lt;/nav&gt;
+);
+
+// נתיב דינמי — קוראים את הפרמטר עם useParams:
+import { useParams } from "react-router-dom";
+const User = () =&gt; {
+    const { username } = useParams();
+    return &lt;p&gt;Welcome, {username}!&lt;/p&gt;;
+};</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">רכיבי ה-Router</span>
+          <ul style="margin:0">
+            <li><code>&lt;BrowserRouter&gt;</code> — עוטף את האפליקציה ומפעיל את הניתוב.</li>
+            <li><code>&lt;Routes&gt;</code> + <code>&lt;Route path element&gt;</code> — ממפה נתיב לרכיב. <code>index</code> = ברירת מחדל; <code>path="*"</code> = כל השאר (404).</li>
+            <li><code>&lt;Link to="..."&gt;</code> — קישור פנימי <em>בלי רענון</em> (במקום <code>&lt;a&gt;</code> שטוען מחדש).</li>
+            <li><code>:username</code> = <strong>נתיב דינמי</strong>; קוראים אותו עם <code>useParams()</code>. (בדיוק כמו <code>req.params</code> בהרצאה 7, וה-<code>[id]</code>+<code>useLocalSearchParams</code> מהרצאה 10!)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎮</span>
+        <div class="body">
+          <span class="title">בונוס — משחק XO (tic-tac-toe)</span>
+          התרגול כולל גם מימוש מלא של משחק איקס-עיגול ב-React — דוגמה מצוינת שמשלבת state (לוח המשחק), רינדור רשימה (התאים), ואירועים (לחיצה על תא). שווה לעבור עליו ככלי לתרגול כל מה שלמדנו.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>Components:</strong> פונקציונליים (מועדף) מול מחלקתיים; כולם מחזירים JSX.</li>
+            <li><strong>Props</strong> + רינדור מותנה (<code>if</code> שמחזיר JSX שונה).</li>
+            <li><strong>State:</strong> <code>this.state</code> + <code>this.setState</code> (תמיד דרך set!) → רינדור מחדש.</li>
+            <li><strong>React.memo</strong> — מדלג על רינדור ילד אם ה-props שלו לא השתנו.</li>
+            <li><strong>React Router:</strong> <code>BrowserRouter</code>/<code>Routes</code>/<code>Route</code>, <code>Link</code> (בלי רענון), נתיב דינמי <code>:param</code> + <code>useParams</code>, 404 עם <code>path="*"</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-07.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 7 · HTML + JS</span>
+      </a>
+      <a class="next" href="tutorial-09.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 9 · MongoDB ו-Express</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 10 · React Native — מובייל עם Expo</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 10 · React Native</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 10</div>
+      <h1>React Native — בונים אפליקציית מובייל עם React (ו-Expo)</h1>
+      <p>בהרצאה 8 ראינו את <strong>React</strong> לבניית ממשקי web, ודיברנו על הדילמה <strong>Native מול Cross-Platform</strong>. עכשיו נשלב את השניים: <strong>React Native</strong> מאפשר לכתוב קוד React — אותם רעיונות בדיוק (components, props, state, JSX) — ולקבל אפליקציית מובייל <em>אמיתית</em> ל-iOS ול-Android. נשתמש ב-<strong>Expo</strong> (סביבת עבודה שמקלה על הכל), ונבנה מחדש את אתר ה-<strong>Foo News</strong> — הפעם כאפליקציית מובייל.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי — למה זה מרגש</span>
+        זוכרים את הטבלה מהרצאה 8 (Web / Mobile / Desktop), ואת ה-cross-platform ("write once, run anywhere")? React Native הוא בדיוק זה: אתם כבר יודעים React מהרצאה 8 — וכמעט בלי ללמוד שפה חדשה, אתם בונים אפליקציית מובייל. ההבדל המרכזי: במקום תגיות HTML (<code>div</code>, <code>span</code>) משתמשים ב<strong>רכיבי native</strong> (<code>View</code>, <code>Text</code>), ובמקום CSS משתמשים ב-<strong>StyleSheet</strong> ו-Flexbox. כל השאר — מוכר.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — מה זה React Native</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#what">React Native ו-Expo — הרעיון</a></li>
+            <li><a class="link" href="#setup">הקמת פרויקט — create-expo-app</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — רכיבים ועיצוב</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#components">Core Components — View, Text, Image...</a></li>
+            <li><a class="link" href="#styling">StyleSheet ו-Flexbox</a></li>
+            <li><a class="link" href="#config">app.json — קונפיגורציה</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — ניווט (Expo Router)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#router">ניווט מבוסס-קבצים — Stack, Tabs, useRouter</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — בונים את Foo News</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#structure">ארגון הפרויקט + Theme</a></li>
+            <li><a class="link" href="#button">רכיב לשימוש חוזר — AppButton</a></li>
+            <li><a class="link" href="#screens">מסכים — login, layout, tabs</a></li>
+            <li><a class="link" href="#feed">News Feed — FlatList ו-ArticleCard</a></li>
+            <li><a class="link" href="#detail">create ומסך כתבה — [id]</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · מה זה React Native</h2>
+
+    <!-- 1 -->
+    <section id="what">
+      <h3><span class="num">1.</span> React Native ו-Expo — הרעיון</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>React Native</strong> היא מסגרת (framework) של Meta שמאפשרת לכתוב אפליקציות מובייל <em>native</em> בעזרת React. כותבים JavaScript + JSX, ו-React Native מתרגם את הרכיבים ל<strong>רכיבי UI אמיתיים של מערכת ההפעלה</strong> (לא דף web בתוך אפליקציה!). קוד אחד → אפליקציה ל-Android, ל-iOS, ואפילו ל-web. זו גישת ה-<strong>cross-platform</strong> מהרצאה 8.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">מה זה Expo</span>
+          <strong>Expo</strong> היא ערכת כלים (toolchain) שעוטפת את React Native והופכת את הפיתוח לקל: הקמת פרויקט בפקודה אחת, הרצה על אמולטור/מכשיר אמיתי בלי הגדרות מסובכות, ספריות מובנות (מצלמה, מיקום, התראות), וכלי ניווט. זה ה-"create-react-app" של עולם המובייל.
+        </div>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">React מול React Native — מה זהה ומה שונה</span>
+          <ul style="margin:0">
+            <li><strong>זהה:</strong> components (פונקציות שמחזירות JSX), props, state (<code>useState</code>, <code>useEffect</code>), הרעיון "UI הוא פונקציה של ה-state".</li>
+            <li><strong>שונה:</strong> אין <code>div</code>/<code>span</code>/<code>button</code> — יש <code>View</code>/<code>Text</code>/<code>Button</code>. אין CSS — יש <code>StyleSheet</code> ו-Flexbox. אין דפדפן — יש מכשיר.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="setup">
+      <h3><span class="num">2.</span> הקמת פרויקט — <span dir="ltr">create-expo-app</span></h3>
+
+      <p>פותחים פרויקט בפקודה אחת (בדיוק כמו <code>create-react-app</code> מהרצאה 8):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · יצירה והרצה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>npx create-expo-app MyTodoApp --template blank
+
+cd MyTodoApp
+npm run android   # הרצה על אמולטור/מכשיר אנדרואיד
+npm run ios       # הרצה על סימולטור iOS
+npm run web       # הרצה בדפדפן</code></pre>
+      </div>
+
+      <p>מבנה הפרויקט הבסיסי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">text · מבנה תיקיות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>MyTodoApp/
+├── assets/            (תמונות, אייקונים)
+├── node_modules/
+├── App.js             ← הרכיב הראשי
+├── app.json           (קונפיגורציה של Expo)
+├── index.js           (נקודת הכניסה)
+└── package.json</code></pre>
+      </div>
+
+      <p><strong>index.js</strong> — נקודת הכניסה. רושמת את <code>App</code> כרכיב השורש:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { registerRootComponent } from 'expo';
+import App from './App';
+
+registerRootComponent(App);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">המקבילה ל-web</span>
+          <code>registerRootComponent(App)</code> הוא המקביל של <code>ReactDOM.createRoot(...).render(&lt;App /&gt;)</code> מהרצאה 8 — רק שכאן אין <code>#root</code> ב-HTML; ה"שורש" הוא המסך של המכשיר.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · רכיבים ועיצוב</h2>
+
+    <!-- 3 -->
+    <section id="components">
+      <h3><span class="num">3.</span> Core Components — View, Text, Image, Button, TextInput</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ב-React Native אין תגיות HTML. במקום זה יש <strong>רכיבי ליבה</strong> שמתורגמים לרכיבי native. הם מקבילים ישירות למה שכבר ראינו ב-web ובאנדרואיד (הרצאה 8):
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>React Native</th><th>Web (HTML)</th><th>Android</th><th>מה זה</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;View&gt;</code></td><td><code>&lt;div&gt;</code></td><td><code>LinearLayout</code></td><td>container לסידור רכיבים</td></tr>
+          <tr><td><code>&lt;Text&gt;</code></td><td><code>&lt;span&gt;</code>/<code>&lt;p&gt;</code></td><td><code>TextView</code></td><td>הצגת טקסט</td></tr>
+          <tr><td><code>&lt;Image&gt;</code></td><td><code>&lt;img&gt;</code></td><td><code>ImageView</code></td><td>תמונה</td></tr>
+          <tr><td><code>&lt;Button&gt;</code></td><td><code>&lt;button&gt;</code></td><td><code>Button</code></td><td>כפתור</td></tr>
+          <tr><td><code>&lt;TextInput&gt;</code></td><td><code>&lt;input&gt;</code></td><td><code>EditText</code></td><td>שדה קלט</td></tr>
+        </tbody>
+      </table>
+
+      <p>ה-App.js הבסיסי שמגיע מ-Expo:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, Text, View } from 'react-native';
+
+export default function App() {
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;Text&gt;Open up App.js to start working on your app!&lt;/Text&gt;
+            &lt;StatusBar style="auto" /&gt;
+        &lt;/View&gt;
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">הכלל הכי חשוב — כל טקסט חייב להיות בתוך <code>&lt;Text&gt;</code></span>
+          ב-web אפשר לכתוב טקסט ישירות בתוך <code>&lt;div&gt;</code>. ב-React Native — <strong>אסור</strong>. כל מחרוזת טקסט <em>חייבת</em> להיות עטופה ב-<code>&lt;Text&gt;</code>, אחרת תקבלו שגיאה. <code>&lt;View&gt;</code> הוא רק container — הוא לא יודע להציג טקסט בעצמו.
+        </div>
+      </div>
+
+      <p>דוגמה עשירה יותר — View עם Text, Button, Image ו-TextInput:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.js — כמה רכיבים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { StyleSheet, Text, View, Image, Button, TextInput } from 'react-native';
+import Cake from './assets/foo.jpg';
+
+export default function App() {
+    return (
+        &lt;View&gt;
+            &lt;Text&gt;Hello world&lt;/Text&gt;
+            &lt;Button title="Click me!" /&gt;
+            &lt;View&gt;
+                &lt;Image source={Cake} style={{ width: 200, height: 200 }} /&gt;
+                &lt;TextInput defaultValue="Text me!" /&gt;
+            &lt;/View&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">נקודות תחביר</span>
+          <ul style="margin:0">
+            <li><code>&lt;Button title="..." /&gt;</code> — הטקסט של הכפתור עובר ב-prop <code>title</code>, לא בתוך התגית.</li>
+            <li><code>&lt;Image source={Cake} /&gt;</code> — מקור התמונה הוא <code>import</code> של הקובץ, לא נתיב מחרוזת.</li>
+            <li><code>style={{ width: 200, height: 200 }}</code> — סגנון inline הוא <strong>אובייקט JS</strong> (שימו לב לסוגריים הכפולים: חיצוני ל-JSX, פנימי לאובייקט).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="styling">
+      <h3><span class="num">4.</span> StyleSheet ו-Flexbox</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אין קובצי CSS. במקום זאת, מגדירים סגנונות כ<strong>אובייקטי JavaScript</strong> עם <code>StyleSheet.create</code>. השמות דומים ל-CSS אבל ב-<strong>camelCase</strong> (<code>backgroundColor</code> במקום <code>background-color</code>), והפריסה מבוססת כולה על <strong>Flexbox</strong>.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.js עם StyleSheet</span><button class="copy-btn">העתק</button></div>
+        <pre><code>export default function App() {
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;Text&gt;Hello world&lt;/Text&gt;
+            &lt;View style={{ backgroundColor: '#1f1c1c', padding: 10 }}&gt;
+                &lt;Image source={Cake} style={{ width: 200, height: 200 }} /&gt;
+            &lt;/View&gt;
+            &lt;TextInput defaultValue="Text me!" style={styles.input} /&gt;
+        &lt;/View&gt;
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        padding: 20,
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    input: {
+        height: 40,
+        borderColor: 'gray',
+        borderWidth: 1,
+        marginTop: 10,
+        paddingHorizontal: 10,
+    },
+});</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">StyleSheet ו-Flexbox</span>
+          <ul style="margin:0">
+            <li><code>StyleSheet.create({...})</code> — יוצר אובייקט סגנונות. ניגשים אליו עם <code>styles.container</code> ומעבירים ל-<code>style={...}</code>.</li>
+            <li><code>flex: 1</code> — "תפוס את כל המקום הפנוי". זהו עקרון ה-Flexbox המרכזי.</li>
+            <li><code>justifyContent</code> (יישור על הציר הראשי) ו-<code>alignItems</code> (על הציר המשני) — בדיוק כמו Flexbox ב-CSS, רק שכאן זו <strong>ברירת המחדל</strong> של כל <code>View</code> (ואין צורך ב-<code>display: flex</code>).</li>
+            <li>שמות ב-camelCase: <code>backgroundColor</code>, <code>borderWidth</code>, <code>paddingHorizontal</code>. ערכים מספריים הם בפיקסלים (בלי <code>"px"</code>).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔬</span>
+        <div class="body">
+          <span class="title">מתחת למכסה</span>
+          כשמריצים על web, אפשר לפתוח את ה-DevTools ולראות שה-<code>&lt;View&gt;</code> הפך ל-<code>&lt;div class="css-view-..."&gt;</code>. ב-mobile, לעומת זאת, אותו <code>&lt;View&gt;</code> הופך לרכיב native אמיתי של מערכת ההפעלה. <em>אותו קוד, פלט שונה לכל פלטפורמה</em> — זה כל הקסם של cross-platform.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="config">
+      <h3><span class="num">5.</span> app.json — קונפיגורציה</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הקובץ <code>app.json</code> מגדיר את המטא-נתונים של האפליקציה: שם, אייקון, מסך פתיחה (splash), והגדרות ספציפיות לכל פלטפורמה (iOS / Android / web).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · app.json</span><button class="copy-btn">העתק</button></div>
+        <pre><code>{
+    "expo": {
+        "name": "MyTodoApp",
+        "slug": "MyTodoApp",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "splash": {
+            "image": "./assets/splash-icon.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "ios": { "supportsTablet": true },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#ffffff"
+            }
+        },
+        "web": { "favicon": "./assets/favicon.png" }
+    }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · ניווט (Expo Router)</h2>
+
+    <!-- 6 -->
+    <section id="router">
+      <h3><span class="num">6.</span> ניווט מבוסס-קבצים — Stack, Tabs, useRouter</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אפליקציה היא יותר ממסך אחד — צריך <strong>ניווט</strong> בין מסכים. <strong>Expo Router</strong> משתמש ב<strong>ניווט מבוסס-קבצים</strong>: כל קובץ בתיקיית <code>app/</code> הופך אוטומטית למסך, לפי שם הקובץ. (רעיון מוכר? כן — בדיוק כמו ש-routes ב-Express מיפו URL לפעולה, רק שכאן ה-URL נגזר ממבנה התיקיות.)
+        </div>
+      </div>
+
+      <p>מתקינים את הספרייה ומגדירים את נקודת הכניסה ב-<code>package.json</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · התקנה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>npx expo install expo-router react-native-safe-area-context \
+    react-native-screens expo-linking expo-constants expo-status-bar
+
+# ב-package.json:  "main": "expo-router/entry"</code></pre>
+      </div>
+
+      <p><strong>Stack</strong> — ניווט מסך-על-מסך (כמו ערימת ה-Activities שנראה בהרצאה 11). הקובץ <code>app/_layout.js</code> מגדיר את מבנה הניווט:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/_layout.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { Stack } from 'expo-router';
+
+export default function Layout() {
+    return &lt;Stack /&gt;;
+}</code></pre>
+      </div>
+
+      <p>שני מסכים — <code>app/index.js</code> (מסך הבית) ו-<code>app/foo.js</code> — וניווט ביניהם עם <code>useRouter</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, Text, Button } from 'react-native';
+import { useRouter } from 'expo-router';
+
+export default function Home() {
+    const router = useRouter();
+    return (
+        &lt;View&gt;
+            &lt;Text&gt;Home Screen&lt;/Text&gt;
+            &lt;Button title="Go to foo" onPress={() =&gt; router.push('/foo')} /&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/foo.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, Text, Button } from 'react-native';
+import { useRouter } from 'expo-router';
+
+export default function Foo() {
+    const router = useRouter();
+    return (
+        &lt;View&gt;
+            &lt;Text&gt;Foo Screen&lt;/Text&gt;
+            &lt;Button title="Go back" onPress={() =&gt; router.back()} /&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פעולות ניווט</span>
+          <ul style="margin:0">
+            <li><code>useRouter()</code> — Hook שמחזיר את אובייקט ה-router.</li>
+            <li><code>router.push('/foo')</code> — דוחף מסך חדש לערימה (אפשר לחזור אחורה).</li>
+            <li><code>router.back()</code> — חוזר למסך הקודם.</li>
+            <li><code>router.replace('/(tabs)')</code> — מחליף את המסך הנוכחי (בלי אפשרות לחזור — שימושי אחרי login).</li>
+            <li><code>onPress</code> — ב-React Native אין <code>onClick</code> אלא <code>onPress</code> (כי זה מגע, לא קליק). שאר העיקרון זהה — מעבירים פונקציה, לא קוראים לה.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">📑</span>
+        <div class="body">
+          <span class="title">Tabs ו-SafeAreaView</span>
+          מלבד <code>Stack</code> יש גם <code>Tabs</code> (סרגל לשוניות תחתון), וקבוצות נתיבים בסוגריים כמו <code>(tabs)/</code> שלא מופיעות ב-URL. <code>SafeAreaView</code> מבטיח שהתוכן לא יוסתר ע"י ה-notch/שורת הסטטוס. נראה את כולם בפעולה כשנבנה את Foo News.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · בונים את Foo News</h2>
+
+    <div class="callout info">
+      <span class="ic">🧱</span>
+      <div class="body">
+        <span class="title">מה נבנה</span>
+        אפליקציית מובייל של Foo News: מסך <strong>login</strong>, <strong>News Feed</strong> (רשימת כתבות), מסך <strong>create</strong> (יצירת כתבה), ומסך <strong>כתבה בודדת</strong>. נשתמש בכל מה שלמדנו: components, props, FlatList, Expo Router, ו-StyleSheet — ובארגון מקצועי עם design tokens.
+      </div>
+    </div>
+
+    <!-- 7 -->
+    <section id="structure">
+      <h3><span class="num">7.</span> ארגון הפרויקט + Theme (design tokens)</h3>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">text · מבנה Foo News</span><button class="copy-btn">העתק</button></div>
+        <pre><code>app/
+├── _layout.js        (Stack ראשי: login + tabs)
+├── login.js
+├── (tabs)/
+│   ├── _layout.js    (Tabs: News feed + Create)
+│   ├── index.js      (News Feed)
+│   └── create.js
+└── article/
+    └── [id].js       (מסך כתבה — נתיב דינמי)
+components/   (Card.js, MainButton.js — רכיבים לשימוש חוזר)
+data/         (articles.js)
+styles/       (Theme.js + קובץ סגנון לכל מסך)</code></pre>
+      </div>
+
+      <p><strong>Theme.js</strong> — "design tokens": ריכוז כל הצבעים, המרווחים והגופנים במקום אחד (בדיוק רעיון ה-<code>@style</code>/<code>StaticResource</code> מהרצאה 8):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · styles/Theme.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>export const COLORS = {
+    primary: '#000000',
+    secondary: '#8EBE93',
+    border: '#F0F0F0',
+    background: '#FFFFFF',
+    cardBg: '#FFFFFF',
+    accent: '#007AFF',
+    accent2: '#FF9500',
+};
+
+export const SPACING = {
+    xs: 4, sm: 8, md: 12, lg: 16, xl: 20,
+};
+
+export const FONTS = {
+    bold: '900', semiBold: '800', lightBold: '600',
+    standard: 16, small: 12, large: 20, xxlarge: 32,
+    inputHeight: 55,
+};</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎨</span>
+        <div class="body">
+          <span class="title">למה design tokens</span>
+          במקום לכתוב <code>'#007AFF'</code> ב-20 מקומות, מגדירים <code>COLORS.accent</code> פעם אחת. רוצים לשנות את צבע הנושא? משנים שורה אחת. זו אותה הפרדה שראינו לאורך כל הקורס — מרכזים את ה"מה" במקום אחד.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="button">
+      <h3><span class="num">8.</span> רכיב לשימוש חוזר — AppButton</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הכפתור המובנה <code>&lt;Button&gt;</code> מוגבל בעיצוב. לכן בונים כפתור משלנו עם <code>TouchableOpacity</code> (View שמגיב למגע ועושה אפקט שקיפות בלחיצה) — ומקבלים <code>title</code> ו-<code>onPress</code> כ-props (בדיוק כמו props בהרצאה 8).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · components/MainButton.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { Text, TouchableOpacity } from 'react-native';
+import { styles } from '../styles/MainButton.styles';
+
+export default function AppButton({ title, onPress }) {
+    return (
+        &lt;TouchableOpacity style={styles.button} onPress={onPress}&gt;
+            &lt;Text style={styles.buttonText}&gt;{title}&lt;/Text&gt;
+        &lt;/TouchableOpacity&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · styles/MainButton.styles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { StyleSheet } from 'react-native';
+import { COLORS, FONTS, SPACING } from './Theme';
+
+export const styles = StyleSheet.create({
+    button: {
+        height: FONTS.inputHeight,
+        backgroundColor: '#1C1C1E',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: SPACING.md,
+    },
+    buttonText: {
+        color: COLORS.background,
+        fontSize: FONTS.standard,
+        fontWeight: FONTS.semiBold,
+    },
+});</code></pre>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="screens">
+      <h3><span class="num">9.</span> מסכים — Layout ראשי, login, ו-Tabs</h3>
+
+      <p><strong>app/_layout.js</strong> — ה-Stack הראשי. מסך login ואז קבוצת ה-tabs, שניהם בלי header:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/_layout.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { Stack } from 'expo-router';
+
+export default function RootLayout() {
+    return (
+        &lt;Stack&gt;
+            &lt;Stack.Screen name="login"  options={{ headerShown: false }} /&gt;
+            &lt;Stack.Screen name="(tabs)" options={{ headerShown: false }} /&gt;
+        &lt;/Stack&gt;
+    );
+}</code></pre>
+      </div>
+
+      <p><strong>app/login.js</strong> — מסך התחברות. אחרי "Let's go!" עוברים ל-tabs עם <code>replace</code> (כדי שלא יחזרו ל-login ב-back):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/login.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, Text, TextInput } from 'react-native';
+import { useRouter } from 'expo-router';
+import { styles } from '../styles/login.styles';
+import AppButton from '../components/MainButton';
+
+export default function Login() {
+    const router = useRouter();
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;Text style={styles.logo}&gt;Foo News&lt;/Text&gt;
+            &lt;Text style={styles.subtitle}&gt;Stay update to date with the latest foo&lt;/Text&gt;
+
+            &lt;TextInput placeholder="Email address" style={styles.input} /&gt;
+            &lt;TextInput placeholder="Password" style={styles.input} secureTextEntry /&gt;
+
+            &lt;AppButton title="Let's go!" onPress={() =&gt; router.replace('/(tabs)')} /&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">נקודות</span>
+          <ul style="margin:0">
+            <li><code>placeholder</code> — טקסט רמז ב-input (כמו ב-HTML). <code>secureTextEntry</code> — מסתיר את הסיסמה.</li>
+            <li><code>&lt;AppButton title="..." onPress={...} /&gt;</code> — משתמשים ברכיב שלנו עם props. הרכיב לשימוש חוזר משתלם מיד.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>app/(tabs)/_layout.js</strong> — סרגל הלשוניות התחתון, עם אייקון לכל לשונית:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/(tabs)/_layout.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { Tabs } from 'expo-router';
+import { View, Text, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { styles } from '../../styles/tabs_layout.styles';
+
+export default function TabsLayout() {
+    return (
+        &lt;View style={styles.wrapper}&gt;
+            &lt;SafeAreaView style={styles.headerContainer} edges={['top']}&gt;
+                &lt;View style={styles.headerContent}&gt;
+                    &lt;Text style={styles.logoText}&gt;Foo News&lt;/Text&gt;
+                &lt;/View&gt;
+            &lt;/SafeAreaView&gt;
+
+            &lt;Tabs screenOptions={{ headerShown: false }}&gt;
+                &lt;Tabs.Screen name="index"  options={{ tabBarLabel: 'News feed' }} /&gt;
+                &lt;Tabs.Screen name="create" options={{ tabBarLabel: 'Create article' }} /&gt;
+            &lt;/Tabs&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="feed">
+      <h3><span class="num">10.</span> News Feed — FlatList ו-ArticleCard</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — FlatList</span>
+          בהרצאה 8 רינדרנו רשימה עם <code>articles.map(...)</code>. ב-mobile עדיף <strong>FlatList</strong>: רכיב שמרנדר רשימות גדולות <em>ביעילות</em> — הוא מצייר רק את הפריטים הנראים על המסך ("virtualization"). זה ההבדל מ-<code>map</code>: ביצועים על רשימות ארוכות (בדיוק כמו RecyclerView באנדרואיד, שנראה בהרצאה 11).
+        </div>
+      </div>
+
+      <p><strong>הנתונים</strong> — קובץ עם מערך כתבות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · data/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>export const articlesList = [
+    {
+        id: '1',
+        author: 'ALEX RIVERA',
+        title: 'The Rise of AI Agents',
+        content: 'Autonomous software agents are now handling 40% of...',
+        image: require('../assets/foo.jpg'),
+        trending: true
+    },
+    {
+        id: '2',
+        author: 'HELENA ZHAO',
+        title: 'Solid-State Battery Breakthrough',
+        content: 'The first commercial electric vehicle featuring...',
+        image: require('../assets/bar.jpg'),
+        trending: false
+    },
+    // ...
+];</code></pre>
+      </div>
+
+      <p><strong>app/(tabs)/index.js</strong> — ה-feed עצמו, עם FlatList:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/(tabs)/index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { useState } from 'react';
+import { FlatList, View } from 'react-native';
+import ArticleCard from '../../components/Card.js';
+import { articlesList } from '../../data/articles.js';
+import { styles } from '../../styles/index.styles';
+
+export default function NewsFeed() {
+    const [articles, setArticles] = useState(articlesList);
+
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;FlatList
+                data={articles}
+                renderItem={({ item }) =&gt; &lt;ArticleCard {...item} /&gt;}
+                keyExtractor={item =&gt; item.id}
+                contentContainerStyle={{ padding: 5 }}
+            /&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">props של FlatList</span>
+          <ul style="margin:0">
+            <li><code>data</code> — מערך הנתונים.</li>
+            <li><code>renderItem={({ item }) =&gt; ...}</code> — פונקציה שמקבלת כל פריט ומחזירה רכיב. שימו לב ל-<code>{...item}</code> — spread של props, בדיוק כמו בהרצאה 8.</li>
+            <li><code>keyExtractor</code> — מחזיר מזהה ייחודי לכל פריט (React צריך key לרשימות, כדי לעקוב אחרי שינויים ביעילות).</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>components/Card.js</strong> — רכיב הכרטיס. לחיצה מנווטת לכתבה עם <code>router.push</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · components/Card.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { styles } from '../styles/Card.styles';
+
+export default function ArticleCard({ id, image, title, content, author, trending }) {
+    const router = useRouter();
+    return (
+        &lt;TouchableOpacity style={styles.card} onPress={() =&gt; router.push('/article/' + id)}&gt;
+            &lt;Image source={image} style={styles.image} /&gt;
+            &lt;View style={styles.content}&gt;
+                &lt;Text style={styles.timestamp}&gt;2h ago { trending ? '· TRENDING' : '' }&lt;/Text&gt;
+                &lt;Text style={styles.title}&gt;{title}&lt;/Text&gt;
+                &lt;Text style={styles.snippet} numberOfLines={2}&gt;{content}&lt;/Text&gt;
+                &lt;Text style={styles.footerRow}&gt;{author}&lt;/Text&gt;
+            &lt;/View&gt;
+        &lt;/TouchableOpacity&gt;
+    );
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="detail">
+      <h3><span class="num">11.</span> מסך create ומסך הכתבה — נתיב דינמי <code>[id]</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — נתיב דינמי</span>
+          לכתבה צריך מסך פר-id. ב-Expo Router, קובץ בשם <code>[id].js</code> הוא <strong>נתיב דינמי</strong> — ה-<code>[id]</code> תופס כל ערך מה-URL (בדיוק כמו <code>/:id</code> ב-Express מהרצאה 7!). קוראים אותו עם <code>useLocalSearchParams</code>.
+        </div>
+      </div>
+
+      <p><strong>app/(tabs)/create.js</strong> — יצירת כתבה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/(tabs)/create.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, TextInput } from 'react-native';
+import { useRouter } from 'expo-router';
+import AppButton from '../../components/MainButton';
+import { styles } from '../../styles/create.styles';
+
+export default function Create() {
+    const router = useRouter();
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;TextInput placeholder="Title"   style={styles.input} /&gt;
+            &lt;TextInput placeholder="Content" style={[styles.input, { height: 100 }]} multiline /&gt;
+            &lt;AppButton title="Create" onPress={() =&gt; router.replace('/')} /&gt;
+        &lt;/View&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סגנונות מרובים ו-multiline</span>
+          <code>style={[styles.input, { height: 100 }]}</code> — אפשר להעביר <strong>מערך</strong> של סגנונות, והם מתמזגים (האחרון גובר). <code>multiline</code> — מאפשר כמה שורות ב-TextInput.
+        </div>
+      </div>
+
+      <p><strong>app/article/[id].js</strong> — מסך הכתבה הבודדת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · app/article/[id].js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { View, Text, ScrollView, Image } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { styles } from '../../styles/[id].styles';
+import { articlesList } from '../../data/articles';
+
+export default function ArticleInsideTabs() {
+    const { id } = useLocalSearchParams();
+    const article = articlesList.filter(one =&gt; one.id == id)[0];
+
+    return (
+        &lt;ScrollView style={styles.container}&gt;
+            &lt;Image source={article.image} style={styles.image} /&gt;
+            &lt;View style={styles.content}&gt;
+                &lt;Text style={styles.title}&gt;{article.title}&lt;/Text&gt;
+                &lt;Text style={styles.subtitle}&gt;{article.author}&lt;/Text&gt;
+                &lt;Text style={styles.body}&gt;{article.content}&lt;/Text&gt;
+            &lt;/View&gt;
+        &lt;/ScrollView&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>useLocalSearchParams</code> ו-<code>ScrollView</code></span>
+          <ul style="margin:0">
+            <li><code>const { id } = useLocalSearchParams()</code> — קורא את הפרמטר מה-URL הדינמי. בדיוק <code>req.params.id</code> מהרצאה 7, ו-<code>useParams</code> מהרצאה 9 — אותו רעיון, סביבה אחרת.</li>
+            <li><code>filter(...)[0]</code> — מוצא את הכתבה לפי id (בדיוק כמו ה-Model מהרצאה 7!).</li>
+            <li><code>&lt;ScrollView&gt;</code> — View שניתן לגלול (כתבה ארוכה לא נכנסת למסך אחד).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>React Native</strong> = כותבים React, מקבלים אפליקציית מובייל native (cross-platform). <strong>Expo</strong> = ערכת הכלים שמקלה על הכל.</li>
+            <li><strong>Core Components</strong> במקום HTML: <code>View</code>(=div), <code>Text</code>(=span, חובה לעטוף כל טקסט!), <code>Image</code>, <code>Button</code>, <code>TextInput</code>, <code>ScrollView</code>, <code>FlatList</code>, <code>TouchableOpacity</code>.</li>
+            <li><strong>StyleSheet + Flexbox</strong> במקום CSS: אובייקטי JS, camelCase, <code>flex: 1</code>.</li>
+            <li><strong>Expo Router</strong> — ניווט מבוסס-קבצים: <code>Stack</code>, <code>Tabs</code>, <code>useRouter</code> (push/back/replace), נתיב דינמי <code>[id]</code> + <code>useLocalSearchParams</code>.</li>
+            <li><strong>FlatList</strong> לרשימות יעילות (במקום <code>map</code>), עם <code>renderItem</code> + <code>keyExtractor</code>.</li>
+            <li>אותם רעיונות מ-React: <strong>components, props, state, JSX</strong> — רק מבטא מובייל.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבורים</span>
+          זוהי בדיוק גישת ה-<strong>cross-platform</strong> מהרצאה 8 — אותו React, פלטפורמה אחרת. ה-<strong>components/props/state</strong> מהרצאה 8 חוזרים כולם. <code>[id]</code>+<code>useLocalSearchParams</code> הם ה-<code>/:id</code> מהרצאה 7 וה-<code>useParams</code> מהרצאה 9. <code>onPress</code> בלי סוגריים — שוב "מעבירים פונקציה, לא קוראים לה". ו-<strong>Foo News</strong> ממשיך ללוות אותנו — מ-XML, דרך Express, React ו-MongoDB, ועכשיו מובייל.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">➡️</span>
+        <div class="body">
+          <span class="title">בהרצאות 11–12</span>
+          ראינו את הגישה ה-cross-platform. בהרצאות הבאות נצלול לגישה ה-<strong>native</strong>: פיתוח Android "אמיתי" ב-Java (Activities, Intents, Fragments, Room ועוד) — ונראה את היתרונות והמורכבות לעומת React Native.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-09.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 9 · גישה לנתונים</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-10.html">
+        <span class="dir">תרגול 10 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

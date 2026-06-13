@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 4 · ריבוי תהליכים וריבוי תהליכונים</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 4 · Multi-processing &amp; Multi-threading</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 4</div>
+      <h1>ריבוי תהליכים וריבוי תהליכונים</h1>
+      <p>איך גורמים לתוכנה לעשות <strong>כמה דברים במקביל</strong>? נכיר את שתי הדרכים: <strong>תהליכים (processes)</strong> שכל אחד עם זיכרון נפרד (<code>fork</code>, <code>wait</code>, <code>exec</code>), ו<strong>תהליכונים (threads)</strong> שחולקים זיכרון ולכן קלים ומהירים יותר. ומכאן נגיע לבעיה הגדולה של מקביליות — <strong>race conditions</strong> — ולכלים שפותרים אותה: <strong>mutex</strong>, double-checked locking, <code>volatile</code>, ולבסוף הפשטות גבוהות יותר ב-Java (Thread, Runnable, Executor).</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קו המחשבה של ההרצאה</span>
+        עד עכשיו תוכנית הרצה <em>שורה אחרי שורה</em> (סדרתית). אבל מחשב מודרני יכול לעשות הרבה דברים בו-זמנית. ההרצאה בונה את זה בשלבים: קודם <strong>תהליך</strong> (היחידה הבסיסית של ריצה), אחר כך איך יוצרים עוד תהליכים (<code>fork</code>), אז למה תהליכונים עדיפים לעיתים (<strong>שיתוף זיכרון</strong>) — ומיד מגלים שהשיתוף הזה הוא גם הסכנה הגדולה (<strong>race conditions</strong>), שמולה נלמד מנעולים וסנכרון.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — תהליכים (Processes)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#process">מהו תהליך (Process)</a></li>
+            <li><a class="link" href="#states">מצבי תהליך (States)</a></li>
+            <li><a class="link" href="#fork">fork — יצירת תהליך חדש</a></li>
+            <li><a class="link" href="#wait-exec">wait ו-exec</a></li>
+            <li><a class="link" href="#fork-example">דוגמה מלאה + פלט הרצה</a></li>
+            <li><a class="link" href="#multiprocessing">Multiprocessing — יתרונות וחסרונות</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — תהליכונים (Threads)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#threads">מהו thread ולמה</a></li>
+            <li><a class="link" href="#pthread">pthread — threads ב-C</a></li>
+            <li><a class="link" href="#stdthread">std::thread ואי-דטרמיניזם</a></li>
+            <li><a class="link" href="#race">Race Condition וקטע קריטי</a></li>
+            <li><a class="link" href="#singleton">בעיית ה-Singleton וה-Lazy init</a></li>
+            <li><a class="link" href="#mutex">Mutex — איך נועלים בפועל</a></li>
+            <li><a class="link" href="#java">Threads ב-Java</a></li>
+            <li><a class="link" href="#executor">Executor ו-Thread Pools</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART A -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · תהליכים</h2>
+
+    <!-- 1. Process -->
+    <section id="process">
+      <h3><span class="num">1.</span> מהו תהליך (Process)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — אנלוגיה שכבר מכירים</span>
+          ההרצאה פותחת בהקבלה חכמה לעולם ה-OOP: בדיוק כמו ש<strong>אובייקט הוא מופע (instance) של מחלקה</strong>, כך <strong>תהליך הוא מופע של תוכנית</strong>. זה נותן אינטואיציה מיידית: אפשר ליצור הרבה מופעים מאותה מחלקה — ובדיוק כך אפשר להריץ הרבה תהליכים מאותה תוכנית.
+        </div>
+      </div>
+
+      <ul>
+        <li>אובייקט הוא <strong>instance</strong> של מחלקה — ואפשר ליצור הרבה מופעים ממחלקה אחת.</li>
+        <li><strong>תהליך הוא instance של תוכנית</strong>, שמורץ ע"י מערכת ההפעלה.</li>
+        <li>אפשר ליצור הרבה תהליכים של <strong>אותה תוכנית</strong> — או של <strong>תוכניות שונות</strong>.</li>
+        <li>כל תהליך מורץ <strong>בנפרד (separately)</strong> — יש לו זיכרון משלו.</li>
+        <li>כל תהליך מורץ <strong>סדרתית (sequentially)</strong> — פקודה אחרי פקודה.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">דוגמה משלי</span>
+          כשאתה פותח שלושה חלונות של אותו דפדפן — ייתכן שירוצו שלושה תהליכים של אותה תוכנית (כרום אפילו מריץ תהליך נפרד לכל טאב, מסיבות אבטחה ויציבות). כל אחד עם הזיכרון שלו, כך שקריסה של טאב אחד לא מפילה את האחרים. זה היתרון הגדול של הפרדת זיכרון — וגם, כפי שנראה, מקור הקושי בתקשורת ביניהם.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. States -->
+    <section id="states">
+      <h3><span class="num">2.</span> מצבי תהליך (Process States)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          תהליך לא תמיד "רץ". יש למחשב מעבד אחד (או כמה ליבות) שצריך להתחלק בין הרבה תהליכים, ולפעמים תהליך ממתין למשהו (קלט מהדיסק, מהרשת...). לכן לכל תהליך יש <strong>מצב (state)</strong>, ומערכת ההפעלה מעבירה אותו בין המצבים.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>                    ┌─────────┐
+                    │   New   │   נוצר זה עתה
+                    └────┬────┘
+                         ▼
+        ┌──────────▶ ┌─────────┐ ◀──────────┐
+        │            │  Ready  │            │
+        │            └────┬────┘            │
+   (האירוע קרה,            ▼          (נגמר הזמן /
+    חזרה לתור)     ┌─────────────┐     הופסק זמנית)
+        │          │   Running   │ ────────┘
+        │          └──┬───────┬──┘
+        │             ▼       ▼
+   ┌─────────┐   ┌──────────────┐
+   │ Waiting │◀──│  (ממתין ל-I/O)│
+   └─────────┘   └──────────────┘
+                         ▼
+                  ┌────────────┐
+                  │ Terminated │   הסתיים
+                  └────────────┘</code></pre>
+
+      <table>
+        <thead><tr><th>מצב</th><th>משמעות</th></tr></thead>
+        <tbody>
+          <tr><td><strong>New</strong></td><td>התהליך נוצר אבל עוד לא מוכן לרוץ.</td></tr>
+          <tr><td><strong>Ready</strong></td><td>מוכן לרוץ וממתין ש-CPU יתפנה (בתור).</td></tr>
+          <tr><td><strong>Running</strong></td><td>כרגע מורץ בפועל על המעבד.</td></tr>
+          <tr><td><strong>Waiting</strong></td><td>ממתין לאירוע (למשל סיום קריאת קובץ). לא מבזבז CPU בינתיים.</td></tr>
+          <tr><td><strong>Terminated</strong></td><td>סיים את הריצה.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">המעברים החשובים</span>
+          שים לב ל"משולש" שבמרכז: מ-<strong>Running</strong> אפשר לחזור ל-<strong>Ready</strong> (כשנגמר חלון הזמן של התהליך — <em>preemption</em>), או לעבור ל-<strong>Waiting</strong> (כשצריך לחכות ל-I/O). מ-Waiting חוזרים ל-Ready (לא ישר ל-Running!) כי עדיין צריך לחכות לתור. רק Ready→Running מתרחש כשה-scheduler בוחר את התהליך.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. fork -->
+    <section id="fork">
+      <h3><span class="num">3.</span> fork — יצירת תהליך חדש</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          איך תהליך יוצר תהליך נוסף? בעולם Unix/Linux עושים זאת עם קריאת המערכת <code>fork</code>. הרעיון מפתיע בהתחלה: <code>fork</code> <strong>משכפל את התהליך הקיים</strong> — נוצר עותק כמעט מדויק, ושני התהליכים ממשיכים מאותה נקודה.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · fork</span><button class="copy-btn">העתק</button></div>
+        <pre><code>pid_t pid = fork();</code></pre>
+      </div>
+
+      <ul>
+        <li>נוצר יחס <strong>הורה/ילד (parent/child)</strong>.</li>
+        <li>התהליך שקרא ל-<code>fork</code> הוא ה<strong>הורה</strong>.</li>
+        <li>ה<strong>ילד משכפל את מרחב הזיכרון של ההורה</strong>.</li>
+        <li>ואז שניהם ממשיכים לרוץ <strong>מאותה שורת קוד — אבל בנפרד</strong>.</li>
+      </ul>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הטריק החשוב — מה <code>fork</code> מחזיר</span>
+          <code>fork</code> נקרא <strong>פעם אחת</strong> אבל "חוזר פעמיים" — פעם בכל תהליך, וכל אחד מקבל ערך אחר. כך התהליכים מבדילים מי הם:
+          <table style="margin-top:.6rem">
+            <thead><tr><th>ערך <code>pid</code></th><th>באיזה תהליך</th><th>משמעות</th></tr></thead>
+            <tbody>
+              <tr><td><code>pid &gt; 0</code></td><td>ההורה</td><td>הערך הוא ה-<strong>process id של הילד</strong> שזה עתה נוצר.</td></tr>
+              <tr><td><code>pid == 0</code></td><td>הילד</td><td>הילד תמיד מקבל 0 (כך הוא יודע שהוא הילד).</td></tr>
+              <tr><td><code>pid &lt; 0</code></td><td>—</td><td><strong>כישלון</strong> (לא נוצר תהליך).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🍴</span>
+        <div class="body">
+          <span class="title">למה "fork" (מזלג)? — אינטואיציה משלי</span>
+          השם מתאר התפצלות של נתיב הריצה לשניים, כמו מזלג בכביש. עד ה-<code>fork</code> יש נתיב אחד; אחריו — שני נתיבים שרצים במקביל, כל אחד עם העתק משלו של הזיכרון. בזכות ערך-ההחזרה השונה, אותו קוד בדיוק "יודע" אם הוא ההורה או הילד, ומריץ ענף שונה ב-<code>if</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. wait & exec -->
+    <section id="wait-exec">
+      <h3><span class="num">4.</span> wait ו-exec — מה עושים אחרי fork</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אחרי שיצרנו ילד, יש שתי שאלות: (1) האם ההורה צריך <em>לחכות</em> שהילד יסיים? (2) האם הילד צריך להמשיך להריץ את אותו קוד, או <em>להחליף</em> את עצמו בתוכנית אחרת לגמרי? לשתי השאלות יש קריאות מערכת ייעודיות.
+        </div>
+      </div>
+
+      <p><strong>wait</strong> — ההורה ממתין שהילד יסיים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · wait</span><button class="copy-btn">העתק</button></div>
+        <pre><code>pid = wait(&amp;status);</code></pre>
+      </div>
+      <ul>
+        <li>מרגע הקריאה — ריצת ההורה <strong>נעצרת</strong> עד שהילד מסתיים.</li>
+        <li>לחלופין, ההורה יכול <strong>להמשיך לרוץ</strong> בלי לחכות (פשוט לא קוראים ל-<code>wait</code>).</li>
+      </ul>
+
+      <p><strong>exec</strong> — תהליך מחליף את הזיכרון שלו בתוכנית אחרת:</p>
+      <ul>
+        <li>תהליך יכול <strong>להחליף את הזיכרון הקיים</strong> שלו ע"י טעינת תוכנית אחרת לתוכו, באמצעות קריאת המערכת <code>exec</code> (ובמשפחה שלה, כמו <code>execlp</code>).</li>
+        <li>השילוב הקלאסי הוא <code>fork</code> + <code>exec</code>: יוצרים ילד, ואז הילד מחליף את עצמו בתוכנית חדשה — כך מריצים תוכנית אחרת מתוך התוכנית שלנו.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">🐚</span>
+        <div class="body">
+          <span class="title">איך ה-shell עובד — דוגמה/הקשר משלי</span>
+          זה בדיוק מה שעושה ה-terminal! כשמקלידים פקודה, ה-shell עושה <code>fork</code> (יוצר ילד), הילד עושה <code>exec</code> לתוכנית שביקשת (למשל <code>ls</code>), וההורה (ה-shell) עושה <code>wait</code> עד שהיא מסתיימת — ואז מציג שוב את ה-prompt. בדיוק לכן בדוגמה שנראה מיד, הילד מריץ <code>execlp("/bin/sh", ...)</code> — הוא הופך ל-shell.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. fork example -->
+    <section id="fork-example">
+      <h3><span class="num">5.</span> דוגמה מלאה — fork, getpid, exec, wait</h3>
+
+      <p>הקוד הבא ממחיש את הכל יחד. שים לב ל-<code>getpid()</code> (ה-id של התהליך הנוכחי) ו-<code>getppid()</code> (ה-id של ההורה):</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · a.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;unistd.h&gt;
+
+using namespace std;
+
+int main() {
+    cout &lt;&lt; getpid() &lt;&lt; " " &lt;&lt; getppid() &lt;&lt; endl;
+    int pid = fork();
+    if (pid == 0) {
+        cout &lt;&lt; "Child: " &lt;&lt; getpid() &lt;&lt; " " &lt;&lt; getppid() &lt;&lt; endl;
+        execlp("/bin/sh", "/bin/sh", NULL);
+    }
+    else if (pid &gt; 0) {
+        cout &lt;&lt; "Parent: " &lt;&lt; pid &lt;&lt; " " &lt;&lt; getpid() &lt;&lt; " " &lt;&lt; getppid() &lt;&lt; endl;
+        wait(NULL);
+        cout &lt;&lt; "Child is done, I'm done" &lt;&lt; endl;
+    }
+}</code></pre>
+      </div>
+
+      <p><strong>מה קורה כאן, שורה-שורה:</strong></p>
+      <table>
+        <thead><tr><th>קוד</th><th>הסבר</th></tr></thead>
+        <tbody>
+          <tr><td><code>getpid()</code> / <code>getppid()</code></td><td>מחזירים את ה-id של התהליך הנוכחי / של ההורה שלו.</td></tr>
+          <tr><td><code>int pid = fork();</code></td><td>מכאן והלאה <strong>רצים שני תהליכים</strong> במקביל מאותה שורה.</td></tr>
+          <tr><td><code>if (pid == 0)</code></td><td>הענף ש<strong>רק הילד</strong> נכנס אליו. הילד מדפיס את זהותו, ואז <code>execlp</code> מחליף אותו ב-shell.</td></tr>
+          <tr><td><code>else if (pid &gt; 0)</code></td><td>הענף ש<strong>רק ההורה</strong> נכנס אליו. שים לב: ב-<code>pid</code> יש כאן את ה-id של הילד.</td></tr>
+          <tr><td><code>wait(NULL);</code></td><td>ההורה ממתין שהילד (ה-shell) יסתיים. רק אז ידפיס "Child is done".</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>פלט לדוגמה</strong> (מהמצגת — שים לב לקשרי ההורה/ילד דרך ה-id-ים):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">console · ריצה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>$ g++ a.cpp
+$ echo $$
+4853                         ← ה-PID של ה-shell הנוכחי
+$ ./a.out
+5271 4853                    ← התהליך שלנו (5271), ההורה שלו = ה-shell (4853)
+Parent: 5272 5271 4853       ← ההורה: id-של-הילד=5272, אני=5271, ההורה-שלי=4853
+Child: 5272 5271             ← הילד: אני=5272, ההורה-שלי=5271
+$ echo $$
+5272                         ← עכשיו אנחנו בתוך ה-shell החדש (הילד)! ה-PID שלו 5272
+$ exit
+exit
+Child is done, I'm done      ← רק אחרי exit מה-shell — wait() משחרר את ההורה</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">מה הפלט מלמד אותנו</span>
+          ה-id של הילד (5272) שמודפס ע"י ההורה (<code>Parent: 5272...</code>) זהה ל-id שהילד מדפיס על עצמו (<code>Child: 5272...</code>) — זה ה-<code>pid</code> שהוחזר מ-<code>fork</code>. וה-shell החדש (אחרי ה-<code>exec</code>) הוא אותו תהליך 5272. כל עוד לא הקלדנו <code>exit</code>, ה-<code>wait</code> של ההורה חוסם אותו — ולכן "Child is done" מופיע אחרון.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Multiprocessing -->
+    <section id="multiprocessing">
+      <h3><span class="num">6.</span> Multiprocessing — יתרונות וחסרונות</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עכשיו שיודעים ליצור תהליכים, אפשר לפרק משימה גדולה להרבה תהליכים ייעודיים. אבל לגישה הזו יש מחיר — וזה בדיוק מה שיוביל אותנו אל ה-threads בחלק הבא.
+        </div>
+      </div>
+
+      <ul>
+        <li>אפשר לפרק משימות גדולות ל<strong>תהליכים קטנים וייעודיים</strong>.</li>
+        <li>אבל לכל תהליך יש <strong>מרחב זיכרון משלו</strong> — וזו בעיה:</li>
+        <li><strong>איך שני תהליכים יתקשרו?</strong> (אם הזיכרון נפרד, אי-אפשר פשוט לקרוא משתנה משותף — צריך מנגנון IPC כמו pipes, sockets, shared memory).</li>
+        <li><strong>Context switch יקר</strong> — מעבר של ה-CPU מתהליך לתהליך דורש שמירה וטעינה של הרבה מצב (כולל מרחב הזיכרון), וזה לוקח זמן.</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">המתח שמוביל ל-threads</span>
+          הפרדת הזיכרון נותנת <strong>בידוד ובטיחות</strong> (תהליך אחד לא יכול להשחית את הזיכרון של השני), אבל גובה מחיר ב<strong>תקשורת וביצועים</strong>. מה אם נרצה את היתרונות של מקביליות בלי המחיר הכבד הזה? כאן נכנסים <strong>התהליכונים</strong>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART B -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · תהליכונים (Threads)</h2>
+
+    <!-- 7. Threads -->
+    <section id="threads">
+      <h3><span class="num">7.</span> מהו thread ולמה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          תהליכון (thread) הוא "חוט ריצה" בתוך תהליך. בניגוד לתהליכים נפרדים, threads של אותו תהליך <strong>חולקים זיכרון</strong> — וזה הופך אותם לקלים, מהירים, ונוחים לתקשורת. זהו הפתרון למחיר ש-multiprocessing גבה.
+        </div>
+      </div>
+
+      <ul>
+        <li>לכל תהליך יש <strong>thread אחד לפחות</strong> — ה-thread הראשי (<em>main</em>), שנוצר אוטומטית.</li>
+        <li>תהליך יכול להחזיק <strong>כמה threads במקביל (concurrently)</strong>.</li>
+        <li>לכל thread יש <strong>בנפרד</strong>: registers, stack, ו-program counter (ה"מצב הפרטי" של הריצה).</li>
+        <li>כל ה-threads של התהליך <strong>חולקים</strong>: ה-heap, מקטעי ה-code/data, וקבצים פתוחים.</li>
+      </ul>
+
+      <pre class="ascii-diagram"><code>           ┌───────────────── Process ─────────────────┐
+           │   משותף לכל ה-threads:                      │
+           │   ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+           │   │   Heap   │  │Code/Data │  │  Files   │  │
+           │   └──────────┘  └──────────┘  └──────────┘  │
+           │                                             │
+           │   Thread 1        Thread 2        Thread 3  │
+           │   ┌────────┐      ┌────────┐      ┌────────┐│
+           │   │ stack  │      │ stack  │      │ stack  ││  ← פרטי
+           │   │ regs   │      │ regs   │      │ regs   ││  ← לכל
+           │   │  PC    │      │  PC    │      │  PC    ││  ← thread
+           │   └────────┘      └────────┘      └────────┘│
+           └─────────────────────────────────────────────┘</code></pre>
+
+      <p><strong>למה threads? (Why?)</strong></p>
+      <ul>
+        <li>כיוון שהם חולקים חלק מזיכרון התהליך — הם <strong>קלים יותר ומהירים ליצירה</strong> מתהליכים.</li>
+        <li><strong>Context switch קל יותר</strong> ביניהם, ויש למעבד שיפורים מובנים לכך.</li>
+        <li>קוד שרץ ב-threads שונים של אותו תהליך יכול <strong>להחליף מידע בקלות</strong> (פשוט דרך זיכרון משותף — אין צורך ב-IPC מורכב).</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">החיסרון שמסתתר ביתרון</span>
+          הזיכרון המשותף הוא בדיוק מה שעושה threads נוחים — אבל גם מסוכנים. כששני threads ניגשים לאותו נתון בו-זמנית, נוצרת אפשרות ל-<strong>race condition</strong> (פרק 10). כל מה שנלמד בהמשך — mutex, locks — נועד לרסן בדיוק את הסכנה הזו.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. pthread -->
+    <section id="pthread">
+      <h3><span class="num">8.</span> pthread — threads ב-C</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ב-C/C++ על Linux, ה-API הקלאסי ל-threads הוא <strong>POSIX threads (pthread)</strong>. שתי הקריאות המרכזיות: <code>pthread_create</code> ליצירת thread ש"מריץ פונקציה", ו-<code>pthread_join</code> להמתנה שה-thread יסיים.
+        </div>
+      </div>
+
+      <ul>
+        <li><code>pthread_create</code> — מריץ פונקציה בשם <code>func</code> עם ארגומנטים <code>args</code> ב-<strong>thread נפרד</strong>.</li>
+        <li><code>pthread_join</code> — thread יכול <strong>לחכות</strong> ל-thread אחר שיסיים. ריצת ה-thread הנוכחי נעצרת עד שה-thread שמחכים לו מסתיים (בדיוק כמו <code>wait</code> לתהליכים).</li>
+      </ul>
+
+      <p>דוגמה מעשית — <strong>שרת UDP מרובה-threads</strong>: הלולאה הראשית מקבלת הודעות, ולכל לקוח פותחת thread נפרד שמטפל בו (כדי שלקוח אטי לא יחסום את כל השאר):</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · הלולאה הראשית — thread לכל לקוח</span><button class="copy-btn">העתק</button></div>
+        <pre><code>while (true) {
+    struct sockaddr_in from;
+    unsigned int from_len = sizeof(struct sockaddr_in);
+    char buffer[4096];
+    int bytes = recvfrom(sock, buffer, sizeof(buffer), 0,
+                         (struct sockaddr *)&amp;from, &amp;from_len);
+    if (bytes &lt; 0) {
+        perror("error reading from socket");
+    }
+
+    char* p = new char[bytes];
+    strncpy(p, buffer, bytes);
+
+    Data* data = new Data();
+    strncpy(data-&gt;buffer, buffer, bytes);
+    data-&gt;buffer_size = bytes;
+    data-&gt;from = from;
+
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&amp;attr);
+    pthread_create(&amp;tid, &amp;attr, handle_client, data);
+}</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · מבנה Data + פונקציית ה-thread</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int sock;
+time_t timev;
+
+class Data {
+public:   // to make code shorter
+    char buffer[4096];
+    int buffer_size;
+    struct sockaddr_in from;
+};
+
+void *handle_client(void* param) {
+    Data* data = (Data*)param;
+
+    time(&amp;timev);
+    cout &lt;&lt; "Lech lishon: " &lt;&lt; timev &lt;&lt; endl;
+    sleep(5);
+    time(&amp;timev);
+    cout &lt;&lt; "Gooooood morning: " &lt;&lt; timev &lt;&lt; endl;
+
+    cout &lt;&lt; "The client sent: " &lt;&lt; data-&gt;buffer &lt;&lt; endl;
+    int sent_bytes = sendto(sock, data-&gt;buffer, data-&gt;buffer_size, 0,
+                            (struct sockaddr *)&amp;data-&gt;from, sizeof(data-&gt;from));
+    if (sent_bytes &lt; 0) {
+        perror("error writing to socket");
+    }
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס — נקודות מפתח</span>
+          <ul style="margin:0">
+            <li><code>pthread_create(&amp;tid, &amp;attr, handle_client, data)</code> — יוצר thread שמריץ את <code>handle_client</code>, ומעביר לו את <code>data</code> כפרמטר. <code>tid</code> יתמלא במזהה ה-thread.</li>
+            <li>פונקציית ה-thread חייבת להיות בחתימה <code>void* func(void* param)</code> — מקבלת ומחזירה מצביע גנרי. בתוכה עושים cast: <code>Data* data = (Data*)param;</code>.</li>
+            <li><strong>למה מקצים <code>Data</code> חדש ב-<code>new</code> לכל לקוח?</strong> כדי שלכל thread יהיה עותק <em>משלו</em> של הנתונים. אם כל ה-threads היו קוראים מאותו <code>buffer</code> מקומי שמשתנה בלולאה — הם היו דורסים זה את נתוני זה (race!).</li>
+            <li><code>sleep(5)</code> כאן ממחיש שהטיפול בלקוח עשוי לקחת זמן — ובזכות ה-thread, השרת ממשיך לקבל לקוחות נוספים בינתיים.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. std::thread -->
+    <section id="stdthread">
+      <h3><span class="num">9.</span> std::thread ואי-דטרמיניזם</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          C++ המודרני נותן ממשק נקי יותר מ-pthread: המחלקה <code>std::thread</code>. הדוגמה הבאה גם מלמדת לקח קריטי — <strong>סדר הריצה של threads אינו צפוי (non-deterministic)</strong>.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · 20 threads עם std::thread</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;thread&gt;
+#include &lt;unistd.h&gt;
+using namespace std;
+
+void foo(int a) {
+    sleep(5);
+    cout &lt;&lt; a &lt;&lt; endl;
+}
+
+int main() {
+    thread threads[20];
+    for (int i = 0; i &lt; 20; i++) {
+        threads[i] = thread(foo, i);
+    }
+    for (int i = 0; i &lt; 20; i++) {
+        threads[i].join();
+    }
+}</code></pre>
+      </div>
+
+      <table>
+        <thead><tr><th>קוד</th><th>הסבר</th></tr></thead>
+        <tbody>
+          <tr><td><code>thread(foo, i)</code></td><td>יוצר thread שמריץ <code>foo(i)</code>. כאן יוצרים 20 כאלה.</td></tr>
+          <tr><td><code>threads[i].join()</code></td><td>הלולאה השנייה ממתינה לכל ה-threads שיסיימו — אחרת <code>main</code> היה מסתיים לפניהם.</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>הפלט — שלוש הרצאות, שלוש תוצאות שונות:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">console · שלושה ניסיונות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>ניסיון 1:   1 0 2 4 6 7 8 9 10 11 12 13 15 17 18 3 5 14 16 19
+ניסיון 2:   0 3 6 5 9 11 13 14 12 15 16 17 18 19 1 10 4 2 8 7
+ניסיון 3:   5 17 18 1 7 8 3 9 10 11 12 13 14 15 16 19 6 4 2 0</code></pre>
+      </div>
+
+      <div class="callout danger">
+        <span class="ic">🎲</span>
+        <div class="body">
+          <span class="title">הלקח הקריטי — אין שום הבטחה על הסדר</span>
+          כל 20 ה-threads "ישנים" 5 שניות ואז מדפיסים. הם מתעוררים בערך באותו זמן ומתחרים על ה-CPU וה-<code>cout</code> — ו<strong>מערכת ההפעלה מחליטה מי רץ מתי</strong>. לכן הסדר משתנה מהרצה להרצה. <strong>אסור להניח סדר ריצה בין threads.</strong> אם הקוד שלך תלוי בסדר מסוים — יש לך באג שלפעמים "עובד במזל". זה בדיוק מוביל אותנו ל-race conditions.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. Race condition -->
+    <section id="race">
+      <h3><span class="num">10.</span> Race Condition וקטע קריטי (Critical Section)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה המרכזית של מקביליות</span>
+          זה הלב של ההרצאה. כשהזיכרון משותף וסדר הריצה לא צפוי — מה קורה כששני threads נוגעים באותו נתון בו-זמנית? התשובה: באגים מסוכנים וקשים לשחזור.
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <span class="ic">📖</span>
+        <div class="body">
+          <span class="title">הגדרות</span>
+          <strong>Race condition</strong> = מצב שבו שני threads מתחרים על גישה ל<em>משאב משותף</em> (מבנה נתונים או התקן) שאסור שייגש אליו יותר מ-thread אחד בו-זמנית. <strong>Critical section (קטע קוד קריטי)</strong> = קטע קוד שמכיל race condition — קטע שצריך להגן עליו כך שרק thread אחד יריץ אותו בכל רגע.
+        </div>
+      </div>
+
+      <p>הדוגמה הקלאסית — שני threads (אחד עם <code>thread_id=1</code>, השני עם <code>thread_id=2</code>) מריצים את אותו קוד, כש-<code>x</code> מאותחל ל-0:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · קטע קריטי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>if (x &lt; 1) {
+    x++;
+    cout &lt;&lt; thread_id &lt;&lt; " was first\n";
+}
+else
+    cout &lt;&lt; thread_id &lt;&lt; " was second\n";</code></pre>
+      </div>
+
+      <p><strong>הכוונה:</strong> רק thread אחד יהיה "first" והשני "second". <strong>הבעיה:</strong> בסביבה מרובת-threads ההתנהגות <strong>לא-דטרמיניסטית</strong>.</p>
+
+      <p><strong>הריצה ה"טובה"</strong> (כמו שציפינו):</p>
+      <ol>
+        <li>Thread A בודק <code>if (x&lt;1)</code> → אמת → מבצע <code>x++</code> (עכשיו x=1).</li>
+        <li>Thread B בודק <code>if (x&lt;1)</code> → שקר (x=1 כבר) → מריץ את ה-<code>else</code>. ✓ אחד first, אחד second.</li>
+      </ol>
+
+      <p><strong>הריצה ה"רעה"</strong> (race condition):</p>
+      <ol>
+        <li>Thread A בודק <code>if (x&lt;1)</code> → אמת.</li>
+        <li><strong>לפני</strong> ש-A הספיק לבצע <code>x++</code> — מתחלף ל-Thread B.</li>
+        <li>Thread B בודק <code>if (x&lt;1)</code> → גם אמת (x עדיין 0!).</li>
+        <li>שניהם קיבלו אמת → <strong>שניהם יהיו "first"</strong>. ✗ שגיאה!</li>
+      </ol>
+
+      <div class="callout tip">
+        <span class="ic">⏱️</span>
+        <div class="body">
+          <span class="title">למה זה כל-כך ערמומי — הסבר משלי</span>
+          השורה <code>if (x&lt;1) x++;</code> נראית "אטומית" אבל היא <strong>לא</strong> — היא מתורגמת לכמה פקודות מכונה (קרא את x, השווה, הגדל, כתוב חזרה). thread switch יכול לקרות <em>באמצע</em>. וכיוון שזה תלוי בתזמון מדויק, הבאג עלול להופיע פעם ב-10,000 הרצות — ולעולם לא במחשב המפתח. זו אחת מסיבות הכאב הגדולות בתכנות מקבילי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. Singleton -->
+    <section id="singleton">
+      <h3><span class="num">11.</span> בעיית ה-Singleton וה-Lazy Initialization</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עכשiו נראה את ה-race condition בדוגמה אמיתית ומפורסמת: תבנית ה-<strong>Singleton</strong> (מחלקה עם מופע יחיד). הדרך שבה ההרצאה מפתחת את הפתרון — צעד אחרי צעד, כשכל "תיקון" חושף בעיה חדשה — היא שיעור מצוין בחשיבה מקבילית.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Car.h</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Car {
+private:
+    bool inUse;
+    Car();               // prevent the class instantiation
+    static Car* instance;
+public:
+    static Car* getInstance();
+    bool Occupy();
+};</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Car.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include "Car.h"
+
+Car* Car::instance = NULL;
+
+Car::Car() {
+    inUse = false;
+}
+
+Car* Car::getInstance() {
+    if (!instance)
+        Car::instance = new Car;
+    return instance;
+}
+
+bool Car::Occupy() {
+    if (!inUse) {
+        inUse = true;
+        return true;
+    }
+    return false;
+}</code></pre>
+      </div>
+
+      <p><strong>הקונסטרקטור פרטי</strong> כדי שאי-אפשר יהיה ליצור <code>Car</code> מבחוץ — רק דרך <code>getInstance</code>, שמבטיח מופע יחיד. אבל <code>getInstance</code> מכיל race condition: שני threads יכולים לראות <code>!instance</code> כאמת בו-זמנית ולייצר <strong>שני</strong> אובייקטים.</p>
+
+      <p><strong>פתרון 1 — Eager initialization:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · eager</span><button class="copy-btn">העתק</button></div>
+        <pre><code>static Car* instance = new Car;   // נוצר מראש, לפני כל גישה</code></pre>
+      </div>
+      <p>פותר את ה-race (נוצר פעם אחת בטעינה), אבל <strong>מבזבז</strong>: נוצר גם אם לעולם לא נשתמש בו.</p>
+
+      <p><strong>פתרון 2 — נעילה (lock):</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · lock סביב הכל</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// lock
+if (!instance)
+    instance = new Car;
+// release lock</code></pre>
+      </div>
+      <p><strong>החיסרון?</strong> אנחנו רוצים <strong>lazy initialization</strong> (לא ליצור אם לא נשתמש), והרי יוצרים פעם אחת בלבד — אז למה לנעול בכל קריאה? נעילה היא יקרה, וכאן היא מתבצעת בכל גישה ל-<code>getInstance</code>.</p>
+
+      <p><strong>פתרון 3 — בדיקה לפני נעילה:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · נעילה רק אם צריך</span><button class="copy-btn">העתק</button></div>
+        <pre><code>if (!instance) {
+    // lock
+    instance = new Car;
+    // release lock
+}</code></pre>
+      </div>
+      <p>נעילה רק כשעדיין אין מופע. <strong>אבל</strong> חזר ה-race: שני threads יכולים לעבור את ה-<code>if</code> החיצוני, ואז בזה אחר זה ליצור שני אובייקטים.</p>
+
+      <p><strong>פתרון 4 — Double-Checked Locking:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · בדיקה כפולה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>if (!instance) {
+    // lock
+    if (!instance)
+        instance = new Car;
+    // release lock
+}</code></pre>
+      </div>
+      <p>בודקים פעמיים — פעם בלי נעילה (מהיר, למקרה הרגיל), ופעם <em>בתוך</em> הנעילה (לבטיחות). <strong>הגענו? עדיין לא!</strong></p>
+
+      <div class="callout danger">
+        <span class="ic">🧨</span>
+        <div class="body">
+          <span class="title">הבעיה הסמויה — הקומפיילר עלול לשנות סדר</span>
+          התרחיש: (1) Thread 1 נועל ומתחיל ליצור את המופע. (2) <strong>הקומפיילר מחליט</strong> קודם להקצות זיכרון ולהצביע עליו ב-<code>instance</code>, ורק <em>אחר כך</em> לאתחל את האובייקט. (3) בין שני הצעדים — מתרחש thread switch. (4) Thread 2 רואה ש-<code>instance</code> כבר לא NULL, מדלג על ה-<code>if</code>, ומשתמש ב<strong>אובייקט שעדיין לא אותחל</strong>! 💥
+        </div>
+      </div>
+
+      <p><strong>פתרון 5 — <code>volatile</code> + דגל בוליאני:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · עם booleanVar</span><button class="copy-btn">העתק</button></div>
+        <pre><code>if (!booleanVar) {
+    // lock
+    if (!booleanVar) {
+        instance = new Car;
+        booleanVar = true;     // נקבע רק אחרי שהאובייקט מוכן
+    }
+    // release lock
+}</code></pre>
+      </div>
+      <ul>
+        <li><strong><code>volatile</code></strong> מצהיר שהמשתנה עשוי לשמש ב-threads שונים, כך שאי-אפשר להסתמך על ערך שמור — וזה <strong>מונע מהקומפיילר לשנות את סדר הפעולות</strong> כמו קודם.</li>
+        <li>ה-<code>booleanVar</code> נקבע ל-<code>true</code> <strong>רק אחרי</strong> שהאובייקט נוצר במלואו — כך thread אחר לא יראה "מוכן" לפני הזמן.</li>
+      </ul>
+    </section>
+
+    <!-- 12. Mutex -->
+    <section id="mutex">
+      <h3><span class="num">12.</span> Mutex — איך נועלים בפועל</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          דיברנו על "<code>// lock</code>" ו-"<code>// release lock</code>" כהערות. עכשיו נראה איך מממשים אותן באמת. דרך נפוצה היא <strong>mutex</strong> (mutual exclusion — הדרה הדדית): מנעול שרק thread אחד יכול להחזיק בכל רגע.
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>במקום ההערה</th><th>הקוד האמיתי</th></tr></thead>
+        <tbody>
+          <tr><td><code>// lock</code></td><td><code>pthread_mutex_lock(&amp;lock);</code> — נועל באמצעות משתנה ה-lock.</td></tr>
+          <tr><td><code>// release lock</code></td><td><code>pthread_mutex_unlock(&amp;lock);</code> — משחרר את הנעילה.</td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>אבל מהו משתנה ה-lock?</strong> מצהירים, מאתחלים ומשמידים אותו כך:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · pthread mutex</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// הצהרה
+pthread_mutex_t lock;
+
+// אתחול (פעם אחת)
+if (pthread_mutex_init(&amp;lock, NULL) != 0) {
+    // error
+}
+
+// שימוש (יכול לקרות הרבה פעמים)
+pthread_mutex_lock(&amp;lock);
+// ... critical section ...
+pthread_mutex_unlock(&amp;lock);
+
+// השמדה (פעם אחת)
+pthread_mutex_destroy(&amp;lock);</code></pre>
+      </div>
+
+      <ul>
+        <li><strong>init ו-destroy</strong> נקראים <strong>פעם אחת בלבד</strong>.</li>
+        <li><strong>lock ו-unlock</strong> יכולים להיקרא <strong>הרבה פעמים</strong>.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">P.S. — trylock</span>
+          קיימת גם <code>pthread_mutex_trylock</code>: במקום <strong>לחכות</strong> עד שהמנעול ישתחרר, היא <strong>מחזירה שגיאה מיד</strong> אם המנעול כבר תפוס. שימושי כשלא רוצים לחסום את ה-thread — למשל "אם המשאב תפוס, לך תעשה משהו אחר ותחזור".
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. Java -->
+    <section id="java">
+      <h3><span class="num">13.</span> Threads ב-Java</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          Java נותנת הפשטה גבוהה יותר מ-pthread. יש שתי דרכים עיקריות ליצור thread: <strong>לרשת מ-<code>Thread</code></strong>, או <strong>לממש את <code>Runnable</code></strong>. שתיהן דורשות לממש את <code>run()</code>, ולהפעיל עם <code>start()</code>.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · המחלקות הבסיסיות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public interface Runnable {
+    void run();
+}
+
+public class Thread extends Object implements Runnable {
+    // ...
+    Thread();
+    Thread(Runnable target);
+    public void run();
+    public void start();
+    public final void join() throws InterruptedException;
+}</code></pre>
+      </div>
+
+      <p><strong>דרך 1 — ירושה מ-<code>Thread</code>:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · extends Thread</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class Foo extends Thread {
+    public void run() {
+        // ...
+    }
+    public static void main(String args[]) {
+        Foo foo = new Foo();
+        foo.start();
+    }
+}</code></pre>
+      </div>
+
+      <p><strong>דרך 2 — מימוש <code>Runnable</code>:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · implements Runnable</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class Foo implements Runnable {
+    public void run() {
+        // ...
+    }
+    public static void main(String args[]) {
+        Thread t = new Thread(foo);
+        t.start();
+    }
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>start()</code> מול <code>run()</code> — טעות נפוצה</span>
+          קוראים ל-<code>start()</code>, <strong>לא</strong> ל-<code>run()</code> ישירות! <code>start()</code> יוצר thread חדש ומריץ בו את <code>run()</code>. אם תקרא ל-<code>run()</code> ישירות — היא פשוט תרוץ ב-thread הנוכחי, בלי שום מקביליות.<br><br>
+          <strong>מתי איזו דרך?</strong> מעדיפים בדרך-כלל <code>Runnable</code> — כי ב-Java אפשר לממש כמה interfaces אבל לרשת רק ממחלקה אחת. מימוש <code>Runnable</code> משאיר את אפשרות הירושה פנויה ומפריד את "המשימה" מ"מנגנון ה-thread".
+        </div>
+      </div>
+    </section>
+
+    <!-- 14. Executor -->
+    <section id="executor">
+      <h3><span class="num">14.</span> Executor ו-Thread Pools</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          יצירת thread לכל משימה היא יקרה ולא נשלטת (מה אם יש מיליון משימות?). ה-<strong>Executor</strong> מפריד בין <em>הגשת משימה</em> לבין <em>הדרך שבה היא תרוץ</em> — ומאפשר להשתמש ב<strong>מאגר threads (thread pool)</strong> קבוע במקום ליצור threads בלי הגבלה.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · interface Executor</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public interface Executor {
+    void execute(Runnable command);
+}</code></pre>
+      </div>
+
+      <p>מהתיעוד: אובייקט שמריץ משימות <code>Runnable</code> שהוגשו לו, ו<strong>מנתק את הגשת המשימה מהמכניקה של איך כל משימה תרוץ</strong> (כמה threads, תזמון וכו'). במקום:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · הדרך הישנה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>new Thread(new RunnableTask()).start();</code></pre>
+      </div>
+      <p>משתמשים ב:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · עם Executor</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Executor executor = anExecutor;
+executor.execute(new RunnableTask1());
+executor.execute(new RunnableTask2());</code></pre>
+      </div>
+
+      <p><strong>דוגמה — שני thread pools בגודל 2, ו-8 משימות:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · FixedThreadPool</span><button class="copy-btn">העתק</button></div>
+        <pre><code>final long start = System.currentTimeMillis();
+Executor executor  = Executors.newFixedThreadPool(2);
+Executor executor2 = Executors.newFixedThreadPool(2);
+
+Runnable r = () -&gt; {
+    try {
+        Thread.sleep(1000);
+        Thread t = Thread.currentThread();
+        System.out.println(t.getId() + t.getName() + " " +
+                (System.currentTimeMillis() - start));
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    }
+};
+
+executor.execute(r);  executor2.execute(r);
+executor.execute(r);  executor2.execute(r);
+executor.execute(r);  executor2.execute(r);
+executor.execute(r);  executor2.execute(r);</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">console · הפלט</span><button class="copy-btn">העתק</button></div>
+        <pre><code>18 pool-2-thread-1  1009      ┐ ארבע המשימות הראשונות רצות
+17 pool-1-thread-1  1009      │ מיד (יש 2+2 threads פנויים),
+19 pool-1-thread-2  1009      │ כולן מסתיימות אחרי ~1 שניה
+20 pool-2-thread-2  1010      ┘
+17 pool-1-thread-1  2010      ┐ ארבע הנוספות חיכו בתור,
+20 pool-2-thread-2  2010      │ ורצות רק אחרי שהראשונות
+19 pool-1-thread-2  2011      │ פינו thread — אחרי ~2 שניות
+18 pool-2-thread-1  2014      ┘</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🏊</span>
+        <div class="body">
+          <span class="title">מה הפלט מלמד + סוגי pools</span>
+          עם pool בגודל 2, רק 2 משימות רצות בו-זמנית בכל pool; השאר <strong>ממתינות בתור</strong>. לכן הגל הראשון מסתיים ב-~1000ms והשני ב-~2000ms. שלושת הסוגים העיקריים:
+          <ul style="margin:.4rem 0 0">
+            <li><code>newFixedThreadPool(n)</code> — מספר קבוע של n threads.</li>
+            <li><code>newSingleThreadExecutor()</code> — thread יחיד; המשימות רצות אחת-אחרי-השנייה לפי הסדר.</li>
+            <li><code>newCachedThreadPool()</code> — יוצר threads לפי הצורך וממחזר פנויים; גדל ומתכווץ דינמית.</li>
+          </ul>
+          זהו, בעצם, יישום של תבנית עיצוב: ה-Executor מסתיר מאיתנו את ניהול ה-threads, בדיוק כפי ש-<code>Runnable</code> מפריד את המשימה מהמנגנון.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>תהליך</strong> = מופע של תוכנית, עם זיכרון נפרד, רץ סדרתית; עובר בין מצבים New→Ready→Running→Waiting→Terminated.</li>
+            <li><strong>fork</strong> משכפל תהליך; מחזיר <code>&gt;0</code> להורה (id הילד), <code>0</code> לילד, <code>&lt;0</code> בכישלון. <strong>wait</strong> ממתין לילד, <strong>exec</strong> מחליף את הזיכרון בתוכנית אחרת.</li>
+            <li><strong>Multiprocessing</strong>: בידוד טוב, אבל תקשורת קשה ו-context switch יקר.</li>
+            <li><strong>Thread</strong> = חוט ריצה בתוך תהליך. חולק heap/code/data/files, אבל לכל אחד stack/registers/PC משלו. קל ומהיר, נוח לתקשורת.</li>
+            <li><strong>אבל</strong> — סדר ריצה לא-דטרמיניסטי + זיכרון משותף = <strong>race conditions</strong> ב-<strong>קטעים קריטיים</strong>.</li>
+            <li>הפתרון: <strong>mutex</strong> (<code>pthread_mutex_lock/unlock</code>), ובמקרים עדינים גם <strong>double-checked locking</strong> + <code>volatile</code> (כמו ב-Singleton).</li>
+            <li><strong>Java</strong>: <code>Thread</code>/<code>Runnable</code> (תמיד <code>start()</code> ולא <code>run()</code>), ומעליהם <strong>Executor</strong> + thread pools (fixed/single/cached) לניהול נשלט של המקביליות.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-03.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 3 · רשתות וסוקטים</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-04.html">
+        <span class="dir">תרגול 4 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

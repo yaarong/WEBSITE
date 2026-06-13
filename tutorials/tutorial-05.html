@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 5 · רשתות, TCP/UDP ו-Sockets</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 5 · רשתות ו-Sockets</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 5</div>
+      <h1>רשתות, TCP/UDP ו-Sockets</h1>
+      <p>איך תהליכים מתקשרים — קודם באותו מחשב (<strong>IPC</strong>), ואז בין מחשבים דרך <strong>sockets</strong>. נכיר את <strong>מודל ה-OSI</strong> (7 שכבות), את ההבדל בין <strong>TCP</strong> ל-<strong>UDP</strong>, כתובות רשת (IP + port), ולבסוף את ה-<strong>Sockets API</strong> עם דוגמאות קוד ב-Python וב-Unix C.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#ipc">IPC — תקשורת בין תהליכים</a></li>
+        <li><a class="link" href="#osi">מודל ה-OSI (7 שכבות)</a></li>
+        <li><a class="link" href="#tcpudp">TCP מול UDP</a></li>
+        <li><a class="link" href="#address">כתובות — IP ו-Port</a></li>
+        <li><a class="link" href="#tcp-flow">זרימת TCP + דוגמת Python</a></li>
+        <li><a class="link" href="#udp-flow">זרימת UDP + דוגמת Python</a></li>
+        <li><a class="link" href="#unix">Sockets API ב-Unix C</a></li>
+      </ol>
+    </div>
+
+    <!-- 1 -->
+    <section id="ipc">
+      <h3><span class="num">1.</span> IPC — תקשורת בין תהליכים</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>תהליך (Process)</strong> = תוכנית שרצה כרגע על המעבד. לעיתים קרובות נרצה שתהליכים <em>ישתפו מידע</em> — זה <strong>IPC</strong> (Inter-Process Communication). הפתרון הבסיסי הוא <strong>קובץ</strong>, אבל לו חסרונות (לא מסונכרן, נשאר עד שמוחקים, פעולות יקרות). פתרון טוב יותר באותה מערכת: <strong>Pipe</strong> — "צינור" שכותבים אליו מצד אחד וקוראים מהשני.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">Socket — מעבר למחשב אחד</span>
+          לכל פתרונות ה-IPC הרגילים יש חיסרון: הם מוגבלים ל<em>אותה מערכת</em>. <strong>Socket</strong> מאפשר תקשורת <em>בין מחשבים</em>. ברמה גבוהה (TCP), socket מספק "צינור דו-כיווני" שלא מוגבל למחשב המקומי. מאחורי הקלעים sockets לא אמינים (הודעות אובדות/נהרסות/מתחלפות בסדר) — ולכן משתמשים ב-TCP שמספק אמינות.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="osi">
+      <h3><span class="num">2.</span> מודל ה-OSI (7 שכבות)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מודל 7 השכבות מתאר את העברת המידע ברשת באופן סטנדרטי. <strong>כל שכבה לא מודעת לשכבות שמעליה, ורואה את שמתחתיה כ"קופסה שחורה".</strong> בקורס נעבוד תמיד בשכבת האפליקציה (העליונה).
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>שכבה</th><th>תפקיד · פרוטוקולים</th></tr></thead>
+        <tbody>
+          <tr><td>7</td><td><strong>Application</strong></td><td>מה עושים עם המידע · HTTP, FTP, SSH (כאן אנחנו כותבים)</td></tr>
+          <tr><td>6</td><td>Presentation</td><td>ייצוג/הצפנה</td></tr>
+          <tr><td>5</td><td>Session</td><td>ניהול חיבורים</td></tr>
+          <tr><td>4</td><td><strong>Transport</strong></td><td>אמינות, segmentation, congestion control · <strong>TCP, UDP</strong> (כאן ה-API)</td></tr>
+          <tr><td>3</td><td>Network</td><td>כתובות IP וניתוב · IP, ICMP</td></tr>
+          <tr><td>2</td><td>Data Link</td><td>חלוקת הרשת הפיזית, זיהוי שגיאות · ARP, MAC</td></tr>
+          <tr><td>1</td><td>Physical</td><td>העברת ביטים על תווך פיזי (best-effort) · USB, Bluetooth</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">השכבות שמעניינות אותנו</span>
+          <strong>Transport (4)</strong> — כאן ה-API של מערכת ההפעלה (TCP/UDP), והשכבה שמספקת את התכונות שאנחנו מחפשים מ-socket: אמינות, segmentation (הודעות ארוכות לא מתפצלות), ובקרת עומס. <strong>Application (7)</strong> — כאן אנחנו מגדירים את הפרוטוקול שלנו איך שנרצה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="tcpudp">
+      <h3><span class="num">3.</span> TCP מול UDP</h3>
+      <table>
+        <thead><tr><th></th><th>TCP</th><th>UDP</th></tr></thead>
+        <tbody>
+          <tr><td>אמינות</td><td>✅ מגיע שלם, לפי הסדר, עם אישור קבלה</td><td>❌ אין הבטחות</td></tr>
+          <tr><td>חיבור</td><td>מבוסס-חיבור (client-server, <code>connect</code>)</td><td>חסר-חיבור (connectionless)</td></tr>
+          <tr><td>זרם / חבילות</td><td>זרם בתים (stream)</td><td>חבילות (datagrams)</td></tr>
+          <tr><td>בקרת עומס</td><td>✅ congestion control</td><td>❌</td></tr>
+          <tr><td>מתי</td><td>קבצים, web, רוב השימושים</td><td>מהירות > אמינות (וידאו, משחקים, DNS)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 4 -->
+    <section id="address">
+      <h3><span class="num">4.</span> כתובות — IP ו-Port</h3>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">כתובת socket = IP + Port</span>
+          <ul style="margin:0">
+            <li><strong>IP</strong> — כתובת המחשב המארח. <strong>IPv4</strong> = 4 בתים, פורמט "נקודות" (למשל <code>127.0.0.1</code>), כל מספר בטווח 0–255. מוגבל ל-~4 מיליארד כתובות → נוצר <strong>IPv6</strong> (16 בתים, hex עם נקודתיים).</li>
+            <li><strong>Port</strong> — "כתובת בתוך המחשב", מספר 2 בתים.</li>
+          </ul>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>טווח Port</th><th>סוג</th><th>דוגמה</th></tr></thead>
+        <tbody>
+          <tr><td>0–1023</td><td>well-known (מערכת)</td><td>HTTP = 80</td></tr>
+          <tr><td>1024–49151</td><td>registered (משתמש)</td><td>MySQL = 3306</td></tr>
+          <tr><td>&gt;49151</td><td>dynamic / private</td><td>שה-OS נותן בקבלת חיבור</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 5 -->
+    <section id="tcp-flow">
+      <h3><span class="num">5.</span> זרימת TCP + דוגמת Python</h3>
+      <pre class="ascii-diagram"><code>   TCP Server                 TCP Client
+   ──────────                 ──────────
+   socket()                   socket()
+   bind()
+   listen()
+   accept()  ◀───connect()─── connect()
+       │                          │
+   write()/read() ◀══════════▶ write()/read()
+   close()                    close()</code></pre>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הזרימה במילים</span>
+          השרת: פותח socket → <code>bind</code> לכתובת ידועה → <code>listen</code> → <code>accept</code> (ממתין לחיבור, ויוצר socket חדש לכל לקוח). הלקוח: פותח socket → <code>connect</code> לכתובת השרת. אחרי החיבור — תקשורת דו-כיוונית בזרם בתים, וסיום ב-<code>close</code>.
+        </div>
+      </div>
+      <p>ב-<strong>Python</strong> זה קל כמו פתיחת קובץ. השרת (שולח תמונה ללקוח):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · TCPserver.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import socket
+
+def send_image(sock, file_name):
+    with open(file_name, 'rb') as file:
+        while True:
+            data = file.read(1024)
+            if not data:
+                break
+            sock.send(data)
+
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # IPv4, TCP
+server_socket.bind(('localhost', 12345))
+server_socket.listen(1)
+print('Server is listening on port 12345')
+
+while True:
+    client_socket, addr = server_socket.accept()   # ממתין לחיבור
+    print('Accepted connection from', addr)
+    send_image(client_socket, 'image.jpg')
+    client_socket.close()</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · TCPclient.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import socket
+
+def receive_image(sock, file_name):
+    with open(file_name, 'wb') as file:
+        while True:
+            data = sock.recv(1024)
+            if not data:
+                break
+            file.write(data)
+
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect(('localhost', 12345))
+print('Connected to the server')
+receive_image(client_socket, 'received_image.jpg')
+client_socket.close()</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ה-API של Python</span>
+          <code>socket(AF_INET, SOCK_STREAM)</code> — <code>AF_INET</code>=IPv4, <code>SOCK_STREAM</code>=TCP (ל-UDP: <code>SOCK_DGRAM</code>). <code>bind</code>/<code>listen</code>/<code>accept</code> בשרת; <code>connect</code> בלקוח; <code>send</code>/<code>recv</code> מעבירים <strong>bytes</strong> (לא מחרוזות). שימו לב לקריאה ב-loop של 1024 בתים — TCP הוא <em>זרם</em>, לא יודעים מראש כמה יגיע.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="udp-flow">
+      <h3><span class="num">6.</span> זרימת UDP + דוגמת Python</h3>
+      <pre class="ascii-diagram"><code>   UDP Server                 UDP Client
+   ──────────                 ──────────
+   socket()                   socket()
+   bind()
+   recvfrom()/sendto() ◀════▶ sendto()/recvfrom()
+   close()                    close()</code></pre>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">UDP — חסר חיבור</span>
+          ב-UDP אין <code>connect</code>/<code>accept</code> — כל הודעה עומדת בפני עצמה. משתמשים ב-<code>sendto(data, address)</code> ו-<code>recvfrom(size)</code> (שמחזיר גם את כתובת השולח). השרת זהה ללקוח, רק שהוא <code>bind</code> לכתובת ידועה כדי שלקוחות ימצאו אותו.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · UDP (קטעי מפתח)</span><button class="copy-btn">העתק</button></div>
+        <pre><code># server:
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)   # UDP
+sock.bind(('localhost', 12345))
+data, address = sock.recvfrom(4096)        # מקבל גם את כתובת השולח
+sock.sendto(chunk, address)                # שולח לכתובת ספציפית
+
+# client:
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.settimeout(1)                         # timeout — כי אין הבטחה שתגיע תשובה
+sock.sendto(b'This is the message.', ('localhost', 12345))
+chunk, server = sock.recvfrom(4096)</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">למה <code>settimeout</code> ב-UDP</span>
+          ב-UDP הודעות יכולות לאבוד בלי שנדע. <code>settimeout(1)</code> מבטיח שאם לא הגיעה תשובה תוך שנייה — נקבל חריגה ולא ניתקע לנצח. (בקוד המלא יש טיפול ב-<code>TimeoutError</code> שמרכיב את החלקים שכן הגיעו.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="unix">
+      <h3><span class="num">7.</span> Sockets API ב-Unix C</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          זרימת ה-TCP זהה ל-Python, אבל ב-C/C++ זה קשה יותר — מערב syscalls ומבני-קרנל. כל קריאה מחזירה מספר <strong>שלילי בכישלון</strong>.
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>קריאה</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>socket(domain, type, protocol)</code></td><td>יוצר fd חדש (domain=<code>AF_INET</code>, type=<code>SOCK_STREAM</code>/<code>SOCK_DGRAM</code>, protocol=0)</td></tr>
+          <tr><td><code>bind(fd, addr, len)</code></td><td>כורך כתובת ל-socket</td></tr>
+          <tr><td><code>listen(fd, backlog)</code></td><td>גודל תור הלקוחות הממתינים</td></tr>
+          <tr><td><code>accept(fd, addr, len)</code></td><td>מקבל חיבור חדש (TCP)</td></tr>
+          <tr><td><code>connect(fd, addr, len)</code></td><td>מתחבר לשרת (לקוח)</td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">c · sockaddr_in + יצירת socket</span><button class="copy-btn">העתק</button></div>
+        <pre><code>struct sockaddr_in addr;
+addr.sin_family = AF_INET;
+addr.sin_port = htons(12345);              // ← המרה ל-big-endian!
+inet_aton("127.0.0.1", &amp;addr.sin_addr);    // מחרוזת IP → 4 בתים
+
+int fd = socket(AF_INET, SOCK_STREAM, 0);
+if (fd &lt; 0) { /* error */ }
+bind(fd, (struct sockaddr*)&amp;addr, sizeof(addr));</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">Endianness — חובה לזכור!</span>
+          יש שתי דרכים לייצג מספרים בזיכרון: <strong>little-endian</strong> (הנפוץ במעבדים) ו-<strong>big-endian</strong>. בתכנות רשתי הסטנדרט הוא <strong>big-endian</strong> ("network byte order"). לכן <em>חייבים להמיר</em> מספרים (כמו port) לפני שמכניסים אותם למבני התקשורת. הפונקציות:
+          <ul style="margin:.3rem 0 0">
+            <li><code>htons</code> / <code>htonl</code> — host→network (short / long)</li>
+            <li><code>ntohs</code> / <code>ntohl</code> — network→host</li>
+          </ul>
+          (<code>inet_aton</code> ממיר מחרוזת IP טקסטואלית למספר בינארי של 4 בתים.)
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>IPC:</strong> קבצים → Pipe (באותה מערכת) → <strong>Socket</strong> (בין מחשבים).</li>
+            <li><strong>OSI:</strong> 7 שכבות, כל אחת קופסה שחורה לזו שמתחתיה. אנחנו: Transport (TCP/UDP) ו-Application.</li>
+            <li><strong>TCP</strong> — אמין, מבוסס-חיבור, זרם. <strong>UDP</strong> — מהיר, חסר-חיבור, חבילות.</li>
+            <li><strong>כתובת</strong> = IP + Port (IPv4=4 בתים, port=2 בתים; טווחי well-known/registered/dynamic).</li>
+            <li><strong>API:</strong> שרת <code>socket→bind→listen→accept</code>, לקוח <code>socket→connect</code>, ואז <code>send</code>/<code>recv</code>. ב-Python קל; ב-C צריך לזכור <strong>endianness</strong> (<code>htons</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-04.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 4 · JavaScript</span>
+      </a>
+      <a class="next" href="tutorial-06.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 6 · עיבוד מקבילי ו-Threads</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 4 · יסודות JavaScript</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 4 · JavaScript</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 4</div>
+      <h1>יסודות JavaScript — משתנים, פונקציות, מערכים ואובייקטים</h1>
+      <p>אחרי C++, עוברים ל-<strong>JavaScript</strong> — השפה של ה-web (וגם של Node בצד השרת). נלמד את התחביר דרך דוגמאות קצרות: <code>let</code>/<code>var</code>/<code>const</code> וה-scoping שלהם, מחרוזות תבנית, פונקציות ו-<code>setTimeout</code>, רקורסיה ו-memoization, עבודה עם <strong>מערכים</strong> (<code>forEach</code>/<code>filter</code>/<code>map</code>), ו<strong>אובייקטים</strong> (literals, מתודות, מחלקות).</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        JavaScript היא שפה <strong>דינמית</strong> — אין הצהרת טיפוסים, והטיפוס נקבע בזמן ריצה. זה גמיש אבל גם מקור לבאגים (נראה את המלכודות). התרגול בנוי כסדרת דוגמאות קוד רצות.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#hello">Hello World + console.log</a></li>
+        <li><a class="link" href="#scope">let מול var — scoping</a></li>
+        <li><a class="link" href="#const">const — קבוע (אבל לא immutable)</a></li>
+        <li><a class="link" href="#functions">פונקציות, template strings ו-setTimeout</a></li>
+        <li><a class="link" href="#date">אובייקט Date</a></li>
+        <li><a class="link" href="#recursion">רקורסיה ו-memoization</a></li>
+        <li><a class="link" href="#arrays">מערכים — forEach, filter, map</a></li>
+        <li><a class="link" href="#objects">אובייקטים ומחלקות</a></li>
+        <li><a class="link" href="#coercion">מלכודת — השוואת <code>==</code></a></li>
+      </ol>
+    </div>
+
+    <!-- 1 -->
+    <section id="hello">
+      <h3><span class="num">1.</span> Hello World</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · hello_world.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>console.log("Hello World!");</code></pre>
+      </div>
+      <p><code>console.log(...)</code> מדפיס לקונסול — כלי הדיבוג הבסיסי ב-JS (בדפדפן: DevTools; ב-Node: הטרמינל).</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="scope">
+      <h3><span class="num">2.</span> <code>let</code> מול <code>var</code> — scoping</h3>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ההבדל המרכזי</span>
+          <ul style="margin:0">
+            <li><code>let</code> — משתנה ב-<strong>block scope</strong> (חי רק בתוך ה-<code>{}</code> שבו הוגדר). זו ברירת המחדל המומלצת.</li>
+            <li><code>var</code> — משתנה ב-<strong>function scope</strong> (חי בכל הפונקציה), ניתן ל"שימוש" לפני הגדרה (כ-<code>undefined</code>), וניתן להגדיר אותו מחדש — מקור לבאגים.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · block scope</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// let — block scoped:
+let x = 7;
+{                       // פתיחת בלוק
+    let x = 11;
+    console.log(x);     // 11
+}
+console.log(x);         // 7  — ה-x החיצוני לא הושפע
+
+// בלולאה: עם let, i לא קיים מחוץ ללולאה:
+for (let i = 0; i &lt; 3; i++) { console.log(`i = ${i}`); }
+// console.log(i);      // ERROR — i לא מוגדר כאן
+
+// var — function scoped, ואפשר להגדיר מחדש (לא מומלץ!):
+var y = 2;
+var y = 3;              // לא שגיאה עם var (עם let — שגיאה!)
+console.log(y);         // 3</code></pre>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="const">
+      <h3><span class="num">3.</span> <code>const</code> — קבוע (אבל לא immutable)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">נקודה עדינה וחשובה</span>
+          <code>const</code> מוגדר ב-block scope (כמו <code>let</code>), אבל <strong>לא ניתן לשנות את הערך שלו</strong>. ובכל זאת — אם זה <em>מערך</em> או <em>אובייקט</em>, לא ניתן להשים לתוכו ערך חדש, אבל <strong>כן ניתן לשנות את התוכן הפנימי</strong>!
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · const_values.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const x = 3;
+// x = 5;              // ❌ ERROR — לא ניתן לשנות ערך של const
+
+const arr = [1, 2, 3];
+// arr = [4, 5, 6];    // ❌ ERROR — לא ניתן להשים מערך חדש
+arr[0] = 8;            // ✅ מותר! משנים תוכן: [8, 2, 3]
+
+const car = { type: "Fiat", color: "white" };
+car.color = "red";    // ✅ מותר! משנים שדה. אפילו אפשר להוסיף:
+car.year = 1998;</code></pre>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="functions">
+      <h3><span class="num">4.</span> פונקציות, template strings ו-<code>setTimeout</code></h3>
+      <p>דוגמה: ספירה לאחור (count down) — מדגימה פונקציות, מחרוזות-תבנית, ו-<code>setTimeout</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · count_down.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function countDown(seconds) {
+    const oneSecond = 1000;   // אלפיות שנייה
+    console.log(`Time left ${seconds}`);
+
+    for (let i = 1; i &lt; seconds; i++) {
+        // setTimeout(callback, delay, ...args) — מריץ את ה-callback אחרי delay
+        setTimeout(updateClock, oneSecond * i, seconds - i);
+    }
+
+    setTimeout(() =&gt; {                       // arrow function כ-callback
+        console.log("Time's Up!");
+    }, oneSecond * seconds);
+}
+
+function updateClock(timeLeft) {
+    console.log(`Time left: ${timeLeft}`);
+}
+
+countDown(5);
+console.log("Some Stuff");   // יודפס *מיד* — לפני הספירה!</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">נקודות תחביר</span>
+          <ul style="margin:0">
+            <li><strong>Template string</strong> — מחרוזת ב-backticks <code>`...`</code> עם הזרקת ערכים ב-<code>${...}</code>.</li>
+            <li><code>setTimeout(fn, ms, ...args)</code> — מתזמן הרצה של <code>fn</code> אחרי <code>ms</code>; אפשר להעביר ארגומנטים נוספים.</li>
+            <li><strong>Arrow function</strong> — <code>() =&gt; { ... }</code>, תחביר קצר לפונקציה.</li>
+            <li><strong>חשוב:</strong> <code>setTimeout</code> הוא <em>אסינכרוני</em> — הקוד לא מחכה לו! לכן <code>"Some Stuff"</code> מודפס לפני הספירה. (זוכרים אסינכרוניות מהרצאות ה-JS?)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="date">
+      <h3><span class="num">5.</span> אובייקט <code>Date</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · current_date.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const daylist = ["Sunday", "Monday", "Tuesday", "Wednesday",
+                 "Thursday", "Friday", "Saturday"];
+
+const today = new Date();        // אובייקט התאריך הנוכחי
+const day = today.getDay();      // 0..6
+console.log(`Today is: ${daylist[day]}.`);
+
+let hour = today.getHours();     // 0..23
+const minute = today.getMinutes();
+const second = today.getSeconds();
+
+// אופרטור טרנארי במקום if/else:
+const period = (hour &gt;= 12) ? "PM" : "AM";
+hour = (hour &gt;= 12) ? hour - 12 : hour;
+
+console.log(`Current Time: ${hour} ${period} : ${minute} : ${second}`);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אופרטור טרנארי</span>
+          <code>condition ? valueIfTrue : valueIfFalse</code> — קיצור ל-<code>if/else</code> שמחזיר ערך. נוח להשמה מותנית.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="recursion">
+      <h3><span class="num">6.</span> רקורסיה ו-Memoization</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · fibonacci.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// רקורסיה פשוטה — איטית (חישובים חוזרים), נתקעת על n גדול
+function fibonacci(n) {
+    if (n &lt;= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+// עם memoization — שומרים תוצאות שכבר חושבו במילון
+function fibonacci_dm(n, memo = {}) {
+    if (n in memo) return memo[n];
+    if (n &lt;= 1) return n;
+    memo[n] = fibonacci_dm(n - 1, memo) + fibonacci_dm(n - 2, memo);
+    return memo[n];
+}
+
+console.log(fibonacci_dm(300));   // מהיר!</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">Memoization</span>
+          טכניקת אופטימיזציה: שומרים תוצאות של קריאות שכבר חושבו (כאן ב-<code>memo</code>, אובייקט שמשמש כמילון), ובקריאה חוזרת מחזירים את הערך השמור במקום לחשב שוב. הופך את פיבונאצ'י מ-O(2ⁿ) ל-O(n). שימו לב לפרמטר עם ערך ברירת מחדל: <code>memo = {}</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="arrays">
+      <h3><span class="num">7.</span> מערכים — <code>forEach</code>, <code>filter</code>, <code>map</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · fun_with_arrays.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// ספירת מופעים עם forEach:
+function countItemOccurrence(array, item) {
+    let counter = 0;
+    array.forEach(x =&gt; { if (x == item) counter++; });
+    return counter;
+}
+
+// סינון — מימוש ידני (קיים גם array.filter המובנה):
+function filterArray(array, filterFunction) {
+    let result = [];
+    array.forEach(x =&gt; { if (filterFunction(x) === true) result.push(x); });
+    return result;
+}
+
+// הכפלת כל איבר:
+function multiplyEachElement(array, multiplier) {
+    let newArray = [];
+    array.forEach(x =&gt; newArray.push(x * multiplier));
+    return newArray;
+}
+
+console.log(filterArray([1, 2, 3, '3'], x =&gt; x == '3'));     // [3, '3']
+console.log(multiplyEachElement([1, 2, '3'], 5));            // [5, 10, 15]</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מתודות מערך + higher-order functions</span>
+          <ul style="margin:0">
+            <li><code>arr.forEach(fn)</code> — מריץ <code>fn</code> על כל איבר (לא מחזיר מערך). שימו לב: <strong>אי אפשר <code>break</code></strong> בתוך forEach — לכך משתמשים ב-<code>for</code> רגיל.</li>
+            <li><code>arr.push(x)</code> — מוסיף לסוף. <code>arr.length</code> — אורך.</li>
+            <li>המובנים: <code>arr.filter(fn)</code>, <code>arr.map(fn)</code> — מקבלים <strong>פונקציה כארגומנט</strong> (higher-order function) ומחזירים מערך חדש. עדיף עליהם על מימוש ידני.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="objects">
+      <h3><span class="num">8.</span> אובייקטים ומחלקות</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · object literal + methods</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// object literal:
+const myObj = { attribute1: 'value1', attribute2: 'value2' };
+console.log(myObj.attribute1);       // גישה עם נקודה
+console.log(myObj['attribute2']);    // או עם סוגריים
+
+// אובייקט עם מתודה — this מפנה לאובייקט:
+const person = {
+    firstName: "Israel",
+    lastName: "Israeli",
+    fullName: function() {
+        return this.firstName + " " + this.lastName;
+    }
+};
+console.log(person.fullName());      // "Israel Israeli"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · class (עם שדות פרטיים #)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Car {
+    #fuel = 0;                       // שדה פרטי (קידומת #)
+
+    constructor(name, capacity) {
+        this.name = name;            // שדה ציבורי
+        this.capacity = capacity;
+    }
+
+    fuelCar(amount) {
+        if (this.#fuel + amount &lt;= this.capacity) this.#fuel += amount;
+    }
+    currentFuel() { return this.#fuel; }
+}
+
+const car = new Car("Mazda", 500);
+car.fuelCar(20);
+console.log(car.currentFuel());      // 20
+
+// אפשר להוסיף שדות/מתודות בזמן ריצה:
+car.color = "blue";</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🧊</span>
+        <div class="body">
+          <span class="title">Object.freeze — אובייקט immutable</span>
+          <code>Object.freeze(obj)</code> "מקפיא" אובייקט כך שלא ניתן לשנותו. ניסיון לשנות יזרוק שגיאה ב-strict mode (ובלעדיו פשוט לא יעשה כלום).
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="coercion">
+      <h3><span class="num">9.</span> מלכודת — השוואת <code>==</code></h3>
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">type coercion</span>
+          האופרטור <code>==</code> מבצע <strong>המרת טיפוסים אוטומטית</strong> לפני ההשוואה — מה שמוביל לתוצאות מוזרות:
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">js</span><button class="copy-btn">העתק</button></div>
+            <pre><code>[] == 0        // true  (!)
+"\t" == 0      // true  (!)
+"0" == 0       // true
+[] == "0"      // false (!)</code></pre>
+          </div>
+          <strong>כלל זהב:</strong> כמעט תמיד להשתמש ב-<code>===</code> (השוואה <em>קפדנית</em>, בלי המרת טיפוסים) במקום <code>==</code>. כך נמנעים מהפתעות.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>משתנים:</strong> <code>let</code> (block scope, מומלץ), <code>var</code> (function scope, להימנע), <code>const</code> (קבוע — אך תוכן מערך/אובייקט ניתן לשינוי).</li>
+            <li><strong>פונקציות:</strong> רגילות ו-arrow (<code>=&gt;</code>), template strings (<code>`${}`</code>), <code>setTimeout</code> אסינכרוני, אופרטור טרנארי.</li>
+            <li><strong>מערכים:</strong> <code>forEach</code>/<code>filter</code>/<code>map</code>/<code>push</code> — higher-order functions.</li>
+            <li><strong>אובייקטים:</strong> literals, מתודות + <code>this</code>, <code>class</code> עם שדות פרטיים (<code>#</code>), <code>Object.freeze</code>.</li>
+            <li><strong>מלכודת:</strong> <code>==</code> ממיר טיפוסים — להשתמש ב-<code>===</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-03.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 3 · STL ו-Templates</span>
+      </a>
+      <a class="next" href="tutorial-05.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 5 · רשתות ו-Sockets</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

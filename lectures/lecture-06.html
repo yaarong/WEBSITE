@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 6 · JavaScript</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 6 · JavaScript</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 6</div>
+      <h1>JavaScript</h1>
+      <p>בהרצאה הקודמת השתמשנו ב-JavaScript בלי לעצור על השפה עצמה. עכשיו נכיר אותה לעומק: <strong>המאפיינים והקוויארקים</strong> שלה, איך מתמשקים עם הדף (<strong>DOM</strong>) והדפדפן (<strong>BOM</strong>), <strong>jQuery</strong>, ההבדלים העדינים של <strong>var/let/const</strong> ו-<strong>hoisting</strong>, אובייקטים ו-<strong>modules</strong>, ה-<strong>async</strong> (callbacks, Promises, async/await), <strong>prototypes</strong>, ולבסוף הצצה ל-<strong>React</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי</span>
+        JavaScript נראית אינטואיטיבית — אבל יש בה הרבה מלכודות עדינות (scoping, hoisting, <code>this</code>, prototypes) שמבדילות בין מי ש"כותב JS שעובד" למי ש<em>מבין</em> אותו. ההרצאה הזו צוללת בדיוק אל ההבדלים האלה. כמה נושאים (event loop, Promises, async/await) כבר ראינו בהרצאה 5 — כאן נחזק אותם ונוסיף את מה שייחודי לשפה.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — יסודות השפה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#basics">מהי JavaScript — מאפיינים</a></li>
+            <li><a class="link" href="#quirks">הקוויארקים (אל תנצל לרעה!)</a></li>
+            <li><a class="link" href="#engine">מנוע JS — interpreted, JIT, V8</a></li>
+            <li><a class="link" href="#hello">Hello World + הפרדת HTML/JS</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — DOM, אירועים, jQuery</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#dom">DOM — מודל המסמך</a></li>
+            <li><a class="link" href="#events">DOM + Events</a></li>
+            <li><a class="link" href="#jquery">jQuery</a></li>
+            <li><a class="link" href="#bom">BOM</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — שפת הליבה לעומק</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#var-let">var / let / const ו-scoping</a></li>
+            <li><a class="link" href="#objects">אובייקטים (JSON) ומתודות</a></li>
+            <li><a class="link" href="#hoisting">Hoisting</a></li>
+            <li><a class="link" href="#modules">Modules</a></li>
+            <li><a class="link" href="#async">Async: callbacks, Promises, async/await</a></li>
+            <li><a class="link" href="#prototype">Prototypes ושרשרת הפרוטוטייפ</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — מסגרות מודרניות</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#react">React ו-Transpilation</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · יסודות השפה</h2>
+
+    <!-- 1 -->
+    <section id="basics">
+      <h3><span class="num">1.</span> מהי JavaScript — מאפיינים</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לפני שכותבים קוד, חשוב להבין את ה<em>אופי</em> של השפה — מאפיינים שמסבירים למה היא מתנהגת כמו שהיא מתנהגת.
+        </div>
+      </div>
+
+      <ul>
+        <li>שפה <strong>אינטואיטיבית</strong> — אבל <strong>לא טריוויאלית</strong> (יש מלכודות עדינות).</li>
+        <li>רצה על <strong>הרבה פלטפורמות</strong> (דפדפן, שרת, מובייל...).</li>
+        <li><strong>לא באמת קשורה ל-Java</strong> (השם הוא בעיקר שיווק מהשנים ההן).</li>
+        <li>רוב היסודות סטנדרטיים (<code>if/else</code>, לולאות וכו').</li>
+        <li><strong>Weakly-typed</strong> (טיפוסים גמישים), <strong>interpreted</strong> (מפורשת, עם JIT-compilation).</li>
+        <li><strong>Case sensitive</strong> — <code>foo</code> ≠ <code>Foo</code>.</li>
+        <li><strong>Single-threaded, event-driven</strong> (thread אחד + event loop — בדיוק כמו שראינו בהרצאה 5).</li>
+        <li><strong>Multi-paradigm</strong> — תומכת בפרוצדורלי, מונחה-עצמים, ופונקציונלי.</li>
+      </ul>
+    </section>
+
+    <!-- 2 -->
+    <section id="quirks">
+      <h3><span class="num">2.</span> הקוויארקים — אל תנצל לרעה!</h3>
+
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">"JavaScript can be weird, but DON'T abuse that"</span>
+          השפה מתירנית מאוד — אבל רק כי <em>אפשר</em> לעשות משהו לא אומר שצריך. הנה שלושה "היתרים" שעדיף להימנע מהם:
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · קוויארקים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// 1. נקודה-פסיק אופציונלית (אבל תמיד תכתוב אותה!)
+foo = 1;
+foo = 1
+
+// 2. הצהרת משתנה אופציונלית (אבל תמיד הצהר!)
+foo = 1;
+var foo = 1
+
+// 3. הצהרה כפולה — מותרת ולא זורקת שגיאה
+var foo = 1;
+var foo;
+console.log(foo); // 1   (foo נשאר 1, לא נמחק!)</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הלקח</span>
+          תמיד כתוב נקודה-פסיק, תמיד הצהר משתנים (ועדיף עם <code>let</code>/<code>const</code> ולא <code>var</code>), ואל תצהיר אותו משתנה פעמיים. הסלחנות של השפה היא מקור עיקרי לבאגים — וכל החלק הזה של ההרצאה בא להראות איפה היא מסתתרת.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="engine">
+      <h3><span class="num">3.</span> מנוע JS — Interpreted, JIT, V8</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — איך הקוד באמת רץ</span>
+          השם הרשמי של JavaScript הוא <strong>ECMAScript</strong>, עם עדכונים שנתיים מאז 2015 (גרסת <strong>ES6 / ES2015</strong> ואילך הביאו את רוב מה שנלמד היום). אבל איך הקוד מורץ?
+        </div>
+      </div>
+
+      <p>JavaScript היא <strong>שפה מפורשת (interpreted)</strong>, והמסלול הוא:</p>
+      <pre class="ascii-diagram"><code> קוד JS
+   │ 1. ה-engine מנתח (parse) את הקוד לזיהוי שגיאות
+   ▼      (באמצעות Abstract Syntax Tree — AST)
+ AST
+   │ 2. הומר ל-bytecode
+   ▼
+ Bytecode
+   │ 3. מורץ ע"י JavaScript VM,
+   ▼      ואפשר לייעל אותו עם JIT-compiler
+ ריצה מהירה</code></pre>
+
+      <ul>
+        <li>JavaScript מורצת ע"י <strong>מנועים (engines)</strong> ייעודיים.</li>
+        <li>בעבר המנועים היו רק <strong>בדפדפנים</strong> (להרצת JS בצד הלקוח).</li>
+        <li>היום JS פופולרית גם בצד <strong>השרת</strong> — למשל מנוע <strong>V8</strong> של Chrome משמש את <strong>Node.js</strong>.</li>
+      </ul>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Engine APIs — מה ייחודי לכל סביבה</span>
+          <strong>שפת הליבה זהה</strong> בכל המנועים, אבל לכל מנוע יכולה להיות פונקציונליות ייחודית שהיא חלק מ-<strong>API</strong>: <code>console.log</code> היא דוגמה אחת; <code>alert(...)</code> היא דוגמה אחרת — היא חלק מה-<strong>WebAPI של הדפדפן</strong> ולא קיימת ב-Node.js. כלומר, אותו קוד "core" ירוץ בכל מקום, אבל קריאות API מסוימות תלויות-סביבה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="hello">
+      <h3><span class="num">4.</span> Hello World + הפרדת HTML/JS</h3>
+
+      <p>JavaScript משובצת בדף HTML בתוך תג <code>&lt;script&gt;</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html + js · hello world</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;html&gt;
+&lt;body&gt;
+    &lt;script type="text/javascript"&gt;
+        var x = 'Hello world';
+        alert(x);
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+      <p><code>alert(x)</code> מציג תיבת הודעה בדפדפן עם הטקסט. (שים לב: רק קוד בתוך <code>&lt;script&gt;</code> מורץ — טקסט מחוץ לו הוא סתם תוכן הדף.)</p>
+
+      <p><strong>עדיף להפריד</strong> את ה-JS לקובץ נפרד (כמו שמפרידים CSS) — קריא יותר וניתן למחזור:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · script חיצוני</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;html&gt;
+&lt;head&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;script type="text/javascript" src="foo.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבור להרצאה 2</span>
+          זו בדיוק <strong>הפרדת אחריות (separation of concerns)</strong> שראינו ב-SOLID: HTML = מבנה, CSS = עיצוב, JS = התנהגות. ערבוב של שלושתם באותו קובץ הוא code smell.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · DOM, אירועים, jQuery</h2>
+
+    <!-- 5 -->
+    <section id="dom">
+      <h3><span class="num">5.</span> DOM — מודל המסמך (Document Object Model)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          איך JS "נוגעת" בדף שמוצג? דפדפנים מציגים מסמכי web. כשהדפדפן <strong>טוען מסמך, הוא יוצר ייצוג אובייקטי שלו</strong> — זהו ה-<strong>DOM</strong>. ל-DOM יש API שמאפשר לקרוא, לשנות ולתמרן את הדף בזמן ריצה.
+        </div>
+      </div>
+
+      <p>האובייקט הגלובלי <code>document</code> נותן גישה לחלקי הדף:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · ממשק document</span><button class="copy-btn">העתק</button></div>
+        <pre><code>console.log(document.head);      // אלמנט ה-head
+console.log(document.body);      // אלמנט ה-body
+console.log(document.forms);     // כל הטפסים בדף
+console.log(document.links);     // כל הקישורים (&lt;a&gt;)
+console.log(document.images);    // כל התמונות (&lt;img&gt;)
+console.log(document.cookie);    // העוגיות
+console.log(document.location);  // ה-URL הנוכחי</code></pre>
+      </div>
+      <p>כל אחד מהם מחזיר אוסף או אובייקט שמייצג חלק מהדף — שאפשר לקרוא ולשנות.</p>
+    </section>
+
+    <!-- 6 -->
+    <section id="events">
+      <h3><span class="num">6.</span> DOM + Events</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          זוכרים ש-JS היא <strong>event-driven</strong>? הדרך העיקרית להגיב למשתמש היא <strong>אירועים (events)</strong>: לחיצה, הקלדה, מעבר עכבר... מאתרים אלמנט ב-DOM ומחברים לו פונקציית טיפול (handler).
+        </div>
+      </div>
+
+      <p><strong>דוגמה 1 — כפתור עם onclick:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;button id="btnFoo"&gt;Click me&lt;/button&gt;
+&lt;script type="text/javascript" src="index.js"&gt;&lt;/script&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function show(){
+    alert("You clicked me!");
+}
+
+var btnFoo = document.getElementById('btnFoo');
+btnFoo.onclick = show;   // שים לב: show בלי () — מעבירים את הפונקציה, לא קוראים לה!</code></pre>
+      </div>
+
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">מלכודת נפוצה — <code>show</code> מול <code>show()</code></span>
+          כותבים <code>btnFoo.onclick = show</code> (בלי סוגריים!) — מעבירים <em>הפניה לפונקציה</em> שתופעל בעת הלחיצה. אם תכתוב <code>show()</code> עם סוגריים, הפונקציה תרוץ <em>מיד</em> (בעת טעינת הדף) ותשמור את <em>ערך ההחזרה</em> שלה כ-handler — באג קלאסי. בדיוק כמו <code>start()</code> מול <code>run()</code> ב-Java threads מהרצאה 4!
+        </div>
+      </div>
+
+      <p><strong>דוגמה 2 — תגובה להקלדה (onkeyup) + עדכון innerHTML:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · echo להקלדה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function handleKeyup(){
+    var divBar = document.getElementById('divBar');
+    divBar.innerHTML = '&lt;u&gt;' + inpFoo.value + '&lt;/u&gt;';
+}
+
+var inpFoo = document.getElementById('inpFoo');
+inpFoo.onkeyup = handleKeyup;</code></pre>
+      </div>
+      <p>בכל הקלדה, התוכן של ה-<code>div</code> מתעדכן לערך השדה (מקווקו). <code>innerHTML</code> מאפשר לכתוב HTML חדש לתוך אלמנט.</p>
+
+      <p><strong>דוגמה 3 — צביעת מספר אלמנטים + <code>this</code>:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · mouseover/mouseout</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function handleMouseover(){
+    this.style.backgroundColor = 'blue';
+}
+function handleMouseout(){
+    this.style.backgroundColor = 'red';
+}
+
+var divs = document.getElementsByTagName('div');
+for (let i = 0; i &lt; divs.length; i++) {
+    divs[i].onmouseover = handleMouseover;
+    divs[i].onmouseout = handleMouseout;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מהו <code>this</code> כאן</span>
+          בתוך handler, <code>this</code> מצביע על <strong>האלמנט שעליו קרה האירוע</strong>. לכן אותה פונקציה אחת (<code>handleMouseover</code>) עובדת על כל ה-divs — כל אחד צובע את עצמו. שים לב גם ל-<code>let i</code> בלולאה (ולא <code>var</code>) — נראה מיד למה זה קריטי.
+        </div>
+      </div>
+
+      <p><strong>דרכים נוספות ליצור/לאתר אלמנטים:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · create / find</span><button class="copy-btn">העתק</button></div>
+        <pre><code>document.write("Hello world");
+document.write("&lt;h1&gt;Hello world&lt;/h1&gt;");
+
+var txt = document.createTextNode(document.body.innerHTML);
+var div = document.createElement("div");   // יצירת אלמנט חדש
+div.appendChild(txt);                       // הוספת ילד
+document.body.appendChild(div);             // הוספה לדף
+
+const byId      = document.getElementById("foo");
+const byTagName = document.getElementsByTagName("bar");
+const byClass   = document.getElementsByClassName("baz");</code></pre>
+      </div>
+
+      <p><strong>חיבור אירועים — שתי דרכים:</strong> ישירות ב-HTML (inline) או מ-JS:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · inline events</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;body onClick="console.log('click')" onLoad="console.log('load')"&gt;
+    &lt;input onFocus="console.log('focus')"
+           onBlur="console.log('blur')"
+           onChange="console.log('change')"&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>אירוע</th><th>מתי</th></tr></thead>
+        <tbody>
+          <tr><td><code>onLoad</code></td><td>הדף סיים להיטען.</td></tr>
+          <tr><td><code>onClick</code></td><td>לחיצה.</td></tr>
+          <tr><td><code>onFocus</code> / <code>onBlur</code></td><td>שדה קיבל / איבד מיקוד.</td></tr>
+          <tr><td><code>onChange</code></td><td>ערך השדה השתנה (אחרי איבוד מיקוד).</td></tr>
+          <tr><td><code>onSubmit</code></td><td>טופס נשלח (אם מחזיר <code>false</code> — השליחה מבוטלת).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 7 jQuery -->
+    <section id="jquery">
+      <h3><span class="num">7.</span> jQuery — ספריית JavaScript</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-DOM API הגולמי מסורבל (<code>document.getElementById</code> וכו'). <strong>jQuery</strong> היא ספרייה שמפשטת בחירת אלמנטים, מניפולציה ואירועים, עם הפונקציה הקסומה <code>$</code>.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · jQuery בסיסי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>$(document).ready(function () {
+    console.log("Hello world");   // רץ כשה-DOM מוכן
+});</code></pre>
+      </div>
+
+      <p><strong>בחירה ומניפולציה</strong> — סלקטורים בסגנון CSS:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · סלקטורים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>$(document).ready(function () {
+    var a = $('div');              // כל ה-div-ים
+    console.log(a.length);
+
+    $('.bar').each(function(i, elem){   // לולאה על מחלקה .bar
+        console.log($(elem).text());
+    });
+
+    var c = $('#foo');             // לפי id
+    c.attr('x', 'y');              // הוספת attribute
+
+    var d = $('div div.bar');      // סלקטור מקונן
+    d.addClass('zzzz');            // הוספת class
+});</code></pre>
+      </div>
+
+      <p><strong>אירועים מתקדמים</strong> — שרשור, מניעת התנהגות ברירת מחדל, קודי מקשים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · jQuery events</span><button class="copy-btn">העתק</button></div>
+        <pre><code>$(function () {
+    $('body').click(function(){
+        $('#foo').toggle();             // הצג/הסתר
+    });
+
+    $('input#search').click(function(event){
+        event.stopPropagation();        // עצור "בעבוע" האירוע למעלה
+    }).keydown(function(event){
+        if (event.keyCode == 13 &amp;&amp; this.value.length &lt; 5){  // Enter = 13
+            $('#foo div').text('5 letters minimum');
+            event.preventDefault();     // בטל את התנהגות ברירת המחדל
+        }
+    }).keyup(function(event){
+        if (event.keyCode == 13) return;
+        $('#foo div').text($(this).val());
+    });
+});</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מושגי מפתח</span>
+          <ul style="margin:0">
+            <li><code>$('selector')</code> — בוחר אלמנטים בסגנון CSS (<code>#id</code>, <code>.class</code>, <code>tag</code>).</li>
+            <li><strong>Chaining</strong> — <code>.click().keydown().keyup()</code> משורשרים על אותו אובייקט.</li>
+            <li><code>event.stopPropagation()</code> — מונע מהאירוע "לבעבע" (bubble) להורים.</li>
+            <li><code>event.preventDefault()</code> — מבטל את הפעולה הדיפולטית (למשל שליחת טופס).</li>
+            <li><code>event.keyCode == 13</code> — קוד המקש Enter.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 BOM -->
+    <section id="bom">
+      <h3><span class="num">8.</span> BOM — Browser Object Model</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-<strong>DOM</strong> מאפשר להתממשק עם <em>הדף</em>; באופן דומה, ה-<strong>BOM</strong> מאפשר להתממשק עם <em>הדפדפן</em> עצמו. האובייקט הגלובלי הוא <code>window</code> — ולמעשה <code>document</code> הוא <code>window.document</code>, וכל משתנה גלובלי (<code>window.foo</code>) הוא תכונה של <code>window</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · window</span><button class="copy-btn">העתק</button></div>
+        <pre><code>window.document    // אותו document שהכרנו
+window.foo         // undefined  (עוד לא הוגדר)
+var foo = {a:1}
+window.foo         // {a: 1}     (משתנה גלובלי = תכונה של window)</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · שפת הליבה לעומק</h2>
+
+    <!-- 9 var/let -->
+    <section id="var-let">
+      <h3><span class="num">9.</span> var / let / const ו-scoping</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — אחד הנושאים החשובים ביותר</span>
+          לפני ES6 הייתה רק <code>var</code>, וההתנהגות שלה מבלבלת. ES6 הוסיפה את <code>let</code> ו-<code>const</code> שמתנהגות צפוי יותר. ההבדל המרכזי: <strong>scope (תחום הקיום)</strong>.
+        </div>
+      </div>
+
+      <p><strong><code>var</code> אינו block-scoped</strong> — בלוק <code>if</code> לא יוצר scope חדש:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · var בתוך if</span><button class="copy-btn">העתק</button></div>
+        <pre><code>var x = 1;
+console.log(x); // 1
+
+if (x == "1"){       // true! (== ממיר טיפוסים; === היה מחזיר false)
+    var x = 2;       // אותו x! לא חדש
+    console.log(x);  // 2
+}
+
+console.log(x); // 2   ← השתנה! ה-x בשורה 1 ובתוך ה-if הם אותו משתנה</code></pre>
+      </div>
+
+      <p><strong><code>var</code> כן function-scoped</strong> — פונקציה כן יוצרת scope:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · var בתוך function</span><button class="copy-btn">העתק</button></div>
+        <pre><code>var x = 1;
+function foo() {
+    var x = 2;       // x נפרד! (scope של הפונקציה)
+    console.log(x);  // 2
+}
+foo();
+console.log(x); // 1   ← לא השתנה</code></pre>
+      </div>
+
+      <p><strong><code>let</code> הוא block-scoped</strong> — כל בלוק <code>{}</code> יוצר scope:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · let</span><button class="copy-btn">העתק</button></div>
+        <pre><code>let x = 1;
+console.log(x); // 1
+
+if (x == "1"){
+    let x = 2;       // x חדש! (scope של הבלוק)
+    console.log(x);  // 2
+}
+
+function foo() {
+    let x = 3;       // x חדש נוסף
+    console.log(x);  // 3
+}
+foo();
+
+console.log(x); // 1   ← לא הושפע משום בלוק/פונקציה</code></pre>
+      </div>
+
+      <p><strong><code>const</code></strong> — כמו <code>let</code> אבל לא ניתן להשמה מחדש:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · const</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const foo = 1;
+foo = 1;  // Uncaught TypeError: Assignment to constant variable.</code></pre>
+      </div>
+
+      <div class="callout danger">
+        <span class="ic">🌍</span>
+        <div class="body">
+          <span class="title">מלכודת — משתנים לא-מוצהרים הם גלובליים!</span>
+          אם משתמשים במשתנה <strong>בלי להצהיר אותו בכלל</strong>, JS מצהירה אותו <em>אוטומטית כגלובלי</em>:
+          <div class="code-block" style="margin-top:.6rem">
+            <div class="code-head"><span class="lang">js</span><button class="copy-btn">העתק</button></div>
+            <pre><code>function foo() {
+    x = 2;            // x לא מוצהר → הופך לגלובלי!
+    console.log(x);   // 2
+}
+foo();
+console.log(x); // 2   ← נגיש מבחוץ! (זיהום ה-global scope)</code></pre>
+          </div>
+          זו אחת הסיבות המרכזיות לכתוב תמיד <code>let</code>/<code>const</code> ולהפעיל <code>"use strict"</code>.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">כלל אצבע (דוגמה משלי)</span>
+          ב-JS מודרני: השתמש ב-<code>const</code> כברירת מחדל, ב-<code>let</code> רק כשצריך לשנות את הערך, וב-<code>var</code> <strong>אף פעם</strong>. זה מונע את רוב המלכודות לעיל. זוכרים את לולאת ה-<code>let i</code> מקטע האירועים? עם <code>var i</code> כל ה-handlers היו "רואים" את אותו <code>i</code> הסופי — באג קלאסי שבדיוק <code>let</code> פותר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 objects -->
+    <section id="objects">
+      <h3><span class="num">10.</span> אובייקטים (JSON) ומתודות</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אובייקטים ב-JS הם פשוט אוספי מפתח-ערך, בתחביר שנקרא <strong>JSON</strong> (JavaScript Object Notation). הם דינמיים — אפשר להוסיף ולשנות שדות תוך כדי ריצה.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · אובייקט דינמי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const o = {foo: "Bar", caz: 3, bar: 'abc'}
+console.log(o);   // {foo: 'Bar', caz: 3, bar: 'abc'}
+
+o.caz = 4;        // שינוי שדה קיים
+console.log(o);   // {foo: 'Bar', caz: 4, bar: 'abc'}
+
+o.xyz = '5';      // הוספת שדה חדש תוך כדי ריצה!
+console.log(o);   // {foo: 'Bar', caz: 4, bar: 'abc', xyz: '5'}
+
+o = {}            // TypeError! (const — אי-אפשר להשמה מחדש)</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>const</code> על אובייקט — נקודה עדינה</span>
+          <code>const o</code> מונע <em>השמה מחדש</em> של <code>o</code> (<code>o = {}</code> אסור), אבל <strong>כן</strong> מאפשר לשנות את <em>תוכן</em> האובייקט (<code>o.caz = 4</code> מותר). ה-const "נועל" את ההפניה, לא את התוכן.
+        </div>
+      </div>
+
+      <p><strong>מתודות באובייקט</strong> + הגישה אליהן:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · מתודות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const o = {
+    foo: 1,
+    caz() { return this.foo },           // קיצור מתודה
+    //caz2: () =&gt; { return this.foo },   // ❌ arrow — אין לה this נכון!
+    bar: function(x) { return x+1 }
+}
+console.log(o.foo)      // 1
+console.log(o['foo'])   // 1   (גישה גם בסוגריים מרובעים)
+console.log(o.caz())    // 1
+console.log(o.bar(1))   // 2</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">אל תשתמש ב-arrow functions כמתודות!</span>
+          ל-arrow functions יש מגבלות מובנות — <strong>אין להן גישה ל-<code>this</code></strong> של האובייקט (ה-<code>this</code> שלהן נקבע מההקשר החיצוני). לכן <code>caz2</code> המקוונן לא היה עובד. למתודה שצריכה <code>this</code> — השתמש ב-<code>caz()</code> או ב-<code>function</code> רגיל.
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 hoisting -->
+    <section id="hoisting">
+      <h3><span class="num">11.</span> Hoisting (הרמה)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לפני שהקוד רץ, ה-engine <strong>סורק</strong> אותו ו"מרים" (hoists) את ההצהרות לראש ה-scope שלהן. <strong>חשוב:</strong> מורמות רק ה<em>הצהרות</em> (declarations), לא האתחול (initialization).
+        </div>
+      </div>
+
+      <p><strong>עם <code>var</code> — הצהרה בלי אתחול = <code>undefined</code></strong> (לא שגיאה):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · hoisting של var</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// זה כל הקוד:
+console.log(foo); // undefined   ← לא שגיאה! ההצהרה "הורמה" למעלה
+var foo;
+
+// מול: משתנה שלא קיים בכלל
+console.log(bar); // ReferenceError: bar is not defined</code></pre>
+      </div>
+
+      <p><strong>Hoisting מרים את ההצהרה, לא את הערך:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>console.log(foo); // undefined   ← ההצהרה הורמה, אבל לא ה-='bar'
+var foo = 'bar';
+console.log(foo); // bar</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title"><code>let</code> ו-<code>const</code> — Temporal Dead Zone</span>
+          ל-<code>let</code>/<code>const</code> ההתנהגות שונה — גישה לפני ההצהרה <strong>זורקת שגיאה</strong> (הם ב-"אזור מת זמני", TDZ):
+          <div class="code-block" style="margin-top:.6rem">
+            <div class="code-head"><span class="lang">js</span><button class="copy-btn">העתק</button></div>
+            <pre><code>console.log(foo); // ReferenceError: foo is not defined
+let foo = 'foo';</code></pre>
+          </div>
+          זה התנהגות <em>בריאה</em> יותר — עוד סיבה להעדיף <code>let</code>/<code>const</code> על <code>var</code>.
+        </div>
+      </div>
+
+      <p><strong>הצהרת פונקציה מול ביטוי פונקציה</strong> — הבדל קריטי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · function declaration — עובד</span><button class="copy-btn">העתק</button></div>
+        <pre><code>foo(); // foo   ← עובד! הצהרת פונקציה מורמת במלואה
+function foo(){
+    console.log("foo");
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · function expression — נכשל</span><button class="copy-btn">העתק</button></div>
+        <pre><code>foo(); // TypeError: foo is not a function
+var foo = function (){          // רק ההצהרה var foo מורמת (=undefined),
+    console.log("foo");         // ההשמה של הפונקציה עוד לא קרתה!
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ההבדל</span>
+          <strong>הצהרת פונקציה</strong> (<code>function foo(){}</code>) מורמת <em>במלואה</em> — אפשר לקרוא לה לפני ההגדרה. <strong>ביטוי פונקציה</strong> (<code>var foo = function(){}</code>) — רק ה-<code>var foo</code> מורם (כ-<code>undefined</code>), וקריאה לפני ההשמה נותנת "foo is not a function". וגם בתוך פונקציה: <code>var</code> פנימי מורם לראש הפונקציה, ולכן <code>console.log(foo)</code> לפני <code>var foo='foo'</code> יחזיר <code>undefined</code> ולא את הערך החיצוני.
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 modules -->
+    <section id="modules">
+      <h3><span class="num">12.</span> Modules</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          איך מארגנים קוד גדול? <strong>Module</strong>, בדומה ל-class, מקבץ יחד נתונים ופעולות. אבל בניגוד ל-class (שבו הכל public) — module <strong>חושף רק את מה שהוא מחזיר/מייצא</strong>; השאר נשאר פרטי.
+        </div>
+      </div>
+
+      <p><strong>ES Modules</strong> — קובץ אחד = module אחד. מה ש<code>export</code>-ים זמין לאחרים; מה שלא — פרטי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Foo.js — ייצוא</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// דרך 1 — export ישיר
+export function Foo(bar) {
+    // ...
+}
+
+// דרך 2 — export בנפרד
+function Foo(bar) {
+    // ...
+}
+export Foo;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · קובץ אחר — ייבוא</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import Foo from "Foo.js"
+
+var foo = Foo(1)</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">כבר ראינו את זה!</span>
+          בהרצאה 5, ב-MVC של NodeJS, השתמשנו ב-<code>module.exports</code> / <code>require</code> (סגנון CommonJS). זו אותה רעיון — אנקפסולציה ברמת הקובץ: חושפים API מינימלי ומסתירים את הפרטים, בדיוק כמו ב-encapsulation של OOP.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 async -->
+    <section id="async">
+      <h3><span class="num">13.</span> Async: Callbacks, Promises, async/await</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ראינו בהרצאה 5 את ה-event loop, Promises ו-async/await. כאן נחזק את ההבנה דרך הזווית של ההיסטוריה: <strong>callbacks → Promises → async/await</strong>, וננתח דוגמת סדר-ריצה מדויקת.
+        </div>
+      </div>
+
+      <p><strong>הדרך הישנה — Callbacks:</strong> מעבירים פונקציה שתורץ "כשיהיה מוכן":</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · callback עם XMLHttpRequest</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function foo(callback){
+    const xhr = new XMLHttpRequest();
+    xhr.onload = function() {
+        callback(xhr.responseText)   // קוראים ל-callback כשהתשובה הגיעה
+    }
+    xhr.open("GET", "http://www.foo.com");
+    xhr.send();
+}
+
+function bar(data) {
+    console.log(data)
+}
+
+foo(bar);   // מעבירים את bar כ-callback</code></pre>
+      </div>
+
+      <p><strong>Event loop — תזכורת:</strong> קוד סינכרוני רץ על ה-Stack, פעולות אסינכרוניות עוברות ל-APIs, וה-callbacks שלהן נכנסים ל-Task queue. ה-event loop מעביר אותם ל-Stack <em>רק כשהוא ריק</em>. לכן:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · מה קודם?</span><button class="copy-btn">העתק</button></div>
+        <pre><code>setTimeout(function (){ console.log('foo'); }, 2000);
+console.log('bar');
+// פלט: bar ואז foo</code></pre>
+      </div>
+
+      <p><strong>דוגמת Promise מלאה — נתח את סדר הפלט:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · סדר ריצה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>console.log(1)
+let foo = new Promise((resolve, reject) =&gt; {
+    console.log(2)
+    setTimeout(function() {
+        console.log(3)
+        resolve('done');
+    }, 3000);
+    console.log(4)
+})
+
+console.log(7)
+
+function bar(data) {
+    console.log(6)
+    console.log(data)
+}
+
+console.log(8)
+foo.then(bar);
+console.log(9)</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔢</span>
+        <div class="body">
+          <span class="title">הפלט: 1, 2, 4, 7, 8, 9, 3, 6, done — למה?</span>
+          <ul style="margin:0">
+            <li><strong>קוד סינכרוני קודם:</strong> <code>1</code>. ה-Promise executor רץ <em>מיד וסינכרונית</em>: <code>2</code>, מתזמן את ה-<code>setTimeout</code>, <code>4</code>. ממשיכים: <code>7</code>, <code>8</code>, רושמים את <code>foo.then(bar)</code>, <code>9</code>.</li>
+            <li><strong>אחרי 3 שניות</strong> (כשה-Stack ריק): ה-callback של ה-timeout רץ → <code>3</code>, ואז <code>resolve('done')</code> מפעיל את <code>bar</code> → <code>6</code>, ואז <code>console.log(data)</code> → <code>done</code>.</li>
+          </ul>
+          השורה המספרית (3000ms) רצה אחרונה — בדיוק כמו ש-<code>fetch(...).then(...)</code> רץ אחרי הקוד הסינכרוני שאחריו.
+        </div>
+      </div>
+
+      <p><strong>async/await</strong> — פונקציות async <em>תמיד מחזירות Promise</em>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · async/await</span><button class="copy-btn">העתק</button></div>
+        <pre><code>let foo = async () =&gt; "bar";
+// זהה ל: function foo() { return Promise.resolve("bar"); }
+
+var bar = await foo()   // await "פותח" את ה-Promise ומחזיר את הערך
+console.log(bar)        // bar</code></pre>
+      </div>
+      <p><code>await</code> ממתין שה-Promise ייפתר ומחזיר את הערך — קוד אסינכרוני שנראה סינכרוני וקריא (ראינו בהרצאה 5).</p>
+    </section>
+
+    <!-- 14 prototype -->
+    <section id="prototype">
+      <h3><span class="num">14.</span> Prototypes ושרשרת הפרוטוטייפ</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מה באמת קורה מאחורי class</span>
+          ל-JavaScript יש <code>class</code> ו-<code>extends</code> כמו ב-Java — אבל זה <strong>הטעיה</strong>. מתחת למכסה המנוע, JS היא <strong>prototype-based</strong>, וה-<code>class</code> הוא רק "סוכר תחבירי" (syntactic sugar) מעל מנגנון ה-prototypes.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · class ו-extends</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Foo {
+    caz = 1
+    constructor (foo) {
+        this.bar = foo
+    }
+    baz() {
+        return this.bar
+    }
+}
+
+class Foo2 extends Foo {
+    constructor(foo2) {
+        super(foo2)
+    }
+}
+
+const f = new Foo2(3)
+console.log(f)   // Foo2 {caz: 1, bar: 3}, [[Prototype]]: Foo</code></pre>
+      </div>
+
+      <p><strong>איך זה עובד באמת:</strong></p>
+      <ul>
+        <li>לכל אובייקט יש תכונה מיוחדת — <strong><code>prototype</code></strong>.</li>
+        <li>ערך ה-prototype הוא <em>גם אובייקט</em>, ולכן גם לו יש <code>prototype</code> — וכך נוצרת <strong>שרשרת פרוטוטייפ (prototype chain)</strong>.</li>
+        <li>כשמחפשים תכונה של אובייקט: <strong>מחפשים קודם באובייקט עצמו</strong>, ואם לא נמצא — מחפשים ב-prototype שלו, וחוזרים על זה <strong>עד שמגיעים ל-<code>null</code></strong>.</li>
+      </ul>
+
+      <pre class="ascii-diagram"><code> f (Foo2)  ──prototype──▶  Foo.prototype  ──prototype──▶  Object.prototype  ──▶  null
+ {caz, bar}                {baz, constructor}            {toString, valueOf, ...}
+
+ f.baz()  →  לא ב-f? → חפש ב-Foo.prototype → נמצא! ✓
+ f.toString()  →  לא ב-f? → לא ב-Foo? → ב-Object.prototype → נמצא! ✓</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">בדיקה בקונסול</span>
+          <code>Object.getPrototypeOf(c)</code> מחזיר את ה-prototype של אובייקט. אם תמשיך לטפס (<code>getPrototypeOf(getPrototypeOf(c))</code>) תגיע בסוף ל-<code>null</code> — קצה השרשרת. זה בדיוק מה ש-JS עושה בכל גישה לתכונה. <strong>הסיכום:</strong> JavaScript היא prototype-based; ה-<code>class</code> רק נראה כמו ירושה קלאסית אבל מתורגם לשרשרת prototypes.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · מסגרות מודרניות</h2>
+
+    <!-- 15 react -->
+    <section id="react">
+      <h3><span class="num">15.</span> React ו-Transpilation</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לתמרן את ה-DOM ידנית (<code>createElement</code>, <code>appendChild</code>) זה מסורבל ומועד לשגיאות. <strong>React</strong> היא הספרייה הפופולרית שמפשטת בניית ממשקים. נראה את ההתפתחות צעד-צעד.
+        </div>
+      </div>
+
+      <p><strong>DOM גולמי</strong> — איך עושים את זה בלי React:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · DOM ידני</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const h = document.createElement('h1')
+h.textContent = 'Hello'
+h.className = 'foo'
+document.getElementById('root').appendChild(h)</code></pre>
+      </div>
+
+      <p><strong>אותו דבר עם React</strong> — <code>React.createElement</code> + <code>ReactDOM.render</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · React.createElement</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const h = React.createElement('h1', { className: 'foo' }, 'Hello')
+ReactDOM.render(h, document.getElementById('root'))</code></pre>
+      </div>
+
+      <p><strong>JSX</strong> — כותבים "HTML" בתוך JS (קריא בהרבה מ-<code>createElement</code>):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · JSX</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const h = &lt;h1&gt;Hello {1+2}
+    &lt;div&gt;
+        &lt;span className="foo" foo="bar"&gt;Hi&lt;/span&gt;
+    &lt;/div&gt;
+&lt;/h1&gt;
+
+ReactDOM.render(h, document.getElementById('root'))</code></pre>
+      </div>
+      <p>שים לב ל-<code>{1+2}</code> — אפשר להזריק ביטויי JS לתוך ה-JSX, ול-<code>className</code> במקום <code>class</code> (כי <code>class</code> שמורה ב-JS).</p>
+
+      <p><strong>קומפוננטות + props</strong> — פונקציה שמחזירה JSX, עם פרמטרים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · component</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Foo({a, b, c}) {       // destructuring של props
+    return (
+        &lt;div&gt;
+            a: {a}, b: {b}, c: {c}
+        &lt;/div&gt;
+    );
+}
+
+function App() {
+    var i = 1+2;
+    return (
+        &lt;div&gt;
+            &lt;Foo a="1" b="a" c={i} /&gt;
+            &lt;Foo a="2" b="b" c={i+1} /&gt;
+            &lt;Foo a="3" b="c" c={i+i} /&gt;
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+
+      <p><strong>State עם useState</strong> — קומפוננטה ש"זוכרת" מצב ומתעדכנת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · useState</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { useState } from 'react';
+
+function Foo() {
+    const [bar, setBar] = useState(0);   // [ערך, פונקציית-עדכון]
+    console.log(bar);
+    return (
+        &lt;div onClick={() =&gt; setBar(bar + 1)}&gt;
+            {bar}
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+      <p>בכל לחיצה <code>setBar</code> מעדכן את ה-state, ו-React <strong>מרנדר מחדש</strong> את הקומפוננטה אוטומטית עם הערך החדש.</p>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Transpilation — איך JSX/ES חדש רץ בדפדפנים ישנים</span>
+          JavaScript מתפתחת ומוסיפה תחביר חדש. יכול להיות שתכתוב קוד תקין לפי ES החדש, אבל <strong>דפדפן ישן לא תומך בו</strong>. <strong>Transpilation</strong> פותר זאת — ממיר תחביר חדש לתחביר ישן. <strong>Babel</strong> הוא transpiler כזה: הוא ממיר JSX ו-ES6+ ל-JS שדפדפנים ישנים מבינים. (בדף אפשר לטעון <code>babel.js</code> ולסמן <code>&lt;script type="text/babel"&gt;</code>.)
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">⚛️</span>
+        <div class="body">
+          <span class="title">create-react-app — פרויקט אמיתי</span>
+          בפועל לא טוענים React מ-CDN אלא יוצרים פרויקט: <code>npx create-react-app hello_world</code>. זה מקים מבנה מוכן (<code>src/App.js</code>, <code>public/index.html</code>...) עם פקודות: <code>npm start</code> (שרת פיתוח), <code>npm run build</code> (חבילה לפרודקשן), <code>npm test</code> (בדיקות). React מטפל ב-transpilation, bundling וכו' מאחורי הקלעים.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>JS</strong>: weakly-typed, interpreted (JIT, V8/Node), case-sensitive, single-threaded event-driven. סלחנית — אבל אל תנצל זאת לרעה.</li>
+            <li><strong>DOM</strong> = ייצוג אובייקטי של הדף (<code>document</code>); <strong>BOM</strong> = הדפדפן (<code>window</code>). מגיבים למשתמש דרך <strong>events</strong> (זכור: <code>onclick = show</code> בלי סוגריים, <code>this</code> = האלמנט).</li>
+            <li><strong>jQuery</strong>: <code>$('selector')</code>, chaining, <code>stopPropagation</code>/<code>preventDefault</code>.</li>
+            <li><strong>scoping</strong>: <code>var</code> = function-scoped + hoisted ל-undefined; <code>let</code>/<code>const</code> = block-scoped + TDZ. השתמש ב-<code>const</code>/<code>let</code>, לעולם לא <code>var</code>. משתנה לא-מוצהר = גלובלי (סכנה!).</li>
+            <li><strong>Hoisting</strong>: הצהרות עולות לראש ה-scope (לא האתחול). function declaration עולה במלואה; function expression לא.</li>
+            <li><strong>אובייקטים</strong> דינמיים; אל תשתמש ב-arrow כמתודה (אין <code>this</code>). <strong>Modules</strong>: חושפים רק מה ש-export.</li>
+            <li><strong>Async</strong>: callbacks → Promises → async/await; הכל מעל event loop יחיד.</li>
+            <li><strong>Prototypes</strong>: JS היא prototype-based; <code>class</code> הוא syntactic sugar מעל prototype chain.</li>
+            <li><strong>React</strong>: <code>createElement</code> → JSX → components + props + <code>useState</code>; Babel ל-transpilation.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-05.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 5 · פיתוח Web — צד שרת</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-06.html">
+        <span class="dir">תרגול 6 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

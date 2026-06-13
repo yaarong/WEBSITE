@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 12 · Android — ארכיטקטורה (ViewModel, LiveData, Retrofit)</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 12 · Android — ארכיטקטורה</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 12</div>
+      <h1>ארכיטקטורת Android — ViewModel, LiveData, Repository ו-Retrofit</h1>
+      <p>בהרצאה 11 בנינו את אבני הבניין של Android, אבל ערבבנו הכל ב-Activity: גם UI, גם נתונים, גם רשת. ההרצאה הזו עוסקת ב<strong>ארכיטקטורה נכונה</strong> — איך לסדר את החלקים כך שהאפליקציה תהיה ניתנת לתחזוקה ועמידה לשינויי מצב. נכיר את <strong>Architecture Components</strong> של Google: <strong>ViewModel</strong> (מחזיק נתונים ל-UI), <strong>LiveData</strong> (נתונים נצפים), <strong>Repository</strong> ("מקור אמת יחיד"), ולבסוף <strong>Retrofit</strong> לצריכת API — וכך נחבר את האפליקציה לשרת מהרצאה 9.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי — למה צריך ארכיטקטורה</span>
+        ב-Android, ה-Activity <em>נהרס ונבנה מחדש</em> בכל שינוי מצב (סיבוב מסך!). אם הנתונים יושבים ב-Activity — הם אובדים. בנוסף, Activity שמכיל גם UI, גם גישה לנתונים וגם רשת מפר את ה-SRP (הרצאה 2) והופך לבלתי-ניתן לתחזוקה. ה-Architecture Components פותרים את שתי הבעיות: מפרידים אחריות, ומחזיקים נתונים במקום ששורד שינויי-מצב.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — רקע</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#room-recap">Room — תזכורת (ORM מקומי)</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — Architecture Components</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#viewmodel">ViewModel — מחזיק הנתונים ל-UI</a></li>
+            <li><a class="link" href="#livedata">LiveData — נתונים נצפים</a></li>
+            <li><a class="link" href="#architecture">התמונה המלאה — Repository</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — אפליקציית הדגמה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#demo-ui">ה-UI — RecyclerView + ViewModel</a></li>
+            <li><a class="link" href="#demo-repo">Repository ו-LiveData</a></li>
+            <li><a class="link" href="#retrofit">Retrofit — צריכת API</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · רקע</h2>
+
+    <!-- 1 -->
+    <section id="room-recap">
+      <h3><span class="num">1.</span> Room — תזכורת קצרה</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ראינו את Room בהרצאה 11 — נחזור עליו בקצרה כי הוא הבסיס לאחסון המקומי בארכיטקטורה. <strong>Room</strong> = ספריית מיפוי אובייקטים-SQL מעל SQLite (כלומר ORM, כמו בהרצאה 9). שלושה חלקים:
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שלושת החלקים</span>
+          <ul style="margin:0">
+            <li><code>@Entity</code> — מחלקה שמוגדרת כטבלה.</li>
+            <li><code>@Dao</code> — Data Access Object: ממשק עם פעולות שליפה/עדכון.</li>
+            <li><code>@Database</code> — מחלקה ייעודית שמנהלת את הגישה ל-DB.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Entity + Dao + Database</span><button class="copy-btn">העתק</button></div>
+        <pre><code>@Entity
+public class Post {
+    @PrimaryKey(autoGenerate = true)
+    private int id;
+    private String content;
+    public Post(String content) { this.content = content; }
+    // getters / setters ...
+}
+
+@Dao
+public interface PostDao {
+    @Query("SELECT * FROM post")            List&lt;Post&gt; index();
+    @Query("SELECT * FROM post WHERE id = :id") Post get(int id);
+    @Insert void insert(Post... posts);
+    @Update void update(Post... posts);
+    @Delete void delete(Post... posts);
+}
+
+@Database(entities = {Post.class}, version = 1)
+public abstract class AppDB extends RoomDatabase {
+    public abstract PostDao postDao();
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · Architecture Components</h2>
+
+    <!-- 2 -->
+    <section id="viewmodel">
+      <h3><span class="num">2.</span> ViewModel — מחזיק הנתונים ל-UI</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          ה-Activity/Fragment נהרס ונוצר מחדש בכל <em>configuration change</em> (סיבוב מסך, שינוי שפה). אם הנתונים יושבים בו — הם אובדים, וצריך לטעון אותם מחדש. <strong>ViewModel</strong> פותר זאת: הוא מחזיק את הנתונים של ה-UI, ו<strong>שורד</strong> את שינויי המצב (הוא לא נהרס עם ה-Activity).
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code>   ┌────────────────────────┐   operation (אירוע UI)   ┌─────────────┐
+   │  Activity / Fragment   │ ─────────────────────────▶│  ViewModel  │
+   │  (מציג את הנתונים)     │ ◀───────────────────────── │ (מחזיק data)│
+   └────────────────────────┘   notification (data שונה) └─────────────┘</code></pre>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">מאפיינים</span>
+          ה-ViewModel הוא ה-<em>"model עבור ה-UI"</em>: הוא <strong>שורד configuration changes</strong>, ו<strong>ניתן לשיתוף בין fragments</strong> של אותו Activity. (הרעיון מזכיר את ה-state בהרצאה 8 — מקום מרכזי לנתוני המסך — אבל כאן הוא חי <em>מחוץ</em> למחזור החיים של ה-UI.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="livedata">
+      <h3><span class="num">3.</span> LiveData — נתונים נצפים (observable)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>LiveData</strong> נותן <strong>תצפיתיות (observability)</strong> לערך מאוחסן: כשהנתון משתנה — כל ה-<strong>observers</strong> מקבלים הודעה אוטומטית ומתעדכנים. <code>MutableLiveData</code> מאפשר גם <em>לשנות</em> את הערך. זו תבנית ה-<strong>Observer</strong> (קרובת משפחה של ה-Listener מהרצאה 8): נרשמים לערך, ומקבלים עדכון כשהוא משתנה.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · ViewModel עם LiveData</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class SampleViewModel extends ViewModel {
+    private MutableLiveData&lt;String&gt; foo;
+
+    public MutableLiveData&lt;String&gt; getFoo() {
+        if (foo == null) {
+            foo = new MutableLiveData&lt;String&gt;();
+        }
+        return foo;
+    }
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · ה-Activity נרשם כ-observer</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    private SampleViewModel viewModel;
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        viewModel = ViewModelProviders.of(this).get(SampleViewModel.class);
+
+        // נרשמים לשינויים: כש-foo משתנה, onChanged ירוץ אוטומטית
+        viewModel.getFoo().observe(this, new Observer&lt;String&gt;() {
+            @Override
+            public void onChanged(@Nullable final String foo) {
+                getSupportActionBar().setTitle(foo);
+            }
+        });
+
+        FloatingActionButton btnAdd = findViewById(R.id.btnAdd);
+        btnAdd.setOnClickListener(view -&gt; {
+            String currentDateTime = DateFormat.getDateTimeInstance().format(new Date());
+            viewModel.getFoo().setValue(currentDateTime);   // משנים → ה-observer מתעדכן
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">observe / setValue</span>
+          <ul style="margin:0">
+            <li><code>ViewModelProviders.of(this).get(...)</code> — מקבל את ה-ViewModel (אותו מופע שורד אם ה-Activity נבנה מחדש).</li>
+            <li><code>liveData.observe(owner, observer)</code> — רושם observer. <code>onChanged</code> ירוץ בכל שינוי, וגם הוא מודע ל-lifecycle (לא יעדכן UI שנהרס).</li>
+            <li><code>liveData.setValue(x)</code> — משנה את הערך → כל ה-observers מקבלים <code>onChanged</code>. <strong>זה בדיוק הרעיון "UI = פונקציה של state" מהרצאה 8</strong>: משנים נתון, וה-UI מתעדכן לבד.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="architecture">
+      <h3><span class="num">4.</span> התמונה המלאה — Repository כ"מקור אמת יחיד"</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מחברים את הכל לארכיטקטורה מומלצת. ה-<strong>Repository</strong> הוא שכבה שמרכזת את <em>כל</em> מקורות הנתונים (מסד מקומי + שרת מרוחק) ומציגה אותם כ<strong>"מקור אמת יחיד" (single source of truth)</strong>. ה-UI לא יודע מאיפה הנתונים מגיעים — הוא רק צופה ב-LiveData.
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code>  ┌─────────────────┐  operation   ┌───────────┐   ┌──────────────┐
+  │ Activity/Fragment│ ────────────▶│ ViewModel │──▶│  Repository  │
+  │  (RecyclerView)  │ ◀──────────  │           │   │ (מקור אמת   │
+  └─────────────────┘  Live&lt;List&gt;  └───────────┘   │   יחיד)      │
+                                                     └──────┬───────┘
+                                              ┌─────────────┴─────────────┐
+                                              ▼                           ▼
+                                       ┌────────────┐            ┌────────────────┐
+                                       │ Room(SQLite)│            │  Web-service   │
+                                       │ אחסון מקומי │            │  (API מרוחק)   │
+                                       └────────────┘            └────────────────┘</code></pre>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">השוו לארכיטקטורת השרת מהרצאה 9</span>
+          זה אותו רעיון בדיוק של שכבות! בהרצאה 9 בצד השרת: controller → service → model. כאן בצד הלקוח: UI → ViewModel → Repository → (Room / Web-service). בכל מקרה — כל שכבה אחראית לדבר אחד, וההפרדה מאפשרת להחליף חלקים בלי לשבור את השאר (SRP מהרצאה 2).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · אפליקציית הדגמה</h2>
+
+    <div class="callout info">
+      <span class="ic">🧱</span>
+      <div class="body">
+        <span class="title">מה נבנה</span>
+        אפליקציית פוסטים: <strong>RecyclerView</strong> שמציג רשימה, עם משיכה-לרענון (pull-to-refresh) וכפתור הוספה. הנתונים זורמים מ-<strong>Repository</strong> דרך <strong>LiveData</strong>, מגובים ב-<strong>Room</strong> מקומית ומסונכרנים עם <strong>API מרוחק</strong> דרך <strong>Retrofit</strong>.
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <section id="demo-ui">
+      <h3><span class="num">5.</span> ה-UI — RecyclerView + ViewModel</h3>
+      <p>ה-layout: <code>RecyclerView</code> בתוך <code>SwipeRefreshLayout</code> (משיכה-לרענון) + כפתור צף להוספה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · activity_main.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    android:id="@+id/refreshLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"&gt;
+
+    &lt;androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/lstPosts"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" /&gt;
+&lt;/androidx.swiperefreshlayout.widget.SwipeRefreshLayout&gt;</code></pre>
+      </div>
+
+      <p>ה-<strong>ViewModel</strong> חושף את הרשימה כ-LiveData ומאציל הכל ל-Repository:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · PostsViewModel.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class PostsViewModel extends ViewModel {
+    private PostsRepository repository;
+    private LiveData&lt;List&lt;Post&gt;&gt; posts;
+
+    public PostsViewModel() {
+        repository = new PostsRepository();
+        posts = repository.getAll();
+    }
+
+    public LiveData&lt;List&lt;Post&gt;&gt; get() { return posts; }
+    public void add(Post post)    { repository.add(post); }
+    public void delete(Post post) { repository.delete(post); }
+    public void reload()          { repository.reload(); }
+}</code></pre>
+      </div>
+
+      <p>ה-<strong>Activity</strong> מחבר הכל: יוצר ViewModel, נרשם ל-LiveData, ומחבר את הרענון:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainActivity.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    private PostsViewModel viewModel;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        viewModel = new ViewModelProvider(this).get(PostsViewModel.class);
+
+        RecyclerView lstPosts = findViewById(R.id.lstPosts);
+        final PostsListAdapter adapter = new PostsListAdapter(this);
+        lstPosts.setAdapter(adapter);
+        lstPosts.setLayoutManager(new LinearLayoutManager(this));
+
+        SwipeRefreshLayout refreshLayout = findViewById(R.id.refreshLayout);
+        refreshLayout.setOnRefreshListener(() -&gt; viewModel.reload());
+
+        // ה-observer: כשהרשימה משתנה — מעדכנים את ה-adapter, אוטומטית
+        viewModel.get().observe(this, posts -&gt; {
+            adapter.setPosts(posts);
+            refreshLayout.setRefreshing(false);
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הזרימה</span>
+          ה-Activity <em>לא</em> מחזיק נתונים ולא יודע על רשת/מסד — הוא רק (1) יוצר ViewModel, (2) צופה ב-LiveData ומעדכן את ה-adapter ב-<code>onChanged</code>, (3) מבקש <code>reload()</code> במשיכה. כל הלוגיקה עברה החוצה. זו הפרדת אחריות במיטבה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="demo-repo">
+      <h3><span class="num">6.</span> Repository ו-LiveData</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-<strong>Repository</strong> מחזיק את ה-<code>PostDao</code> (Room) ואת ה-LiveData. שימו לב שהשליפה מה-DB רצה על <strong>thread נפרד</strong> (אסור לחסום את ה-UI thread — הרצאה 11!), ומעדכנת את ה-LiveData עם <code>postValue</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · PostsRepository.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class PostsRepository {
+    private PostDao dao;
+    private PostListData postListData;
+
+    public PostsRepository() {
+        LocalDatabase db = LocalDatabase.getInstance();
+        dao = db.postDao();
+        postListData = new PostListData();
+    }
+
+    // LiveData מותאם שטוען מה-DB ברגע שמתחילים לצפות בו
+    class PostListData extends MutableLiveData&lt;List&lt;Post&gt;&gt; {
+        public PostListData() {
+            super();
+            setValue(new LinkedList&lt;Post&gt;());
+        }
+        @Override
+        protected void onActive() {           // כשמישהו מתחיל לצפות
+            super.onActive();
+            new Thread(() -&gt; {                 // thread נפרד — לא חוסם UI
+                postListData.postValue(dao.get());
+            }).start();
+        }
+    }
+
+    public LiveData&lt;List&lt;Post&gt;&gt; getAll() { return postListData; }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">setValue מול postValue, ו-onActive</span>
+          <ul style="margin:0">
+            <li><code>setValue</code> — מעדכן את ה-LiveData <em>מה-UI thread</em>. <code>postValue</code> — מעדכן מ-<em>thread אחר</em> (בטוח לקרוא מ-background). ההבחנה קריטית.</li>
+            <li><code>onActive()</code> — נקרא כשמתחילים לצפות ב-LiveData; כאן זו ההזדמנות לטעון נתונים מה-DB ברקע.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="retrofit">
+      <h3><span class="num">7.</span> Retrofit — צריכת API מרוחק</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — סוגרים את המעגל</span>
+          הגענו לחיבור עם השרת! <strong>Retrofit</strong> היא ספרייה לצריכת REST APIs ב-Android. מגדירים <strong>ממשק</strong> שמתאר את ה-endpoints עם annotations, ו-Retrofit מייצר את המימוש. זה ה-client שמדבר עם ה-API שבנינו בהרצאה 9 (Express + MongoDB).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · WebServiceAPI.java — ממשק ה-API</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public interface WebServiceAPI {
+    @GET("posts")
+    Call&lt;List&lt;Post&gt;&gt; getPosts();
+
+    @POST("posts")
+    Call&lt;Void&gt; createPost(@Body Post post);
+
+    @DELETE("posts/{id}")
+    Call&lt;Void&gt; deletePost(@Path("id") int id);
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Annotations של Retrofit = REST</span>
+          <code>@GET("posts")</code>, <code>@POST("posts")</code>, <code>@DELETE("posts/{id}")</code> — כל מתודה ממופה ל-endpoint ולמתודת HTTP. <code>@Body</code> שולח אובייקט כגוף הבקשה (יומר ל-JSON), <code>@Path</code> מזריק ערך ל-URL. <strong>זה בדיוק ה-REST API מהרצאה 9</strong> — רק מהצד שצורך אותו (client) במקום מהצד ששירת (server).
+        </div>
+      </div>
+
+      <p>בונים מופע Retrofit ומבצעים קריאה <strong>אסינכרונית</strong> עם <code>enqueue</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · PostAPI.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class PostAPI {
+    private MutableLiveData&lt;List&lt;Post&gt;&gt; postListData;
+    private PostDao dao;
+    Retrofit retrofit;
+    WebServiceAPI webServiceAPI;
+
+    public PostAPI(MutableLiveData&lt;List&lt;Post&gt;&gt; postListData, PostDao dao) {
+        this.postListData = postListData;
+        this.dao = dao;
+
+        retrofit = new Retrofit.Builder()
+            .baseUrl(MyApplication.context.getString(R.string.BaseUrl))
+            .addConverterFactory(GsonConverterFactory.create())
+            .build();
+        webServiceAPI = retrofit.create(WebServiceAPI.class);
+    }
+
+    public void get() {
+        Call&lt;List&lt;Post&gt;&gt; call = webServiceAPI.getPosts();
+        call.enqueue(new Callback&lt;List&lt;Post&gt;&gt;() {
+            @Override
+            public void onResponse(Call&lt;List&lt;Post&gt;&gt; call, Response&lt;List&lt;Post&gt;&gt; response) {
+                new Thread(() -&gt; {
+                    dao.clear();
+                    dao.insertList(response.body());        // שמירה מקומית
+                    postListData.postValue(dao.get());      // עדכון ה-LiveData
+                }).start();
+            }
+            @Override
+            public void onFailure(Call&lt;List&lt;Post&gt;&gt; call, Throwable t) { }
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">enqueue, GsonConverter, ו-onResponse</span>
+          <ul style="margin:0">
+            <li><code>GsonConverterFactory</code> — ממיר אוטומטית JSON ↔ אובייקטי Java (כמו ש-Mongoose עשה ל-documents בהרצאה 9).</li>
+            <li><code>call.enqueue(callback)</code> — מבצע את הבקשה <strong>אסינכרונית</strong> (לא חוסם UI). כשמגיעה תשובה — <code>onResponse</code> (הצלחה) או <code>onFailure</code> (כשל). שוב Listener/Callback pattern.</li>
+            <li>בהצלחה: שומרים מקומית ל-Room, ואז מעדכנים את ה-LiveData עם <code>postValue</code> → ה-UI מתעדכן אוטומטית. <strong>זה ה-"single source of truth"</strong>: גם offline (מ-Room) וגם online (מהשרת) — דרך אותו LiveData.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>ולבסוף — ה-Repository מאחד מסד מקומי + API מאחורי ממשק אחד:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · PostsRepository — מאחד הכל</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class PostsRepository {
+    private PostDao dao;
+    private PostListData postListData;
+    private PostAPI api;
+
+    public PostsRepository() {
+        LocalDatabase db = LocalDatabase.getInstance();
+        dao = db.postDao();
+        postListData = new PostListData();
+        api = new PostAPI(postListData, dao);
+    }
+
+    public LiveData&lt;List&lt;Post&gt;&gt; getAll() { return postListData; }
+    public void add(final Post post)    { api.add(post); }
+    public void delete(final Post post) { api.delete(post); }
+    public void reload()                { api.get(); }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>הבעיה:</strong> Activity נהרס בשינויי-מצב (אובדן נתונים) + ערבוב אחריות (UI+data+רשת ביחד).</li>
+            <li><strong>ViewModel</strong> — מחזיק את נתוני ה-UI ו<em>שורד</em> configuration changes; ניתן לשיתוף בין fragments.</li>
+            <li><strong>LiveData</strong> — ערך נצפה: משתנה → ה-observers מתעדכנים אוטומטית (Observer pattern). <code>setValue</code> (UI thread) מול <code>postValue</code> (background).</li>
+            <li><strong>Repository</strong> — "מקור אמת יחיד" שמאחד Room (מקומי) + Web-service (מרוחק) מאחורי ממשק אחד.</li>
+            <li><strong>Retrofit</strong> — client ל-REST API: ממשק עם <code>@GET</code>/<code>@POST</code>/<code>@DELETE</code>, המרת JSON עם Gson, קריאה אסינכרונית עם <code>enqueue</code>.</li>
+            <li><strong>הזרימה:</strong> UI צופה ב-ViewModel → Repository מביא מ-Room/Retrofit → מעדכן LiveData → ה-UI מתעדכן לבד. הכל על threads נכונים.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבורים — סוגרים את כל הקורס</span>
+          הארכיטקטורה כאן = אותן <strong>שכבות</strong> מהשרת בהרצאה 9 (controller→service→model), בצד הלקוח (UI→ViewModel→Repository). ה-<strong>Retrofit</strong> צורך בדיוק את ה-REST API (Express+MongoDB) מהרצאה 9. ה-<strong>LiveData</strong> הוא "UI = פונקציה של state" מהרצאה 8, בניב Android. <strong>Room</strong> = ה-ORM מהרצאה 9. וההפרדה לשכבות = ה-SRP מהרצאה 2. <strong>Foo News / פוסטים</strong> ליווה אותנו לאורך כל הדרך — web, server, מסד נתונים, React, מובייל cross-platform ו-native.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-11.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 11 · פיתוח Android</span>
+      </a>
+      <a class="next" href="../index.html">
+        <span class="dir">סיום ←</span>
+        <span class="ttl">חזרה לעמוד הבית</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

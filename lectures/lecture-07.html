@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 7 · MVC בפועל — בניית אתר Foo News</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 7 · MVC בפועל</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 7</div>
+      <h1>MVC בפועל — בונים את אתר "Foo News" צעד-צעד</h1>
+      <p>בהרצאה 5 ראינו את <strong>תורת ה-MVC</strong> (Model / View / Controller) ברמת התיאוריה. עכשיו נבנה אפליקציית Express אמיתית מאפס — אתר חדשות בשם <strong>Foo News</strong> — ונראה איך כל חלק נכנס למקומו: מ-<strong>"Hello world"</strong> פשוט, דרך <strong>routes</strong> מודולריים, <strong>controllers</strong>, תבניות <strong>EJS</strong>, העברת <strong>data</strong> דינמי, <strong>model</strong> שמחזיק את הנתונים, פרמטרים ב-URL, ועד <strong>טופס</strong> שיוצר כתבה חדשה דרך <strong>POST</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי — למה הרצאה שלמה על דוגמה אחת?</span>
+        ב-MVC קל ללכת לאיבוד: "איזה קובץ קורא למי?". הדרך הכי טובה להבין היא <em>לבנות</em>. נתחיל מהקוד המינימלי ביותר ובכל שלב נוסיף בדיוק רכיב אחד — וכך נראה בדיוק <strong>איזו בעיה</strong> כל רכיב פותר. בסוף יהיה לנו אתר עובד עם הפרדה נקייה בין שכבות, בדיוק כמו שדיברנו עליו בתיאוריה.
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <span class="ic">📌</span>
+      <div class="body">
+        <span class="title">המשך בהרצאה 8</span>
+        בדוגמה הזו ה-<strong>Model</strong> מחזיק את הכתבות במערך פשוט בתוך הקוד (בזיכרון). בהרצאה 8 נחליף אותו ב<strong>מסד נתונים אמיתי</strong> (MongoDB / Mongoose), נוסיף שכבת <strong>services</strong> וקונפיגורציית סביבות — אבל כל שאר המבנה (routes, controller, views) יישאר זהה. זה בדיוק היופי של MVC: מחליפים שכבה בלי לגעת בשאר.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — מבנה הפרויקט ו-MVC בפועל</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#start">נקודת התחלה — Express מינימלי</a></li>
+            <li><a class="link" href="#routes">הוצאת ה-routes לקובץ נפרד (Router)</a></li>
+            <li><a class="link" href="#mvc-flow">וריאציית ה-MVC — דיאגרמת הזרימה</a></li>
+            <li><a class="link" href="#controller">Controller — הוצאת הלוגיקה</a></li>
+            <li><a class="link" href="#view">View — תבנית EJS (view engine)</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — נתונים דינמיים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#data">העברת data ל-View</a></li>
+            <li><a class="link" href="#template">אובייקט שלם + תבנית article.ejs מלאה</a></li>
+            <li><a class="link" href="#model">Model — שכבת הנתונים</a></li>
+            <li><a class="link" href="#params">Route params — <code>/:id</code></a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — יצירת תוכן (טפסים ו-POST)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#form">טופס יצירה — new_article.ejs</a></li>
+            <li><a class="link" href="#create-routes">ה-routes ל-create (GET + POST)</a></li>
+            <li><a class="link" href="#create-controller">ה-controller ל-create + urlencoded</a></li>
+            <li><a class="link" href="#network">מה קורה ברשת — POST, redirect, PRG</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · מבנה הפרויקט ו-MVC בפועל</h2>
+
+    <!-- 1 -->
+    <section id="start">
+      <h3><span class="num">1.</span> נקודת התחלה — אפליקציית Express מינימלית</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לפני שמדברים על MVC, נתחיל מהדבר הכי קטן שעובד: שרת Express שמחזיר טקסט. הפרויקט נקרא <code>mynews</code> ובהתחלה יש בו רק <code>node_modules</code>, <code>app.js</code> וקבצי ה-package.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · app.js — הצעד הראשון</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var app = express()
+
+app.get('/article', (req, res) =&gt; {
+    res.send('Hello world')
+})
+
+app.listen(8080)</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פירוק שורה-שורה</span>
+          <ul style="margin:0">
+            <li><code>require('express')</code> — טוען את ספריית Express (ראינו <code>require</code> בהרצאה 5/6 — סגנון CommonJS).</li>
+            <li><code>express()</code> — יוצר את אובייקט האפליקציה <code>app</code>.</li>
+            <li><code>app.get('/article', handler)</code> — "כשמגיעה בקשת <strong>GET</strong> לנתיב <code>/article</code>, הרץ את ה-handler". ה-handler מקבל <code>req</code> (הבקשה) ו-<code>res</code> (התשובה).</li>
+            <li><code>res.send('Hello world')</code> — שולח טקסט חזרה לדפדפן.</li>
+            <li><code>app.listen(8080)</code> — מאזין לבקשות בפורט 8080.</li>
+          </ul>
+        </div>
+      </div>
+      <p>גלישה ל-<code>localhost:8080/article</code> מציגה "Hello world". יש לנו שרת — אבל הכל דחוס בקובץ אחד. ככל שהאתר יגדל, זה יהפוך לבלתי-נסבל. בואו נתחיל לסדר.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="routes">
+      <h3><span class="num">2.</span> הוצאת ה-routes לקובץ נפרד — <code>express.Router</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          אתר אמיתי הוא עשרות נתיבים (כתבות, משתמשים, תגובות...). לדחוס את כולם ב-<code>app.js</code> זה כאוס. הפתרון: <strong>Router</strong> — "תת-אפליקציה" שמרכזת קבוצת נתיבים בקובץ נפרד. זו בדיוק ה<em>אנקפסולציה</em> שדיברנו עליה בהרצאה 6 (modules).
+        </div>
+      </div>
+
+      <p><strong>app.js</strong> — מאציל את כל מה שמתחיל ב-<code>/articles</code> לקובץ ה-router:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var app = express()
+
+const articles = require('./routes/articles');
+app.use('/articles', articles);
+
+app.listen(8080)</code></pre>
+      </div>
+
+      <p><strong>routes/articles.js</strong> — מגדיר את הנתיבים ומייצא את ה-router:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · routes/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var router = express.Router()
+
+router.get('/', (req, res) =&gt; {
+    res.send('Hello world')
+});
+
+module.exports = router</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">איך מתחברים הנתיבים?</span>
+          <code>app.use('/articles', articles)</code> אומר: "כל בקשה שמתחילה ב-<code>/articles</code> — תטופל ע"י ה-router הזה". בתוך ה-router, <code>router.get('/')</code> הוא <strong>יחסי</strong> לקידומת — כלומר הוא מטפל ב-<code>/articles/</code> בפועל. ככה ה-router לא צריך לדעת באיזו קידומת הוא "תלוי" — הפרדה נקייה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="mvc-flow">
+      <h3><span class="num">3.</span> וריאציית ה-MVC — דיאגרמת הזרימה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מי מדבר עם מי?</span>
+          ראינו ב-MVC: <strong>Model</strong> (הנתונים), <strong>View</strong> (התצוגה), <strong>Controller</strong> (התיווך). בווריאציה הנפוצה ל-web ה-<strong>Controller הוא הצומת המרכזי</strong>: הוא מקבל את הבקשה, מבקש נתונים מה-Model, מעביר אותם ל-View שמייצר את ה-HTML, ומחזיר את התוצאה לדפדפן. ה-View וה-Model <em>לא מדברים ישירות</em> — הכל עובר דרך ה-Controller.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code> ┌─────────────────────┐
+ │      Browser        │   1. request   ┌────────────┐
+ │  (המשתמש רואה את    │ ─────────────▶ │            │
+ │   ה-View ופועל בו)  │                │ Controller │
+ │                     │ ◀───────────── │            │
+ └─────────────────────┘   6. response  └────────────┘
+                          (מכיל את התצוגה)  ▲ │   ▲ │
+                                            │ │   │ │
+                            5. data viz ──┐ │ │   │ │ ┌── 2. invoke
+                                          │ │ │   │ │ │
+                                   4. data│ │ │   │ │ │3. data
+                                          ▼ │ │   │ ▼ │
+                                       ┌──────────┐ ┌────────┐
+                                       │   View   │ │ Model  │
+                                       └──────────┘ └────────┘</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🔢</span>
+        <div class="body">
+          <span class="title">ששת השלבים</span>
+          <ol style="margin:0">
+            <li><strong>request</strong> — הדפדפן שולח בקשה ל-Controller.</li>
+            <li><strong>invoke</strong> — ה-Controller פונה ל-Model ומבקש נתונים.</li>
+            <li><strong>data</strong> — ה-Model מחזיר את הנתונים ל-Controller.</li>
+            <li><strong>data</strong> — ה-Controller מעביר את הנתונים ל-View.</li>
+            <li><strong>data visualization</strong> — ה-View מייצר תצוגה (HTML) ומחזיר ל-Controller.</li>
+            <li><strong>response</strong> — ה-Controller שולח את ה-HTML המוגמר חזרה לדפדפן.</li>
+          </ol>
+          בדיוק את הזרימה הזו נבנה עכשיו בקוד — שלב אחרי שלב.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="controller">
+      <h3><span class="num">4.</span> Controller — הוצאת הלוגיקה מה-route</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-route צריך רק לומר <em>"איזה URL → איזו פונקציה"</em>. את ה<em>לוגיקה</em> עצמה (מה לעשות בבקשה) מוציאים ל-<strong>Controller</strong> נפרד. שוב — הפרדת אחריות (SRP מהרצאה 2).
+        </div>
+      </div>
+
+      <p><strong>routes/articles.js</strong> — מצביע על פונקציה ב-controller במקום על handler אנונימי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · routes/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var router = express.Router()
+
+const articles = require('../controllers/articles')
+router.get('/', articles.getArticle);
+
+module.exports = router</code></pre>
+      </div>
+
+      <p><strong>controllers/articles.js</strong> — מחזיק את פונקציות הטיפול:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const getArticle = (req, res) =&gt; {
+    res.send('Hello world')
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">נקודה עדינה — מעבירים את הפונקציה, לא קוראים לה</span>
+          שים לב: <code>router.get('/', articles.getArticle)</code> — <strong>בלי סוגריים</strong>. מעבירים את הפונקציה עצמה כ-callback, ו-Express יקרא לה עם <code>req, res</code> כשתגיע בקשה. זו בדיוק אותה מלכודת <code>onclick = show</code> מהרצאה 6 — <code>getArticle()</code> עם סוגריים היה <em>מריץ מיד</em> ומעביר את התוצאה במקום את הפונקציה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="view">
+      <h3><span class="num">5.</span> View — תבנית EJS (view engine)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          עד עכשיו החזרנו טקסט עם <code>res.send</code>. אבל אתר אמיתי מחזיר <strong>HTML</strong>, ועדיף HTML <em>דינמי</em> (עם נתונים משתנים). הפתרון: <strong>template engine</strong> — קובץ HTML עם "חורים" שממלאים בנתונים. נשתמש ב-<strong>EJS</strong>.
+        </div>
+      </div>
+
+      <p>קודם — קובץ <strong>views/article.ejs</strong> סטטי (HTML רגיל לגמרי):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · views/article.ejs</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Document&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    Hello world
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <p>ה-controller מרנדר אותו עם <code>res.render</code> במקום <code>res.send</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const getArticle = (req, res) =&gt; {
+    res.render('article.ejs', {})
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <p>וצריך להגיד ל-Express שמנוע התבניות הוא EJS — ב-<strong>app.js</strong>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var app = express()
+
+const articles = require('./routes/articles');
+app.use('/articles', articles);
+
+app.set('view engine', 'ejs');   // ← מגדיר את EJS כמנוע התבניות
+
+app.listen(8080)</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>res.send</code> מול <code>res.render</code></span>
+          <ul style="margin:0">
+            <li><code>res.send('...')</code> — מחזיר טקסט/HTML <em>כמו שהוא</em>, ללא עיבוד.</li>
+            <li><code>res.render('article.ejs', { ... })</code> — מריץ את ה-<strong>View</strong>: לוקח את התבנית, ממלא בה את הנתונים מהאובייקט השני, ומחזיר את ה-HTML המוגמר. כברירת מחדל EJS מחפש את הקובץ בתיקיית <code>views/</code>.</li>
+          </ul>
+          זה בדיוק שלב <strong>4→5→6</strong> בדיאגרמה: ה-controller מעביר data ל-view, ה-view מייצר תצוגה, וזו חוזרת כ-response.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · נתונים דינמיים</h2>
+
+    <!-- 6 -->
+    <section id="data">
+      <h3><span class="num">6.</span> העברת <code>data</code> ל-View</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עד כה ה-view היה סטטי. עכשיו הכוח האמיתי: מעבירים נתונים מה-controller ל-view, וה-view "מזריק" אותם ל-HTML. כאן נכנס תחביר ה-EJS.
+        </div>
+      </div>
+
+      <p>בתבנית — מוסיפים "חור" עם <code>&lt;%= foo %&gt;</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · views/article.ejs (קטע ה-body)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;body&gt;
+    Hello world &lt;%= foo %&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+
+      <p>ב-controller — מעבירים את הערך של <code>foo</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const getArticle = (req, res) =&gt; {
+    res.render('article.ejs', { foo : 42 })
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+      <p>התוצאה בדפדפן: <strong>Hello world 42</strong>. הערך <code>42</code> עבר מה-controller, דרך אובייקט הנתונים, אל תוך התבנית.</p>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תחביר EJS — <code>&lt;%= ... %&gt;</code></span>
+          <code>&lt;%= expression %&gt;</code> = "הערך את הביטוי בתוך ה-JS, והדפס את התוצאה ל-HTML". המשתנים הזמינים בתוך התבנית הם בדיוק המפתחות של האובייקט שהעברנו ל-<code>render</code> (כאן: <code>foo</code>). יש עוד תגיות EJS — למשל <code>&lt;% ... %&gt;</code> להרצת קוד בלי הדפסה (לולאות, if) — אבל <code>&lt;%= %&gt;</code> הוא הנפוץ ביותר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="template">
+      <h3><span class="num">7.</span> אובייקט שלם ל-View + תבנית article.ejs מלאה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כתבה היא לא מספר אחד — יש לה כותרת, מחבר, תאריך ותוכן. אז נעביר <strong>אובייקט שלם</strong> ל-view, וה-view יציג כל שדה במקומו.
+        </div>
+      </div>
+
+      <p>ב-controller — מעבירים אובייקט כתבה כ-<code>foo</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const getArticle = (req, res) =&gt; {
+    res.render('article.ejs', { foo : {
+        id : 1,
+        title : 'My cake',
+        author: 'John Doe',
+        published: 'February 11, 2024',
+        content: 'Lorem ipsum'
+    } })
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <p>ב-view — ניגשים לשדות עם <code>foo.title</code>, <code>foo.author</code> וכו':</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · views/article.ejs (body מלא)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;body&gt;
+    &lt;header&gt;
+        &lt;h1&gt;Foo News&lt;/h1&gt;
+    &lt;/header&gt;
+    &lt;main&gt;
+        &lt;article&gt;
+            &lt;h1&gt;&lt;%= foo.title %&gt;&lt;/h1&gt;
+            &lt;p&gt;Published on: &lt;%= foo.published %&gt;&lt;/p&gt;
+            &lt;p&gt;Author: &lt;%= foo.author %&gt;&lt;/p&gt;
+            &lt;p&gt;&lt;%= foo.content %&gt;&lt;/p&gt;
+        &lt;/article&gt;
+    &lt;/main&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+      <p>התוצאה: כותרת <strong>Foo News</strong>, מתחתיה <strong>My cake</strong>, התאריך, המחבר והתוכן — כל אחד מהשדה המתאים באובייקט.</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="model">
+      <h3><span class="num">8.</span> Model — שכבת הנתונים</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          כרגע הכתבה <em>כתובה בתוך ה-controller</em>. זה לא נכון: ה-controller צריך לתאם, לא להחזיק נתונים. את הנתונים מוציאים ל-<strong>Model</strong> — השכבה האחראית על הגישה לנתונים. ה-controller רק <em>מבקש</em> מהמודל.
+        </div>
+      </div>
+
+      <p>ה-controller מבקש מהמודל במקום להחזיק את הכתבה בעצמו:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articles = require('../models/articles')
+
+const getArticle = (req, res) =&gt; {
+    const id = 1
+    res.render('article.ejs', { foo : articles.getArticle(id) })
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <p><strong>models/articles.js</strong> — מחזיק את הכתבות (כרגע: מערך בזיכרון) ומספק פונקציית גישה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · models/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articles = [
+    {
+        id : 1,
+        title : 'My cake',
+        author: 'John Doe',
+        published: 'February 11, 2024',
+        content: 'Lorem ipsum'
+    },
+    {
+        id : 2,
+        title : 'Not my cake',
+        author: 'Not John Doe',
+        published: 'Not February 11, 2024',
+        content: 'Not Lorem ipsum'
+    }
+]
+
+const getArticle = (id) =&gt; {
+    return articles.filter((article) =&gt; article.id == id)[0]
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">איך עובד <code>getArticle</code></span>
+          <code>articles.filter((article) =&gt; article.id == id)</code> מחזיר <em>מערך</em> של כל הכתבות שה-<code>id</code> שלהן תואם. מכיוון שהוא ייחודי, ניקח את האיבר הראשון עם <code>[0]</code>. (בהמשך, עם מסד נתונים אמיתי בהרצאה 8, זה יוחלף בשאילתה — אבל ה-<em>חתימה</em> של הפונקציה תישאר זהה, וה-controller לא ירגיש בכלל.)
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">זו בדיוק ה-DAL מהרצאה 5</span>
+          ה-Model כאן הוא ה-<strong>Data Access Layer</strong>: השכבה היחידה שיודעת <em>איפה ואיך</em> שמורים הנתונים. ה-controller לא יודע אם זה מערך, קובץ או מסד נתונים — הוא רק קורא ל-<code>getArticle(id)</code>. זו ההפרדה שמאפשרת לנו להחליף את הזיכרון ב-MongoDB בלי לשבור כלום.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="params">
+      <h3><span class="num">9.</span> Route params — <code>/:id</code> ו-<code>req.params</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          ה-<code>id</code> מקובע ל-<code>1</code> בקוד — תמיד מוצגת אותה כתבה. אבל אנחנו רוצים ש-<code>/articles/1</code> יציג כתבה 1 ו-<code>/articles/2</code> יציג כתבה 2. הפתרון: <strong>פרמטר בנתיב</strong>.
+        </div>
+      </div>
+
+      <p>ב-controller — קוראים את ה-<code>id</code> מתוך הבקשה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articles = require('../models/articles')
+
+const getArticle = (req, res) =&gt; {
+    const id = req.params.id          // ← מגיע מה-URL
+    res.render('article.ejs', { foo : articles.getArticle(id) })
+}
+
+module.exports = { getArticle }</code></pre>
+      </div>
+
+      <p>ב-route — מגדירים את הפרמטר עם נקודתיים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · routes/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var router = express.Router()
+
+const articles = require('../controllers/articles')
+router.get('/:id', articles.getArticle);
+
+module.exports = router</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>:id</code> ו-<code>req.params</code></span>
+          הנקודתיים ב-<code>'/:id'</code> מגדירות <strong>פרמטר נתיב (route parameter)</strong> — חלק מה-URL שמשתנה. את הערך קוראים מ-<code>req.params.id</code>. כך <code>/articles/2</code> נותן <code>req.params.id === '2'</code> (כמחרוזת!), וה-controller ישלוף את כתבה 2. <strong>שים לב:</strong> זה שונה מ-query string (<code>?id=2</code>) שנקרא מ-<code>req.query</code>, ומ-body של POST שנקרא מ-<code>req.body</code> (נראה מיד).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · יצירת תוכן (טפסים ו-POST)</h2>
+
+    <!-- 10 -->
+    <section id="form">
+      <h3><span class="num">10.</span> טופס יצירה — <code>new_article.ejs</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עד כה רק <em>קראנו</em> כתבות (GET). עכשיו נאפשר <em>ליצור</em> כתבה חדשה. לזה צריך <strong>טופס HTML</strong> שאוסף קלט מהמשתמש ושולח אותו לשרת ב-<strong>POST</strong> (זוכרים מהרצאה 5: GET לקריאה, POST לשליחת נתונים שמשנים מצב).
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · views/new_article.ejs</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;body&gt;
+    &lt;header&gt;
+        &lt;h1&gt;Foo News&lt;/h1&gt;
+    &lt;/header&gt;
+    &lt;main&gt;
+        &lt;form method="post" action="/articles/create"&gt;
+            &lt;input name="title"     placeholder="Article title"&gt;
+            &lt;input name="published" type="date" placeholder="Publication date"&gt;
+            &lt;input name="author"    placeholder="Who wrote it?"&gt;
+            &lt;input name="content"   placeholder="Actual article goes here"&gt;
+            &lt;button&gt;Create&lt;/button&gt;
+        &lt;/form&gt;
+    &lt;/main&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שלושת המאפיינים החשובים של <code>&lt;form&gt;</code></span>
+          <ul style="margin:0">
+            <li><code>method="post"</code> — הטופס נשלח כבקשת POST (לא GET).</li>
+            <li><code>action="/articles/create"</code> — הכתובת שאליה הטופס נשלח.</li>
+            <li><code>name="..."</code> בכל <code>&lt;input&gt;</code> — <strong>קריטי!</strong> זה השם שתחתיו הערך יגיע לשרת (ב-<code>req.body.title</code> וכו'). בלי <code>name</code>, השדה פשוט לא נשלח.</li>
+          </ul>
+          ה-<code>&lt;button&gt;</code> בתוך טופס שולח אותו אוטומטית. <code>type="date"</code> נותן בורר תאריך מובנה של הדפדפן.
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="create-routes">
+      <h3><span class="num">11.</span> ה-routes ל-create — GET (טופס) + POST (יצירה)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          יצירת כתבה היא <em>שני</em> נתיבים: אחד מציג את הטופס (<code>GET /articles/create</code>), והשני מקבל את הטופס המלא ויוצר את הכתבה (<code>POST /articles/create</code>).
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · routes/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var router = express.Router()
+
+const articles = require('../controllers/articles')
+router.get('/create',  articles.createArticleForm);   // הצגת הטופס
+router.post('/create', articles.createArticle);        // קבלת הטופס
+router.get('/:id',     articles.getArticle);           // הצגת כתבה
+
+module.exports = router</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">סדר הנתיבים חשוב! (תוספת חשובה)</span>
+          שים לב ש-<code>/create</code> מוגדר <strong>לפני</strong> <code>/:id</code>. זה לא מקרי: Express בודק נתיבים <em>לפי הסדר</em> ולוקח את ההתאמה הראשונה. אילו <code>/:id</code> היה ראשון, גלישה ל-<code>/articles/create</code> הייתה נתפסת על ידו — ו-<code>req.params.id</code> היה מקבל את הערך <code>"create"</code>! לכן נתיבים ספציפיים (<code>/create</code>) תמיד באים לפני נתיבים עם פרמטר כללי (<code>/:id</code>).
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">אותו URL, מתודות שונות</span>
+          <code>GET /create</code> ו-<code>POST /create</code> הם אותה כתובת אבל <em>שתי פעולות שונות</em> לגמרי — בדיוק כמו שראינו ב-REST בהרצאה 5: המתודה (GET/POST) היא חלק מהזהות של הבקשה, לא רק ה-URL.
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="create-controller">
+      <h3><span class="num">12.</span> ה-controller ל-create + <code>express.urlencoded</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          שתי פונקציות חדשות ב-controller: אחת מציגה את טופס היצירה, השנייה קוראת את שדות הטופס, מוסיפה כתבה דרך ה-Model, ומפנה את המשתמש לכתבה החדשה.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articles = require('../models/articles')
+
+const getArticle = (req, res) =&gt; {
+    const id = req.params.id
+    res.render('article.ejs', { foo : articles.getArticle(id) })
+}
+
+const createArticleForm = (req, res) =&gt; {
+    const id = req.params.id
+    res.render('new_article.ejs', {})        // רק מציג את הטופס
+}
+
+const createArticle = (req, res) =&gt; {
+    const title     = req.body.title
+    const published = req.body.published
+    const author    = req.body.author
+    const content   = req.body.content
+    const id = articles.addArticle(title, published, author, content)
+    res.redirect('/articles/' + id);          // הפניה לכתבה החדשה
+}
+
+module.exports = { getArticle, createArticleForm, createArticle }</code></pre>
+      </div>
+
+      <p>כדי ש-<code>req.body</code> יהיה זמין, צריך middleware ב-<strong>app.js</strong> שיפענח את גוף הטופס:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+var app = express()
+app.use(express.urlencoded({ extended: true }));   // ← מפענח גוף טפסים
+
+const articles = require('./routes/articles');
+app.use('/articles', articles);
+
+app.set('view engine', 'ejs');
+
+app.listen(8080)</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה צריך <code>express.urlencoded</code>?</span>
+          כשטופס נשלח ב-POST, הנתונים מגיעים ב<strong>גוף הבקשה</strong> (body) בקידוד <code>application/x-www-form-urlencoded</code> (למשל <code>title=New+article&amp;author=Jane+Smith</code>). Express לא מפענח את זה לבד. ה-middleware <code>express.urlencoded()</code> קורא את הגוף, מפענח אותו, וממלא את <code>req.body</code> באובייקט נוח. בלעדיו, <code>req.body</code> יהיה <code>undefined</code>. (<code>extended: true</code> מאפשר אובייקטים מקוננים.)
+        </div>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>res.redirect</code> — למה לא פשוט לרנדר?</span>
+          אחרי יצירה מוצלחת אנחנו עושים <code>res.redirect('/articles/' + id)</code> — מבקשים מהדפדפן לגשת לכתבה החדשה (GET). זה ה-<strong>PRG pattern</strong> שנפרק מיד בסעיף הבא. (בדוגמה זו <code>addArticle</code> ב-Model פשוט מוסיף למערך ומחזיר id — בהרצאה 8 הוא ייצור רשומה במסד הנתונים.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="network">
+      <h3><span class="num">13.</span> מה קורה ברשת — POST, redirect, ותבנית PRG</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          נפתח את לשונית <strong>Network</strong> ב-DevTools ונראה <em>מה באמת עף על החוט</em> כשלוחצים "Create". זה ממחיש בדיוק את מחזור הבקשה-תשובה שלמדנו, ומגלה תבנית עיצוב חשובה.
+        </div>
+      </div>
+
+      <p>כשממלאים את הטופס (New article / 12/02/2024 / Jane Smith / Wow wow wow) ולוחצים Create, רואים <strong>שתי בקשות</strong> ב-Network: <code>create</code> ואז <code>3</code>.</p>
+
+      <p><strong>בקשה 1 — ה-POST.</strong> שדות הטופס נשלחים בגוף הבקשה (Form Data / Payload):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">http · בקשת ה-POST</span><button class="copy-btn">העתק</button></div>
+        <pre><code>POST /articles/create HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+
+# Form Data (כפי שמוצג ב-DevTools):
+title:     New article
+published:  2024-02-12
+author:    Jane Smith
+content:   Wow wow wow
+
+# אותו דבר, מקודד (view URL-encoded):
+title=New+article&amp;published=2024-02-12&amp;author=Jane+Smith&amp;content=Wow+wow+wow</code></pre>
+      </div>
+
+      <p><strong>התשובה ל-POST — 302 Found (הפניה):</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">http · תשובת ה-redirect</span><button class="copy-btn">העתק</button></div>
+        <pre><code>HTTP/1.1 302 Found
+X-Powered-By: Express
+Location: /articles/3
+Content-Type: text/html; charset=utf-8</code></pre>
+      </div>
+
+      <p><strong>בקשה 2 — ה-GET האוטומטי.</strong> הדפדפן רואה את ה-<code>302</code> + <code>Location</code> וניגש אוטומטית לכתובת החדשה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">http · ה-GET שאחרי ההפניה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>GET /articles/3 HTTP/1.1
+→ 200 OK
+→ &lt;!DOCTYPE html&gt; ... &lt;h1&gt;New article&lt;/h1&gt; ...   (הכתבה החדשה!)</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">תבנית PRG — Post / Redirect / Get</span>
+          הזרימה היא: <strong>POST</strong> (יוצרים כתבה) → השרת מחזיר <strong>Redirect</strong> (302) → הדפדפן עושה <strong>GET</strong> לכתבה החדשה. למה לא פשוט להחזיר את ה-HTML ישירות מה-POST? כי אז <em>רענון הדף</em> היה שולח את ה-POST <strong>שוב</strong> — ויוצר כתבה כפולה! עם PRG, הדף הסופי הגיע דרך GET רגיל, אז רענון בטוח לחלוטין. (זוכרים מהרצאה 5: GET הוא idempotent ובטוח, POST לא.)
+        </div>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">קודי הסטטוס שראינו</span>
+          <strong>302 Found</strong> = "המשאב נמצא במקום אחר, לך לשם" — הפניה זמנית, עם הכתובת ב-header <code>Location</code>. <strong>200 OK</strong> = הבקשה הצליחה והנה התוכן. שניהם הופיעו בעמודת ה-Status ב-Network.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה — מה בנינו</span>
+          <ul style="margin:0">
+            <li><strong>app.js</strong> — נקודת הכניסה: מרים את Express, רושם middleware (<code>urlencoded</code>), מחבר את ה-router, ומגדיר את מנוע ה-view (<code>ejs</code>).</li>
+            <li><strong>routes/</strong> — ממפה URL+method → פונקציית controller (<code>express.Router</code>). סדר הנתיבים חשוב: ספציפי לפני <code>/:id</code>.</li>
+            <li><strong>controllers/</strong> — הלוגיקה: מקבל בקשה, מבקש מה-Model, מעביר ל-View. קורא קלט מ-<code>req.params</code> (URL) ו-<code>req.body</code> (טופס).</li>
+            <li><strong>models/</strong> — שכבת הנתונים (ה-DAL): כאן הכתבות במערך, עם <code>getArticle</code>/<code>addArticle</code>. השכבה היחידה שיודעת איפה הנתונים.</li>
+            <li><strong>views/</strong> — תבניות EJS: <code>&lt;%= foo.title %&gt;</code> מזריק נתונים ל-HTML. <code>res.render</code> ממלא ומחזיר.</li>
+            <li><strong>זרימת MVC</strong>: request → controller → (invoke→data) model → (data) view → response. ה-controller הוא הצומת המרכזי.</li>
+            <li><strong>טפסים</strong>: <code>&lt;form method="post" action="...">"</code> + <code>name</code> לכל שדה → <code>req.body</code>. תבנית <strong>PRG</strong> (POST→302→GET) מונעת יצירה כפולה ברענון.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">➡️</span>
+        <div class="body">
+          <span class="title">בהרצאה 8</span>
+          נחליף את ה-Model מהמערך בזיכרון ב<strong>מסד נתונים אמיתי</strong>: MongoDB (ו-Mongoose), נוסיף שכבת <strong>services</strong>, פונקציות אסינכרוניות (<code>async/await</code>), CRUD מלא, וקונפיגורציית סביבות (<code>dotenv</code>, <code>NODE_ENV</code>). כל המבנה שבנינו היום יישאר — נחליף רק את שכבת הנתונים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-06.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 6 · JavaScript</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-07.html">
+        <span class="dir">תרגול 7 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

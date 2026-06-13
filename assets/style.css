@@ -1,0 +1,525 @@
+/* ============================================================
+   תכנות מערכות מתקדם · מערכת עיצוב גלובלית
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=Fira+Code:wght@400;500;600&display=swap');
+
+:root {
+  /* צבעי בסיס */
+  --bg-0: #0b0f1a;
+  --bg-1: #111726;
+  --bg-2: #161e30;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-strong: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* טקסט */
+  --text: #e8ecf4;
+  --text-dim: #a7b0c4;
+  --text-faint: #6b7488;
+
+  /* מבטאים */
+  --lecture: #7c5cff;
+  --lecture-2: #5b8cff;
+  --tutorial: #16c2a3;
+  --tutorial-2: #36d399;
+  --accent: #7c5cff;
+  --warn: #f6c453;
+  --danger: #ff6b6b;
+
+  /* מבנה */
+  --radius: 18px;
+  --radius-sm: 12px;
+  --maxw: 1100px;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+
+  --code-bg: #0c1120;
+  --code-border: rgba(124, 92, 255, 0.18);
+
+  font-family: 'Heebo', 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(900px 600px at 85% -10%, rgba(124, 92, 255, 0.18), transparent 60%),
+    radial-gradient(900px 600px at 10% 0%, rgba(22, 194, 163, 0.14), transparent 55%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1) 60%, var(--bg-0));
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* ============================================================
+   HERO
+   ============================================================ */
+.hero {
+  text-align: center;
+  padding: 4.5rem 1.5rem 2.5rem;
+  position: relative;
+}
+
+.hero h1 {
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  font-weight: 900;
+  margin: 0 0 0.6rem;
+  letter-spacing: -0.5px;
+  background: linear-gradient(120deg, #fff 10%, var(--lecture-2) 55%, var(--tutorial) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hero .subtitle {
+  color: var(--text-dim);
+  font-size: clamp(1rem, 2.2vw, 1.2rem);
+  max-width: 600px;
+  margin: 0 auto;
+  font-weight: 300;
+}
+
+/* פס התקדמות עדין מתחת לכותרת */
+.hero-progress {
+  margin: 1.8rem auto 0;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.hero-progress .bar {
+  height: 8px;
+  border-radius: 99px;
+  background: var(--surface-strong);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.hero-progress .bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--lecture), var(--tutorial));
+  transition: width 1.2s cubic-bezier(.2,.8,.2,1);
+}
+.hero-progress .label {
+  font-size: 0.82rem;
+  color: var(--text-faint);
+}
+
+/* ============================================================
+   CONTAINER + BOARDS
+   ============================================================ */
+.container {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 1rem 1.5rem 3rem;
+}
+
+.board { margin-bottom: 3rem; }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1.3rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+.section-title .emoji { font-size: 1.4rem; }
+
+/* ============================================================
+   GRID + CARDS
+   ============================================================ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1.25rem 1.3rem 1.35rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1),
+              border-color .25s, background .25s, box-shadow .25s;
+  isolation: isolate;
+}
+
+/* זוהר רקע בהדרגה */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity .3s;
+  background: radial-gradient(140% 100% at 100% 0%, var(--c1), transparent 60%);
+}
+.card.lecture  { --c1: rgba(124, 92, 255, 0.22); }
+.card.tutorial { --c1: rgba(22, 194, 163, 0.22); }
+
+.card:hover {
+  transform: translateY(-5px);
+  border-color: var(--border-strong);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+}
+.card:hover::before { opacity: 1; }
+
+.card-emoji {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,.4));
+}
+.card-number {
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1;
+  background: linear-gradient(120deg, var(--g1), var(--g2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.card.lecture  { --g1: #b9a7ff; --g2: var(--lecture-2); }
+.card.tutorial { --g1: #7df0d6; --g2: var(--tutorial); }
+
+.card-label {
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* תגית סטטוס (בקרוב / מוכן) */
+.card-status {
+  position: absolute;
+  top: 0.7rem;
+  left: 0.7rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 99px;
+  letter-spacing: .3px;
+}
+.card-status.ready {
+  background: rgba(22, 194, 163, 0.18);
+  color: var(--tutorial-2);
+  border: 1px solid rgba(22, 194, 163, 0.3);
+}
+.card-status.soon {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.site-footer {
+  text-align: center;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+/* ============================================================
+   עמודי תוכן (הרצאה / תרגול)
+   ============================================================ */
+.lesson {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 5rem;
+}
+
+/* פס ניווט עליון */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.5rem;
+  background: rgba(11, 15, 26, 0.78);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: all .2s;
+}
+.topbar .back:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface-strong); }
+.topbar .crumb { color: var(--text-faint); font-size: 0.9rem; }
+
+/* כותרת השיעור */
+.lesson-header {
+  margin: 1.5rem 0 2.5rem;
+  padding: 2rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(124,92,255,0.12), rgba(22,194,163,0.08));
+  border: 1px solid var(--border);
+}
+.lesson-header .kicker {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--lecture-2);
+}
+.lesson-header h1 {
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 900;
+  margin: 0.4rem 0 0.6rem;
+}
+.lesson-header p { color: var(--text-dim); margin: 0; font-weight: 300; }
+
+/* טיפוגרפיה של תוכן */
+.lesson h2 {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin: 3rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  scroll-margin-top: 80px;
+}
+.lesson h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 2rem 0 0.8rem;
+  color: #fff;
+}
+.lesson h2 .num, .lesson h3 .num {
+  color: var(--accent);
+  font-weight: 900;
+  margin-inline-end: 0.4rem;
+}
+.lesson p { color: var(--text); margin: 0.8rem 0; }
+.lesson ul, .lesson ol { padding-inline-start: 1.4rem; color: var(--text); }
+.lesson li { margin: 0.4rem 0; }
+.lesson strong { color: #fff; font-weight: 700; }
+.lesson a.link { color: var(--lecture-2); text-decoration: underline; text-underline-offset: 3px; }
+
+/* קוד inline */
+.lesson code:not(pre code) {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.88em;
+  background: rgba(124, 92, 255, 0.14);
+  color: #d9cdff;
+  padding: 0.12em 0.45em;
+  border-radius: 6px;
+  border: 1px solid var(--code-border);
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* בלוק קוד */
+.code-block {
+  margin: 1.4rem 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--code-border);
+  background: var(--code-bg);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.code-block .code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--code-border);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  direction: ltr;
+}
+.code-block .code-head .lang {
+  font-family: 'Fira Code', monospace;
+  color: var(--lecture-2);
+  font-weight: 600;
+}
+.code-block .copy-btn {
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: all .2s;
+}
+.code-block .copy-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.code-block .copy-btn.done { color: var(--tutorial-2); border-color: var(--tutorial); }
+
+.code-block pre {
+  margin: 0;
+  padding: 1.1rem 1.2rem;
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+}
+.code-block code {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e6e9f2;
+}
+
+/* דיאגרמות ASCII עצמאיות */
+.lesson pre.ascii-diagram {
+  margin: 1.4rem 0;
+  padding: 1.1rem 1.2rem;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  direction: ltr;
+  text-align: left;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.lesson pre.ascii-diagram code {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #9fb0d0;
+  background: none;
+  border: none;
+  padding: 0;
+  white-space: pre;
+}
+
+/* callouts / קופסאות הסבר */
+.callout {
+  margin: 1.4rem 0;
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  background: var(--surface);
+  display: flex;
+  gap: 0.8rem;
+}
+.callout .ic { font-size: 1.3rem; flex-shrink: 0; }
+.callout .body { flex: 1; }
+.callout .body > :first-child { margin-top: 0; }
+.callout .body > :last-child { margin-bottom: 0; }
+.callout .title { font-weight: 700; color: #fff; margin-bottom: 0.2rem; display: block; }
+
+.callout.info    { border-inline-start-color: var(--lecture-2); }
+.callout.tip     { border-inline-start-color: var(--tutorial); }
+.callout.warn    { border-inline-start-color: var(--warn); }
+.callout.danger  { border-inline-start-color: var(--danger); }
+.callout.syntax  { border-inline-start-color: #c084fc; background: rgba(192,132,252,0.06); }
+
+/* טבלאות */
+.lesson table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4rem 0;
+  font-size: 0.92rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+.lesson th, .lesson td {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border);
+  text-align: right;
+}
+.lesson th { background: var(--surface-strong); color: #fff; font-weight: 700; }
+.lesson tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+/* תוכן עניינים */
+.toc {
+  margin: 1.5rem 0 2rem;
+  padding: 1.2rem 1.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.toc .toc-title { font-weight: 700; margin-bottom: 0.6rem; color: #fff; }
+.toc ol { margin: 0; padding-inline-start: 1.2rem; color: var(--text-dim); }
+.toc a:hover { color: var(--lecture-2); }
+
+/* ניווט בין שיעורים בתחתית */
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+.lesson-nav a {
+  flex: 1;
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-dim);
+  transition: all .2s;
+}
+.lesson-nav a:hover { border-color: var(--border-strong); background: var(--surface-strong); color: var(--text); }
+.lesson-nav a.next { text-align: left; }
+.lesson-nav a .dir { font-size: 0.75rem; color: var(--text-faint); display: block; }
+.lesson-nav a .ttl { font-weight: 600; }
+
+/* מצב "בקרוב" */
+.coming-soon {
+  text-align: center;
+  padding: 4rem 1.5rem;
+}
+.coming-soon .big { font-size: 4rem; margin-bottom: 1rem; }
+.coming-soon h2 { border: none; font-size: 1.8rem; }
+.coming-soon p { color: var(--text-dim); max-width: 480px; margin: 0.5rem auto; }
+
+/* גלילה */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: var(--bg-0); }
+::-webkit-scrollbar-thumb { background: var(--surface-strong); border-radius: 99px; border: 2px solid var(--bg-0); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* רספונסיביות */
+@media (max-width: 560px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 0.7rem; }
+  .card-number { font-size: 2rem; }
+  .lesson-header { padding: 1.4rem; }
+  .lesson-nav { flex-direction: column; }
+}
+
+/* אנימציית הופעה */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card { animation: rise .5s backwards; }

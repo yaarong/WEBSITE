@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 1 · מ-C ל-C++ — סינטקס, מצביעים והקצאות</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 1 · מ-C ל-C++</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 1</div>
+      <h1>מ-C ל-C++ — סינטקס, מצביעים, רפרנסים והקצאות זיכרון</h1>
+      <p>התרגול הראשון סוקר את שינויי ה<strong>סינטקס</strong> המרכזיים שעוברים מ-C ל-C++ ומשפיעים על הכתיבה היומיומית: <code>std::string</code>, namespaces, קלט/פלט מודרני, <code>auto</code>/<code>nullptr</code>/<code>bool</code>, העמסת פונקציות; ואז לעומק — <strong>מצביעים</strong>, <strong>רפרנסים</strong> (כולל rvalue ו-move), והקצאת זיכרון עם <code>new</code>/<code>delete</code> ו-<strong>smart pointers</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        C++ היא הרחבה של C — כל מה שידעתם ב-C עדיין עובד. המטרה כאן: להכיר את התוספות שהופכות את הכתיבה לבטוחה, נוחה וברורה יותר. נלמד תחביר → ונראה דוגמאות.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — סינטקס C++</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#string">std::string</a></li>
+            <li><a class="link" href="#namespaces">Namespaces ו-using</a></li>
+            <li><a class="link" href="#io">קלט/פלט — cin / cout</a></li>
+            <li><a class="link" href="#keywords">auto, nullptr, bool</a></li>
+            <li><a class="link" href="#functions">העמסת פונקציות + ערכי ברירת מחדל</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — מצביעים ורפרנסים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#memory">איזורי זיכרון</a></li>
+            <li><a class="link" href="#pointers">מצביעים — תחביר</a></li>
+            <li><a class="link" href="#arrays">מצביעים, מערכים ואריתמטיקה</a></li>
+            <li><a class="link" href="#const">const ו-"כלל המעגל"</a></li>
+            <li><a class="link" href="#refs">רפרנסים (References)</a></li>
+            <li><a class="link" href="#rvalue">Rvalue references ו-move</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — הקצאות זיכרון</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#new">new / delete</a></li>
+            <li><a class="link" href="#smart">Smart Pointers</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · סינטקס C++</h2>
+
+    <!-- 1 -->
+    <section id="string">
+      <h3><span class="num">1.</span> <code>std::string</code></h3>
+      <p>המחליפה של ה-C-string (<code>char *</code>). מחרוזת חכמה שמנהלת את עצמה:</p>
+      <ul>
+        <li>תומכת בשינויים — אפשר להוסיף, למחוק ולשנות תווים.</li>
+        <li>יודעת מה הגודל שלה (<code>.size()</code>).</li>
+        <li>לא צריך לדאוג להקצאה/שחרור זיכרון בעבורה.</li>
+        <li>אפשר להמיר ל-C-string עם <code>.c_str()</code> (קבוע), או <code>.data()</code> (ניתן לשינוי, מ-C++17).</li>
+      </ul>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · std::string</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;string&gt;
+
+std::string s = "Hello";
+s += ", World!";          // שרשור — לא היה אפשרי עם char*
+std::cout &lt;&lt; s.size();     // 13
+const char* c = s.c_str(); // המרה ל-C-string קבוע</code></pre>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="namespaces">
+      <h3><span class="num">2.</span> Namespaces ו-<code>using</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">הבעיה שזה פותר</span>
+          ב-C מרחב השמות מצומצם — אי אפשר שתי פונקציות עם אותו שם. <strong>Namespaces</strong> ב-C++ מאפשרים לארגן שמות במרחבים נפרדים, כך שאותו שם יכול להופיע בכמה מקומות.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · הגדרה ושימוש</span><button class="copy-btn">העתק</button></div>
+        <pre><code>namespace Math {
+    int add(int a, int b) { return a + b; }
+}
+namespace Physics {
+    int add(int a, int b) { return a + b + 1; }   // אותו שם, מרחב אחר
+}
+
+int x = Math::add(2, 3);      // גישה עם scope resolution operator  ::
+int y = Physics::add(2, 3);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">\u200E::\u200E ו-<code>using</code></span>
+          <ul style="margin:0">
+            <li><code>::</code> — <em>scope resolution operator</em>. <code>std::cout</code> = ה-<code>cout</code> שבמרחב הספרייה הסטנדרטית <code>std</code>. <code>::name</code> לבד = המרחב הגלובלי.</li>
+            <li><code>using std::cout;</code> — מביא חבר ספציפי למרחב הנוכחי כדי לחסוך את הקידומת. <strong>כלל אצבע:</strong> רק בקבצי <code>.cpp</code> (לא <code>.hpp</code>), ובזהירות — להימנע מ-<code>using namespace std;</code> גורף.</li>
+            <li>אפשר namespaces <strong>מקוננים</strong> (אחד בתוך השני) ללא הגבלה.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="io">
+      <h3><span class="num">3.</span> קלט/פלט — <code>cin</code> / <code>cout</code></h3>
+      <p>ב-C השתמשנו ב-<code>printf</code>/<code>scanf</code> (עם <code>&lt;stdio.h&gt;</code>). הם עדיין עובדים, אבל ב-C++ עדיף האובייקטים הגלובליים <code>cin</code>/<code>cout</code> שב-<code>std</code>, עם האופרטורים <code>&lt;&lt;</code> (פלט) ו-<code>&gt;&gt;</code> (קלט):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · I/O</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+
+int age;
+std::cout &lt;&lt; "Enter age: ";
+std::cin  &gt;&gt; age;                              // קריאה מהמסך
+std::cout &lt;&lt; "You are " &lt;&lt; age &lt;&lt; std::endl;   // שרשור אופרטורים</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>\n</code> מול <code>std::endl</code></span>
+          שניהם יורדים שורה. <code>std::endl</code> בנוסף <strong>מרוקן את ה-buffer (flush)</strong> — נחשב "יפה" יותר אבל איטי יותר מעט. אפשר לשרשר כמה <code>&lt;&lt;</code> ברצף.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="keywords">
+      <h3><span class="num">4.</span> <code>auto</code>, <code>nullptr</code>, <code>bool</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · מילות מפתch</span><button class="copy-btn">העתק</button></div>
+        <pre><code>auto num = 25;          // num הוא int — הקומפיילר מסיק את הטיפוס
+auto str = "C++";       // str הוא const char*
+const auto pi = 3.14;   // אפשר גם const auto, auto* וכו'
+
+int* p = nullptr;       // איפוס מצביע — לא NULL
+bool flag = true;       // טיפוס בוליאני: true / false</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מה כל אחד</span>
+          <ul style="margin:0">
+            <li><code>auto</code> — הקומפיילר מסיק את הטיפוס מהערך. נוח, אבל להשתמש בזהירות (פחות מפורש).</li>
+            <li><code>nullptr</code> — הדרך הנכונה לאפס מצביע. <code>NULL</code> הוא בעצם המספר 0, מה שעלול לבלבל בין מצביעים למספרים; <code>nullptr</code> הוא מסוג מצביע אמיתי, ולא ניתן לאתחל בו מספר.</li>
+            <li><code>bool</code> — ערכי אמת/שקר (<code>true</code>/<code>false</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="functions">
+      <h3><span class="num">5.</span> העמסת פונקציות + ערכי ברירת מחדל</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Overloading & default params</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// העמסה — אותו שם, חתימה שונה (סוג/כמות פרמטרים)
+int    add(int a, int b)       { return a + b; }
+double add(double a, double b) { return a + b; }   // OK
+
+// ערכי ברירת מחדל — חייבים להיות הימניים ביותר
+void greet(std::string name, std::string title = "Mr.") {
+    std::cout &lt;&lt; "Hello " &lt;&lt; title &lt;&lt; " " &lt;&lt; name;
+}
+greet("Cohen");          // Hello Mr. Cohen
+greet("Levi", "Dr.");    // Hello Dr. Levi</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">שני כללים</span>
+          (1) <strong>לא</strong> ניתן להעמיס לפי <em>ערך ההחזרה</em> — רק לפי הפרמטרים. (2) ערכי ברירת מחדל חייבים להיות הפרמטרים <strong>הימניים ביותר</strong> (אי אפשר ראשון דיפולטיבי ושני לא).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · מצביעים ורפרנסים</h2>
+
+    <!-- 6 -->
+    <section id="memory">
+      <h3><span class="num">6.</span> איזורי זיכרון</h3>
+      <p>לתוכנית יש ארבעה איזורי זיכרון עיקריים:</p>
+      <table>
+        <thead><tr><th>איזור</th><th>מה שמור בו</th><th>ניהול</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Text</strong></td><td>הקוד שרץ</td><td>אוטומטי</td></tr>
+          <tr><td><strong>Data</strong></td><td>משתנים גלובליים, סטטיים וקבועים</td><td>אוטומטי (חי כל חיי התכנית)</td></tr>
+          <tr><td><strong>Stack</strong></td><td>משתנים לוקאליים, פרמטרים, כתובות חזרה</td><td>אוטומטי (חי עד סוף ה-scope) · מהיר · מוגבל בגודל</td></tr>
+          <tr><td><strong>Heap</strong></td><td>הקצאות דינמיות</td><td>ידני (המתכנת מקצה ומשחרר) · גדול · עלול להיכשל</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">כלל אצבע</span>
+          משתנים קטנים → Stack (מהיר, אוטומטי). משתנים גדולים / בגודל לא-ידוע בזמן ריצה / שצריך שישרדו מעבר ל-scope → Heap (דינמי). הקצאה על ה-Heap <em>עשויה להיכשל</em> — צריך לבדוק.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="pointers">
+      <h3><span class="num">7.</span> מצביעים — תחביר</h3>
+      <p><strong>מצביע</strong> = משתנה שמחזיק כתובת בזיכרון. גודלו תלוי בביטיות (4 בתים ב-32bit, 8 בתים ב-64bit).</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · declare, address-of, dereference</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int value = 0;
+int* ptr = &amp;value;     // & = address-of: ptr מחזיק את כתובת value
+
+int other = *ptr;       // * = dereference: other = 0 (הערך אליו מצביעים)
+*ptr = 5;               // משנה את value עצמו → value == 5
+
+// הצהרת כמה מצביעים בשורה — * לכל אחד:
+int *p1, *p2, x;        // p1,p2 מצביעים; x הוא int רגיל</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">\u200E*\u200E מול \u200E&amp;\u200E</span>
+          <code>&amp;value</code> — מקבל את הכתובת של משתנה. <code>*ptr</code> — ניגש לערך שבכתובת (dereferencing). חייבת להיות התאמת טיפוסים: <code>int*</code> לא יכול להצביע על כתובת של <code>long</code>.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">💥</span>
+        <div class="body">
+          <span class="title">Null ו-Dangling pointers</span>
+          <ul style="margin:0">
+            <li><strong>Null pointer</strong> — מצביע ל-<code>nullptr</code> (כתובת 0, לא חוקית). <code>*ptr</code> עליו = <strong>Undefined Behavior</strong> (בד"כ קריסה).</li>
+            <li><strong>Dangling pointer</strong> — מצביע לכתובת ש<em>הייתה</em> חוקית ושוחררה (משתנה לוקאלי שיצא מ-scope, או זיכרון Heap ששוחרר). שימוש בו = UB. שתי מלכודות נפוצות: החזרת כתובת של משתנה לוקאלי, ושחרור זיכרון בלי לאפס את המצביע ל-<code>nullptr</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="arrays">
+      <h3><span class="num">8.</span> מצביעים, מערכים ואריתמטיקה</h3>
+      <p>מערך הוא אוסף איברים רציף בזיכרון, ולכן מצביע יכול לשמש כמערך. כתובת איבר מחושבת מהכתובת הבסיסית + אינדקס × גודל-טיפוס:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · pointer arithmetic</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int arr[5] = {10, 20, 30, 40, 50};
+int* p = arr;            // p מצביע לאיבר הראשון
+
+p[2];                    // 30  — סמנטיקת מערך
+*(p + 2);                // 30  — אריתמטיקה (שקול)
+
+// קידום מצביע מתחשב בגודל הטיפוס:
+// p+1 על int* מקדם 4 בתים; חיסור מצביעים = מרחק באיברים, לא בבתים</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">המרת מצביעים</span>
+          ככלל אין צורך להמיר בין מצביעים. המרה "מסוכנת" נעשית עם <code>reinterpret_cast&lt;NewType&gt;(val)</code>, והיא חוקית בעיקר ל-<code>void*</code>, למערכי בתים (<code>char*</code>), או בחזרה לטיפוס המקורי. <code>void*</code> = מצביע "כללי" שיכול להצביע לכל טיפוס, אבל אפשר עליו רק השוואות.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="const">
+      <h3><span class="num">9.</span> <code>const</code> ו-"כלל המעגל"</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">כלל המעגל</span>
+          "<code>qualifier</code> תמיד משפיע על מה ש<strong>משמאלו</strong> — אלא אם הוא השמאלי ביותר, ואז על מה ש<strong>מימינו</strong>."
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · const עם מצביעים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const int* p1;        // const שמאלי ביותר → מצביע ל-int קבוע (אי אפשר לשנות את *p1)
+int const* p2;        // זהה ל-p1
+int* const p3 = &amp;x;   // const משמאל ל-* → המצביע עצמו קבוע (אי אפשר להחליף כתובת)
+const int* const p4 = &amp;x;  // גם המצביע וגם הערך קבועים</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">📌</span>
+        <div class="body">
+          <span class="title">שתי נקודות</span>
+          מצביע יכול תמיד <em>להוסיף</em> qualifier (כמו <code>const</code>) אבל לא להוריד אותו באופן לא-מפורש. ו-<strong>מצביע קבוע חייב להיות מאותחל</strong> בהצהרה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="refs">
+      <h3><span class="num">10.</span> רפרנסים (References)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">מה זה</span>
+          <strong>Reference</strong> = <em>כינוי (alias)</em> למשתנה קיים. אם <code>x</code> הוא reference ל-<code>y</code>, אז הם <strong>אותו משתנה בדיוק</strong> — אותה כתובת, ושינוי אחד משנה את השני. בניגוד למצביע, רפרנס <em>חייב</em> להיות מאותחל, ולא ניתן ל"קשור מחדש".
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · reference</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int y = 10;
+int&amp; z = y;            // z הוא alias ל-y
+z = 99;                // עכשיו y == 99 גם כן
+
+const int&amp; r = y;      // קריאה בלבד — לא ניתן לשנות דרך r
+
+// העברת פרמטר ב-reference — מאפשר לשנות את המקור (כמו swap):
+void swap(int&amp; a, int&amp; b) { int t = a; a = b; b = t; }</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>הבדל</th><th>מצביע</th><th>רפרנס</th></tr></thead>
+        <tbody>
+          <tr><td>בטיחות</td><td>יכול להיות null / לא מאותחל</td><td>חייב לאתחל ממשתנה חוקי</td></tr>
+          <tr><td>קיום</td><td>משתנה עצמאי עם כתובת</td><td>רק כינוי — לא בהכרח קיים בנפרד</td></tr>
+          <tr><td>שינוי אחרי הצהרה</td><td>ניתן להצביע למשתנה אחר</td><td>לא ניתן לקשור מחדש</td></tr>
+          <tr><td>סמנטיקה</td><td>Pointer (צריך <code>*</code>/<code>&amp;</code>)</td><td>Value (כמו משתנה רגיל)</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">const-ref לאובייקטים גדולים</span>
+          שימוש נפוץ מאוד: העברת אובייקט גדול כ-<code>const&amp;</code> — חוסך העתקה (מקבלים את המקור, לא עותק) ובטוח (לא ניתן לשנות). <strong>כלל אצבע:</strong> אובייקט גדול לקריאה בלבד → <code>const&amp;</code>. ולעולם לא להחזיר רפרנס למשתנה לוקאלי (dangling).
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="rvalue">
+      <h3><span class="num">11.</span> Rvalue references ו-move</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">lvalue מול rvalue</span>
+          <strong>lvalue</strong> = משתנה עם שם (אפשר לקחת לו כתובת). <strong>rvalue</strong> = ערך זמני / ללא שם / לקראת סוף חייו (למשל <code>2</code>, <code>a + b</code>, ערך מוחזר מפונקציה). C++11 הוסיפה <strong>rvalue reference</strong> עם <code>&amp;&amp;</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · rvalue reference</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int&amp;&amp; m = 42;                         // rvalue reference
+
+void process(std::vector&lt;double&gt;&amp;&amp; vec);  // "אני עומד לקחת את המשאבים שלך"</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה זה קיים — Move semantics</span>
+          כשזמן חייו של אובייקט נגמר, אפשר <strong>להעביר (move)</strong> את המשאבים שלו לאובייקט אחר במקום <strong>להעתיק</strong> אותם — חוסך עבודה. פעולת הזזה מסומנת ב-<code>noexcept</code> (מוסכמה: הזזה לא אמורה להיכשל).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">5️⃣</span>
+        <div class="body">
+          <span class="title">Rule of 5</span>
+          מחלקה שמכילה <em>אחת</em> מהמתודות הבאות — צריכה (בד"כ) להכיל את כולן:
+          <ol style="margin:.3rem 0 0">
+            <li>בנאי העתקה (copy constructor)</li>
+            <li>בנאי הזזה (move constructor)</li>
+            <li>אופרטור השמה בהעתקה (copy assignment)</li>
+            <li>אופרטור השמה בהזזה (move assignment)</li>
+            <li>משמיד (destructor)</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · הקצאות זיכרון</h2>
+
+    <!-- 12 -->
+    <section id="new">
+      <h3><span class="num">12.</span> <code>new</code> / <code>delete</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · C מול C++</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// C:
+int* i    = (int*) malloc(sizeof(int));
+int* iArr = (int*) malloc(sizeof(int) * size);
+free(i);
+free(iArr);
+
+// C++:
+int* i    = new int;
+int* iArr = new int[size];
+delete i;
+delete[] iArr;        // שימו לב ל-[] עבור מערך!</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>new</code>/<code>delete</code> מול <code>malloc</code>/<code>free</code></span>
+          <ul style="margin:0">
+            <li><code>malloc</code>/<code>free</code> — מקצים/משחררים <em>בתים</em>, לא מודעים לטיפוס, מחזירים <code>void*</code>.</li>
+            <li><code>new</code>/<code>delete</code> — מקצים/משחררים <em>אובייקטים</em>: <strong>קוראים לבנאי ולמשמיד</strong>, מחשבים את הגודל אוטומטית, יודעים להקצות מערכים, וניתנים ל-override.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">💧</span>
+        <div class="body">
+          <span class="title">Memory Leak ו-Dangling — שתי הסכנות</span>
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">cpp</span><button class="copy-btn">העתק</button></div>
+            <pre><code>int* i = new int(8);
+int* j = new int(10);
+delete j;
+std::cout &lt;&lt; *j;   // j מצביע לזיכרון משוחרר → dangling pointer!
+// i לעולם לא שוחרר → memory leak!</code></pre>
+          </div>
+          לכל <code>new</code> חייב להיות <code>delete</code> תואם — אחרת דליפת זיכרון. וגישה אחרי <code>delete</code> = dangling. בדיוק מהסיבות האלה הומצאו smart pointers.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="smart">
+      <h3><span class="num">13.</span> Smart Pointers</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לעקוב ידנית אחרי מצביעים זה מקור עיקרי לדליפות זיכרון. <strong>Smart pointer</strong> = מצביע שיודע <em>לשחרר את עצמו</em> כשנגמר זמן חייו (מ-C++11, בספרייה הסטנדרטית). שלושה סוגים: <code>unique_ptr</code>, <code>shared_ptr</code>, <code>weak_ptr</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · unique_ptr</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;memory&gt;
+
+// מומלץ ליצור עם make_unique:
+std::unique_ptr&lt;int&gt; p = std::make_unique&lt;int&gt;(42);
+std::cout &lt;&lt; *p;          // 42
+// אין צורך ב-delete — ישוחרר אוטומטית כש-p יוצא מ-scope</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שלושת הסוגים</span>
+          <ul style="margin:0">
+            <li><strong><code>unique_ptr</code></strong> — בעלות <em>בלעדית</em> על האובייקט (לא ניתן להעתיק, רק להעביר/move). כמעט בלי overhead — <em>זה ברירת המחדל שנשתמש בה</em> במקום <code>new</code>/<code>delete</code>.</li>
+            <li><strong><code>shared_ptr</code></strong> — בעלות <em>משותפת</em>: מחזיק <em>reference counter</em>. כל העתקה מעלה ב-1, כל מחיקה מורידה ב-1, וכשמגיע ל-0 — האובייקט נמחק.</li>
+            <li><strong><code>weak_ptr</code></strong> — "משקיף" על <code>shared_ptr</code> <em>בלי</em> לשנות את ה-counter (לא בעלים). פותר <strong>בעיית מעגליות</strong> (שני <code>shared_ptr</code> שמצביעים זה על זה לא יגיעו ל-0), וטוב ל-cache.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>סינטקס:</strong> <code>std::string</code>, namespaces (<code>::</code>/<code>using</code>), <code>cin</code>/<code>cout</code>, <code>auto</code>/<code>nullptr</code>/<code>bool</code>, העמסה + ערכי ברירת מחדל.</li>
+            <li><strong>זיכרון:</strong> Data/Text/Stack/Heap; מצביעים (<code>*</code>/<code>&amp;</code>, null/dangling), אריתמטיקה, <code>const</code> (כלל המעגל).</li>
+            <li><strong>רפרנסים:</strong> alias למשתנה; <code>const&amp;</code> לאובייקטים גדולים; rvalue refs (<code>&amp;&amp;</code>) ו-move; Rule of 5.</li>
+            <li><strong>הקצאות:</strong> <code>new</code>/<code>delete</code> (מול <code>malloc</code>/<code>free</code>), והפתרון לדליפות — <strong>smart pointers</strong> (unique/shared/weak).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="../index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="tutorial-02.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 2 · OOP וירושה</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

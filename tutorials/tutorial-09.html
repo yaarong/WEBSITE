@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 9 · MongoDB ו-Express REST API</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 9 · MongoDB + Express</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 9</div>
+      <h1>MongoDB ו-Express REST API</h1>
+      <p>תרגול מעשי שמשלים את הרצאה 9: קודם <strong>MongoDB</strong> "ידני" דרך ה-shell (<code>mongosh</code>) — CRUD, query operators, sort, aggregate ו-indexing; ואז בניית <strong>שרת REST API</strong> מלא ב-Node + Express + Mongoose + dotenv.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — MongoDB Shell</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#setup">התקנה ו-databases/collections</a></li>
+            <li><a class="link" href="#insert">הכנסת נתונים</a></li>
+            <li><a class="link" href="#update">עדכון ומחיקה</a></li>
+            <li><a class="link" href="#find">Find ו-query operators</a></li>
+            <li><a class="link" href="#aggregate">Aggregate ו-Indexing</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — שרת Express + Mongoose</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#server">הקמת השרת + Schema</a></li>
+            <li><a class="link" href="#crud-api">CRUD כ-REST API</a></li>
+            <li><a class="link" href="#env">dotenv וקונפיגורציה</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · MongoDB Shell</h2>
+
+    <!-- 1 -->
+    <section id="setup">
+      <h3><span class="num">1.</span> התקנה ו-databases/collections</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מתקינים את MongoDB Community + ה-shell <strong><code>mongosh</code></strong>. מסד מכיל <strong>databases</strong>, שמכילים <strong>collections</strong> (≈ טבלאות), שמכילים <strong>documents</strong> (≈ שורות, בפורמט JSON). זוכרים מהרצאה 9 — schema-less.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · ניהול DB ו-collections</span><button class="copy-btn">העתק</button></div>
+        <pre><code>show dbs                     // רשימת מסדים
+use myapp                    // עובר/יוצר מסד בשם myapp
+db.createCollection("users") // יוצר collection
+show collections
+db.users.find()              // כל ה-documents
+
+// collection עם הגבלות (capped):
+db.createCollection("games", { capped: true, size: 10000000, max: 100 })
+db.games.drop()              // מחיקת collection</code></pre>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="insert">
+      <h3><span class="num">2.</span> הכנסת נתונים</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · insertOne / insertMany</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db.users.insertOne({ name: "zvi", grade: 59 })
+
+db.users.insertMany([
+    { name: "berger", grade: 80 },
+    { name: "zvika",  grade: 70 },
+    { name: "db",     grade: 100 }
+])
+
+// document יכול להכיל טיפוסים מגוונים, מערכים ואובייקטים מקוננים:
+db.users.insertOne({
+    name: "Israel Unisraeli",
+    age: 14,
+    grade: 59.3,
+    student: true,
+    registerDate: new Date(),
+    friends: null,
+    courses: ["Advanced Programming", "Data Base", "Algorithm"],
+    Adress: { street: "Israelia", city: "Mini Israel", zip: 123456 }
+})</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מבנה document</span>
+          document הוא אובייקט JSON גמיש — שדות יכולים להיות מספרים, מחרוזות, בוליאנים, תאריכים (<code>new Date()</code>), <code>null</code>, <strong>מערכים</strong> ו<strong>אובייקטים מקוננים</strong>. אין צורך שכל ה-documents באותו collection יהיו זהים.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="update">
+      <h3><span class="num">3.</span> עדכון ומחיקה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · update / delete</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db.users.updateOne(  { name: "db" }, { $set: { grade: 80 } } )    // עדכון שדה
+db.users.updateMany( { },           { $set: { year: 2025 } } )   // כל ה-documents
+db.users.updateOne(  { name: "db" }, { $unset: { year: "" } } )  // הסרת שדה
+db.users.updateOne(  { name: "zvi"}, { $rename: { year: "date" } } )  // שינוי שם שדה
+
+db.users.deleteOne({ name: "zvi" })</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">update operators</span>
+          הארגומנט הראשון = <em>מי</em> לעדכן (filter), השני = <em>מה</em>. <code>$set</code> (קובע ערך), <code>$unset</code> (מסיר שדה), <code>$rename</code> (משנה שם שדה). <code>...One</code> = הראשון שמתאים, <code>...Many</code> = כולם.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="find">
+      <h3><span class="num">4.</span> Find ו-query operators</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · find + projections</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db.users.find()                              // הכל
+db.users.findOne({ grade: 80 })              // הראשון שמתאים
+db.users.find({ grade: 80 })                 // כל מי ש-grade==80
+
+// Projection — אילו שדות להחזיר (1/true=כן, 0/false=לא):
+db.users.find({ grade: 80 }, { name: 1 })          // רק name (ו-_id)
+db.users.find({ grade: 80 }, { _id: 0, name: 1 })  // רק name, בלי _id</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · comparison + logical operators</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db.users.find({ grade: { $gt: 70 } })        // greater than
+db.users.find({ grade: { $gte: 70 } })       // greater or equal
+db.users.find({ name: { $in: ["zvika", "berger"] } })   // ברשימה
+db.users.find({ $and: [ { grade: { $gte: 70 } }, { year: { $ne: 2024 } } ] })
+
+// מיון והגבלה:
+db.users.find({}, { _id: 0 }).sort({ name: 1 })          // עולה
+db.users.find({}, { _id: 0 }).sort({ grade: -1 }).limit(2)  // יורד, 2 ראשונים</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אופרטורים נפוצים</span>
+          השוואה: <code>$gt</code>/<code>$gte</code>/<code>$lt</code>/<code>$lte</code>, <code>$eq</code>/<code>$ne</code>, <code>$in</code> (ברשימה). לוגיים: <code>$and</code>/<code>$or</code>. <code>.sort({field: 1})</code> = עולה, <code>-1</code> = יורד. <code>.limit(n)</code> = רק n ראשונים. כולם מתחילים ב-<code>$</code> (אופרטור).
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="aggregate">
+      <h3><span class="num">5.</span> Aggregate ו-Indexing</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · aggregate</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// קיבוץ לפי שדה + חישוב — ממוצע ציון לכל שנה:
+db.users.aggregate([ { $group: { _id: "$year", averageGrade: { $avg: "$grade" } } } ])
+db.users.aggregate([ { $group: { _id: "$year", SumGrade: { $sum: "$grade" } } } ])
+db.users.aggregate([ { $group: { _id: "$year", MaxGrade: { $max: "$grade" } } } ])</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">mongosh · indexing</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db.users.find({ name: "berger" }).explain("executionStats")  // ניתוח ביצועים
+db.users.createIndex({ name: 1 })    // יוצר אינדקס על name
+db.users.getIndexes()
+db.users.dropIndex("name_1")</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Aggregate ו-Index</span>
+          <ul style="margin:0">
+            <li><strong>Aggregate</strong> — pipeline של שלבים. <code>$group</code> מקבץ לפי <code>_id</code> (השדה לקיבוץ, עם <code>$</code>) ומחשב צבירה (<code>$avg</code>/<code>$sum</code>/<code>$min</code>/<code>$max</code>).</li>
+            <li><strong>Index</strong> — מבנה שמאיץ חיפושים על שדה (כמו אינדקס בספר). <code>createIndex</code> מאיץ <code>find</code> על אותו שדה משמעותית (במחיר זיכרון וכתיבה).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · שרת Express + Mongoose</h2>
+
+    <!-- 6 -->
+    <section id="server">
+      <h3><span class="num">6.</span> הקמת השרת + Schema</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · הקמת הפרויקט</span><button class="copy-btn">העתק</button></div>
+        <pre><code>mkdir nodejs-mongodb-api &amp;&amp; cd nodejs-mongodb-api
+npm init -y
+npm install express mongoose cors dotenv
+npm install nodemon --save-dev      # מריץ-מחדש אוטומטית בפיתוח</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · server.js — הקמה + Schema</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());      // מפענח גוף JSON ל-req.body
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/myapp')
+    .then(() =&gt; console.log('MongoDB connected successfully'))
+    .catch(err =&gt; console.error('MongoDB connection error:', err));
+
+const userSchema = new mongoose.Schema({
+    name:  { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    age:   Number,
+    createdAt: { type: Date, default: Date.now }
+});
+const User = mongoose.model('User', userSchema);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Schema של Mongoose</span>
+          מגדיר את מבנה ה-document עם טיפוסים ואילוצים: <code>required</code> (חובה), <code>unique</code> (ייחודי), <code>default</code> (ברירת מחדל). <code>mongoose.model('User', schema)</code> מחזיר את ה-<strong>Model</strong> שדרכו עושים את כל פעולות המסד (<code>find</code>, <code>save</code>...).
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="crud-api">
+      <h3><span class="num">7.</span> CRUD כ-REST API</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כל פעולת CRUD ממופה למתודת HTTP ו-endpoint (REST — הרצאה 5/9). כל ה-handlers <strong>אסינכרוניים</strong> (<code>async/await</code>) ומחזירים JSON עם קוד סטטוס מתאים.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Read (GET)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// כל המשתמשים:
+app.get('/api/users', async (req, res) =&gt; {
+    try {
+        const users = await User.find();
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// משתמש לפי id:
+app.get('/api/users/:id', async (req, res) =&gt; {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Create (POST) + Update (PUT) + Delete</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// יצירה:
+app.post('/api/users', async (req, res) =&gt; {
+    const user = new User({ name: req.body.name, email: req.body.email, age: req.body.age });
+    try {
+        const newUser = await user.save();
+        res.status(201).json(newUser);          // 201 Created
+    } catch (err) {
+        res.status(400).json({ message: err.message });   // 400 Bad Request
+    }
+});
+
+// עדכון:
+app.put('/api/users/:id', async (req, res) =&gt; {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (req.body.name) user.name = req.body.name;
+    const updated = await user.save();
+    res.json(updated);
+});
+
+// מחיקה:
+app.delete('/api/users/:id', async (req, res) =&gt; {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    await user.deleteOne();
+    res.json({ message: 'User deleted successfully' });
+});</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>CRUD</th><th>HTTP</th><th>Endpoint</th><th>סטטוס</th></tr></thead>
+        <tbody>
+          <tr><td>Create</td><td>POST</td><td><code>/api/users</code></td><td>201 Created</td></tr>
+          <tr><td>Read</td><td>GET</td><td><code>/api/users</code> · <code>/api/users/:id</code></td><td>200 / 404</td></tr>
+          <tr><td>Update</td><td>PUT</td><td><code>/api/users/:id</code></td><td>200 / 404</td></tr>
+          <tr><td>Delete</td><td>DELETE</td><td><code>/api/users/:id</code></td><td>200 / 404</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מתודות Mongoose ו-error handling</span>
+          <code>User.find()</code> (הכל), <code>User.findById(id)</code> (לפי id), <code>new User({...}).save()</code> (יצירה/עדכון), <code>user.deleteOne()</code> (מחיקה). עוטפים ב-<code>try/catch</code> ומחזירים קוד סטטוס מתאים (404 לא-נמצא, 400 קלט שגוי, 500 שגיאת שרת). בסוף אפשר גם middleware כללי לטיפול בשגיאות.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="env">
+      <h3><span class="num">8.</span> dotenv וקונפיגורציה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">text · .env</span><button class="copy-btn">העתק</button></div>
+        <pre><code>MONGODB_URI=mongodb://localhost:27017/myapp
+PORT=3000</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · שימוש</span><button class="copy-btn">העתק</button></div>
+        <pre><code>require('dotenv').config();              // טוען את .env ל-process.env
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () =&gt; console.log(`Server is running on port ${PORT}`));</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🔐</span>
+        <div class="body">
+          <span class="title">למה .env</span>
+          סודות (connection string, סיסמאות) וקונפיגורציה תלויית-סביבה לא נכתבים בקוד אלא בקובץ <code>.env</code> (שלא נכנס ל-git). <code>dotenv</code> טוען אותו ל-<code>process.env</code>. ה-<code>|| 3000</code> נותן ערך ברירת מחדל אם המשתנה לא מוגדר.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>MongoDB shell:</strong> <code>use</code>/<code>createCollection</code>; CRUD (<code>insertOne</code>/<code>updateOne</code>+<code>$set</code>/<code>deleteOne</code>); <code>find</code> עם projections ו-operators (<code>$gt</code>/<code>$in</code>/<code>$and</code>), <code>sort</code>/<code>limit</code>; <code>aggregate</code>+<code>$group</code>; <code>createIndex</code>.</li>
+            <li><strong>שרת:</strong> Express + Mongoose + cors + dotenv; <code>Schema</code> עם אילוצים → <code>model</code>; CRUD כ-REST (POST/GET/PUT/DELETE) עם <code>async/await</code> וקודי סטטוס.</li>
+            <li><strong>קונפיגורציה:</strong> <code>.env</code> + <code>dotenv</code> לסודות וסביבות.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-08.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 8 · React</span>
+      </a>
+      <a class="next" href="tutorial-10.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 10 · React Native</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

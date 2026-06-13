@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 5 · פיתוח web — צד שרת</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 5 · Web Development — Server Side</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 5</div>
+      <h1>פיתוח Web — צד שרת</h1>
+      <p>בהרצאה הקודמת בנינו שרת מאפס עם סוקטים. עכשיו נשאל: <strong>למה לא לכתוב שרת HTTP בעצמנו כל פעם?</strong> נכיר <strong>frameworks</strong> (NodeJS, Express), נבין איך עובד <strong>HTTP</strong> (request/response, GET/POST, REST), נלמד דפוסי תקשורת (<strong>סינכרוני/אסינכרוני</strong>, polling, streaming, AJAX), נצלול ל-<strong>async של JavaScript</strong> (Promise, event loop, async/await), ולבסוף נראה איך מארגנים את הכל ל<strong>ארכיטקטורה</strong> נכונה (layers/tiers, MVC).</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">מבנה ההרצאה</span>
+        ההרצאה ארוכה אבל בנויה במדרגות: <strong>(א)</strong> מהשרת הגולמי אל ה-framework. <strong>(ב)</strong> פרוטוקול HTTP לעומק (REST). <strong>(ג)</strong> איך השרת "דוחף" מידע ללקוח (polling/streaming). <strong>(ד)</strong> ה-async של JavaScript שמאפשר את כל זה. <strong>(ה)</strong> ארכיטקטורת תוכנה — layers, tiers ו-MVC. כל חלק עונה על שאלה שהחלק הקודם פתח.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — משרת גולמי ל-Framework</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#webserver">שרת web — הרעיון</a></li>
+            <li><a class="link" href="#manual">לכתוב שרת HTTP ידנית — והבעיה</a></li>
+            <li><a class="link" href="#how-it-works">איך שרת מודרני מטפל בבקשה</a></li>
+            <li><a class="link" href="#nodejs">NodeJS ו-Express</a></li>
+            <li><a class="link" href="#routing">ניתוב (Routing)</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — פרוטוקול HTTP</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#get-post">GET מול POST — safe ו-idempotent</a></li>
+            <li><a class="link" href="#http-examples">דוגמאות בקשה/תשובה</a></li>
+            <li><a class="link" href="#rest">Web Services ו-REST</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — תקשורת ו-push מהשרת</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#sync-async">סינכרוני מול אסינכרוני</a></li>
+            <li><a class="link" href="#push">Polling, Long-polling, Streaming</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — Async ב-JavaScript</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#ajax">AJAX — fetch ו-polling</a></li>
+            <li><a class="link" href="#promise">Promise</a></li>
+            <li><a class="link" href="#event-loop">Event Loop</a></li>
+            <li><a class="link" href="#async-await">async / await</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ה' — ארכיטקטורה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#layers-tiers">Layers ו-Tiers</a></li>
+            <li><a class="link" href="#mvc">MVC — Model, View, Controller</a></li>
+            <li><a class="link" href="#node-mvc">MVC ב-NodeJS</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · משרת גולמי ל-Framework</h2>
+
+    <!-- 1 -->
+    <section id="webserver">
+      <h3><span class="num">1.</span> שרת web — הרעיון</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ביסוד כל אתר עומדת אינטראקציה פשוטה: ה<strong>דפדפן (client)</strong> שולח <strong>בקשה (request)</strong> אל ה<strong>שרת (web server)</strong>, והשרת מחזיר <strong>תשובה (response)</strong>. הבקשה נשלחת בפרוטוקול HTTP מעל החיבור (TCP) שכבר הכרנו.
+        </div>
+      </div>
+
+      <p>כשמקלידים <code>http://www.foo.com/index.html</code> בדפדפן, נשלחת בקשת HTTP שנראית כך:</p>
+      <pre class="ascii-diagram"><code>Request:
+  GET /index.html HTTP/1.1        ← שורת הבקשה (method, path, version)
+  Accept-Language: en-us          ┐
+  Connection: Keep-Alive          ├ כותרות (headers)
+  ...                             ┘</code></pre>
+      <p>הדפדפן הוא ה<strong>לקוח</strong>, והמכונה בקצה השני שמאזינה ומגיבה היא ה<strong>שרת</strong>.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="manual">
+      <h3><span class="num">2.</span> לכתוב שרת HTTP ידנית — והבעיה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מחברים לסוקטים מההרצאה הקודמת</span>
+          טכנית, אפשר לבנות שרת HTTP בדיוק כמו שבנינו שרת echo: סוקט TCP שמאזין על פורט 80, מקבל בקשות, ועונה. אבל מהר מאוד נגלה למה זה לא רעיון טוב.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · שרת HTTP גולמי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>from socket import socket, AF_INET, SOCK_STREAM
+
+s = socket(AF_INET, SOCK_STREAM)
+s.bind(('', 80))
+s.listen(5)
+
+while True:
+    client, addr = s.accept()
+
+    ##### repeat for each request ####
+    request = client.recv(1024)
+
+    # parse request
+    # prepare relevant response
+
+    client.send(response)
+
+    ##### done repeat ####
+
+    client.close()</code></pre>
+      </div>
+
+      <p>זה אותו דפוס TCP מההרצאה הקודמת (<code>socket→bind→listen→accept→recv→send→close</code>) — רק על פורט 80 ועם תוכן HTTP. אבל יש בעיות:</p>
+
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">"להמציא את הגלגל מחדש בכל פעם"</span>
+          <ul style="margin:0">
+            <li><strong>מייגע ונוטה לשגיאות</strong> (tedious, error-prone).</li>
+            <li>צריך לממש את <strong>כל פרוטוקול HTTP</strong> בעצמך — לפענח שורת בקשה, headers, body, status codes...</li>
+            <li>הביצועים <strong>תלויים במימוש מקביליות טוב</strong> — צריך לטפל בהרבה לקוחות בו-זמנית (זוכרים threads מההרצאה הקודמת?).</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>הפתרון:</strong> במקום להמציא את הגלגל לכל אפליקציה — להשתמש ב<strong>טכנולוגיות web-server קיימות</strong>.</p>
+    </section>
+
+    <!-- 3 -->
+    <section id="how-it-works">
+      <h3><span class="num">3.</span> איך שרת מודרני מטפל בבקשה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כשמשתמשים ב-framework, אנחנו לא נוגעים ב-headers הגולמיים. ה-framework "עוטף" את כל זה ונותן לנו עבודה עם <strong>אובייקטים</strong> נוחים. נראה את ארבעת השלבים.
+        </div>
+      </div>
+
+      <ol>
+        <li>הדפדפן שולח בקשת HTTP גולמית (טקסט).</li>
+        <li>השרת <strong>יוצר אובייקט</strong> שמכיל את מידע הבקשה:
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">js · request object</span><button class="copy-btn">העתק</button></div>
+            <pre><code>Request = {
+    method : 'GET',
+    url : '/index.html',
+    httpVersion : '1.1'
+}</code></pre>
+          </div>
+        </li>
+        <li>השרת <strong>מפעיל פונקציה</strong> ומעביר לה את אובייקט הבקשה (ואובייקט תשובה):
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">js · handler</span><button class="copy-btn">העתק</button></div>
+            <pre><code>function handleRequest(request, response) {
+    // ...
+    response.write('&lt;html&gt;&lt;head&gt;...');
+    response.end();
+}</code></pre>
+          </div>
+        </li>
+        <li>הפונקציה מכינה <strong>אובייקט תשובה</strong>, וה-framework <strong>מתרגם אותו חזרה לפרוטוקול HTTP</strong> ושולח לדפדפן:
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">js → http · response</span><button class="copy-btn">העתק</button></div>
+            <pre><code>Response = { statusCode : '200', statusMessage : 'OK', ... }
+
+   ↓ מתורגם ל:
+
+HTTP/1.1 200 OK
+Content-Length: 250
+Content-Type: text/html
+...
+&lt;html&gt;&lt;head&gt;...</code></pre>
+          </div>
+        </li>
+      </ol>
+
+      <div class="callout tip">
+        <span class="ic">🏗️</span>
+        <div class="body">
+          <span class="title">שתי דרכים לארח HTTP server</span>
+          <strong>1. שרת חיצוני</strong> (למשל Apache Tomcat): השרת רץ בנפרד, ומזהה איזה <em>Servlet/JSP</em> צריך לטפל בבקשה ("front-end" סטטי + "back-end" קוד).<br>
+          <strong>2. Framework מוטמע</strong> (Flask/Express/Jetty): שרת ה-HTTP <em>מוטמע ישירות בתוך הקוד</em> שלנו — אנחנו כותבים את הלוגיקה, וה-framework מטפל ב-HTTP מסביב. זו הגישה המודרנית והנפוצה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="nodejs">
+      <h3><span class="num">4.</span> NodeJS ו-Express</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>NodeJS</strong> מאפשר להריץ JavaScript בצד השרת. מודול ה-<code>http</code> המובנה כבר נותן שרת בסיסי, ו-<strong>Express</strong> הוא framework שמייפה ומפשט את זה עוד יותר.
+        </div>
+      </div>
+
+      <h4>NodeJS גולמי (מודול http)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · http מובנה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const http = require("http")
+
+function handleRequest(request, response) {
+    response.write("Hello world")
+    response.end()
+}
+
+const server = http.createServer(handleRequest)
+
+server.listen(80)</code></pre>
+      </div>
+      <p>שים לב כמה זה קצר לעומת הסוקט הגולמי — אין <code>accept</code>/<code>recv</code>/parsing. רק "מה לעשות עם בקשה" + <code>listen</code>.</p>
+
+      <h4 style="margin-top:1.5rem">עם Express</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Express</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express')
+const app = express()
+const port = 12345
+
+app.get('/', (req, res) =&gt; {
+    res.send('&lt;html&gt;&lt;body&gt;&lt;h1&gt;Hello World!&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;')
+})
+
+app.listen(port, () =&gt; {
+    console.log(`Server is running on http://localhost:${port}`)
+})</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס</span>
+          <ul style="margin:0">
+            <li><code>require('express')</code> — טוען את ספריית Express (כמו <code>import</code>/<code>#include</code>).</li>
+            <li><code>app.get('/', (req, res) =&gt; {...})</code> — "כשמגיעה בקשת GET לנתיב <code>/</code>, הרץ את הפונקציה הזו". זו <strong>arrow function</strong> (פונקציית חץ) — הצורה המקוצרת של JS.</li>
+            <li><code>res.send(...)</code> — שולח תשובה (Express דואג ל-<code>Content-Type</code>, <code>Content-Length</code> וכו' אוטומטית).</li>
+            <li><code>`...${port}...`</code> — <strong>template literal</strong> (גרשיים אחוריים): מאפשר להזריק משתנים למחרוזת עם <code>${...}</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="routing">
+      <h3><span class="num">5.</span> ניתוב (Routing)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אתר אמיתי מחזיר תוכן שונה לכתובות שונות. <strong>ניתוב</strong> = להחליט מה להחזיר לפי ה-URL וה-method של הבקשה.
+        </div>
+      </div>
+
+      <p><strong>ניתוב ידני עם מודול http</strong> (בודקים את <code>request.url</code>):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · ניתוב לפי url</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const http = require("http")
+
+function handleRequest(request, response) {
+    if (request.url == '/foo')
+        response.write('&lt;html&gt;&lt;body&gt;&lt;b&gt;foo&lt;/b&gt;&lt;/body&gt;&lt;/html&gt;')
+    else if (request.url == '/bar')
+        response.write('&lt;html&gt;&lt;body&gt;&lt;u&gt;bar&lt;/u&gt;&lt;/body&gt;&lt;/html&gt;')
+    else
+        response.statusCode = 404
+
+    response.end()
+}
+
+const server = http.createServer(handleRequest)
+server.listen(80)</code></pre>
+      </div>
+      <p>אם ה-URL לא מוכר — מחזירים <strong>404</strong> (Not Found). שים לב כמה ה-<code>if/else</code> הזה היה הופך למסורבל באתר אמיתי.</p>
+
+      <p><strong>ניתוב נקי עם Express</strong> — כל method+נתיב הוא handler נפרד:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Express routing</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import express from 'express'
+const app = express()
+
+app.get('/', (req, res) =&gt; {
+    res.send('&lt;html&gt;&lt;body&gt;&lt;h1&gt;GET&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;')
+})
+
+app.post('/', (req, res) =&gt; {
+    res.send('&lt;html&gt;&lt;body&gt;&lt;h1&gt;POST&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;')
+})
+
+app.listen(80)</code></pre>
+      </div>
+      <p>שים לב — אותו נתיב <code>/</code> אבל <strong>שני handlers נפרדים</strong> ל-GET ול-POST. וזה מוביל אותנו לשאלה: מה ההבדל בין GET ל-POST?</p>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · פרוטוקול HTTP</h2>
+
+    <!-- 6 -->
+    <section id="get-post">
+      <h3><span class="num">6.</span> GET מול POST — safe ו-idempotent</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ל-HTTP יש כמה "methods" (פעלים). ההבדל ביניהם מוגדר ע"י שני מושגים תיאורטיים חשובים: <strong>safe</strong> ו-<strong>idempotent</strong>.
+        </div>
+      </div>
+
+      <ul>
+        <li><strong>Safe</strong> — אם ה-method משמש רק לפעולת <em>קריאה בלבד</em> (read-only), הוא נחשב "בטוח" (לא משנה את מצב השרת).</li>
+        <li><strong>Idempotent</strong> — אם הפעלת ה-method <em>כמה פעמים</em> לאותה בקשה נותנת אותה תוצאה על השרת כמו הפעלה אחת, הוא "אידמפוטנטי".</li>
+      </ul>
+
+      <table>
+        <thead><tr><th>Method</th><th>Safe?</th><th>Idempotent?</th></tr></thead>
+        <tbody>
+          <tr><td><strong>GET</strong></td><td>✓ כן (קריאה בלבד)</td><td>✓ כן (ולכן גם אידמפוטנטי)</td></tr>
+          <tr><td><strong>POST</strong></td><td>✗ לא</td><td>✗ לא</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">🛒</span>
+        <div class="body">
+          <span class="title">דוגמה משלי — למה זה חשוב</span>
+          <strong>GET</strong> "תן לי את דף המוצר" — אפשר לרענן 100 פעם, שום נזק (safe + idempotent). <strong>POST</strong> "בצע הזמנה" — כל הפעלה <em>יוצרת הזמנה חדשה</em>! לכן הדפדפן מזהיר "האם לשלוח שוב את הטופס?" כשמרעננים אחרי POST. זו הסיבה שטפסים שמשנים נתונים משתמשים ב-POST, וקישורים/חיפושים ב-GET.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="http-examples">
+      <h3><span class="num">7.</span> דוגמאות בקשה/תשובה</h3>
+
+      <p><strong>בקשת GET רגילה + תשובה מוצלחת:</strong></p>
+      <pre class="ascii-diagram"><code>Request:                          Response:
+  GET /index.html HTTP/1.1          HTTP/1.1 200 OK
+  Accept-Language: en-us            Content-Length: 250
+  Connection: Keep-Alive            Content-Type: text/html
+  ...                               ...
+                                    &lt; html &gt;&lt; head &gt;...</code></pre>
+
+      <p><strong>GET עם פרמטרים (query string)</strong> — נשלח דרך הטופס ב-URL, וכאן השרת מחזיר 404:</p>
+      <pre class="ascii-diagram"><code>Request:                          Response:
+  GET /foo.php?bar=6 HTTP/1.1        HTTP/1.1 404 Not Found
+  Accept-Language: en-us            ...
+  ...</code></pre>
+      <p>ה-<code>?bar=6</code> הוא ה-query string — נתונים שנשלחים <strong>בתוך ה-URL</strong> (גלויים). ב-HTML הטופס היה: <code>&lt;form action="foo.php" method="GET"&gt;</code>.</p>
+
+      <p><strong>בקשת POST</strong> — הנתונים נשלחים ב-<strong>גוף הבקשה (body)</strong>, לא ב-URL:</p>
+      <pre class="ascii-diagram"><code>Request:                          Response:
+  POST /login.php HTTP/1.1           HTTP/1.1 200 OK
+  Accept-Language: en-us             Content-Length: 250
+  Connection: Keep-Alive             Content-Type: text/html
+  ...                                ...
+  username=foo&amp;password=bar         &lt; html &gt;&lt; head &gt;...</code></pre>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">GET vs POST — איפה הנתונים?</span>
+          ב-<strong>GET</strong> הפרמטרים ב-URL (<code>?bar=6</code>) — גלויים, נשמרים בהיסטוריה, מוגבלים באורך. ב-<strong>POST</strong> הנתונים ב-<strong>body</strong> (<code>username=foo&amp;password=bar</code>) — לא ב-URL, מתאים לסיסמאות ולנתונים גדולים. (זו עוד סיבה ש-login הוא POST.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="rest">
+      <h3><span class="num">8.</span> Web Services ו-REST</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Web service</strong> = חשיפת נתונים/פונקציונליות דרך API ייעודי. הוא יכול לעמוד בפני עצמו או להיות חלק מאפליקציה, ונגיש גם מצד לקוח וגם מצד שרת. הסגנון הנפוץ ביותר היום לבניית web service הוא <strong>REST</strong>.
+        </div>
+      </div>
+
+      <p><strong>הגישה הקלאסית — RPC מבוסס חוזה (Contract):</strong> הלקוח "משיג חוזה" (interface), ואז קורא לפונקציות מרחוק לפי החוזה (request/response). דוגמה: WCF. גישה כבדה יותר.</p>
+
+      <p><strong>REST (Representational State Transfer)</strong> — אילוצים פשוטים וקלים:</p>
+      <ul>
+        <li>המצב מיוצג כ<strong>משאבים (resources)</strong>.</li>
+        <li>לכל משאב יש <strong>מזהה אחיד (URI)</strong> — למשל <code>foo.com/Articles/5</code>.</li>
+        <li>המשאבים מיוצגים, למשל, ב-<strong>JSON</strong>.</li>
+        <li><strong>ממשק אחיד</strong> — דרך מתודות HTTP: <code>GET, POST, PUT, PATCH, DELETE</code>.</li>
+      </ul>
+
+      <p><strong>RESTful API טיפוסי</strong> סביב משאב "Articles":</p>
+      <table>
+        <thead><tr><th>פעולה</th><th>בקשה</th><th>תשובה</th></tr></thead>
+        <tbody>
+          <tr><td>קבל את כל הכתבות</td><td><code>GET /api/Articles</code></td><td><code>200 OK</code> + מערך JSON</td></tr>
+          <tr><td>קבל כתבה מסוימת</td><td><code>GET /api/Articles/5</code></td><td><code>200 OK</code> + <code>{id:5, ...}</code></td></tr>
+          <tr><td>צור כתבה חדשה</td><td><code>POST /api/Articles</code> + body</td><td><code>201 Created</code> + מיקום</td></tr>
+          <tr><td>עדכן כתבה</td><td><code>PUT /api/Articles/5</code> + body</td><td><code>204 No content</code></td></tr>
+          <tr><td>מחק כתבה</td><td><code>DELETE /api/Articles/5</code></td><td><code>204 No content</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הרעיון היפה של REST</span>
+          במקום להמציא שמות פונקציות (<code>getArticle</code>, <code>deleteArticle</code>...), משתמשים ב<strong>פעלי HTTP הקיימים</strong> על <strong>משאב</strong> מזוהה. אותו URI (<code>/api/Articles/5</code>) + פועל שונה = פעולה שונה. זה אחיד, צפוי, וקל לתעד. שים לב גם ל-status codes המדויקים: <code>201</code> ליצירה, <code>204</code> לפעולה שהצליחה בלי תוכן להחזיר.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · תקשורת ו-Push מהשרת</h2>
+
+    <!-- 9 -->
+    <section id="sync-async">
+      <h3><span class="num">9.</span> סינכרוני מול אסינכרוני</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          איך הדף מתעדכן? בגישה הישנה כל פעולה טוענת מחדש את כל הדף. בגישה המודרנית מעדכנים רק את החלק שהשתנה. זה ההבדל בין תקשורת <strong>סינכרונית</strong> לבין <strong>אסינכרונית</strong>.
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th></th><th>Synchronous (מסורתי)</th><th>Asynchronous</th></tr></thead>
+        <tbody>
+          <tr><td>מקור המידע</td><td>הלקוח שולף משאבים מהשרת</td><td>שולף מידע נוסף בלי לטעון מחדש</td></tr>
+          <tr><td>מידע חדש</td><td>דורש בקשה/חיבור חדש</td><td>שולף מידע ספציפי ומשלב בדף הקיים</td></tr>
+          <tr><td>הדף</td><td><strong>נטען מחדש</strong> (flicker / הבהוב)</td><td><strong>לא</strong> נטען מחדש</td></tr>
+        </tbody>
+      </table>
+
+      <pre class="ascii-diagram"><code>Synchronous:  כל חיפוש → GET /search?q=foo → 200 OK &lt;html&gt;...&lt;/html&gt;
+              → הדפדפן מחליף את כל ה-HTML (הדף "מהבהב")
+
+Asynchronous: כל חיפוש → GET /search?q=foo → 200 OK [{id:1,title:"foo"}]
+              → מחליפים רק את תוצאות החיפוש (הדף לא מהבהב)</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">למה JSON שינה הכל</span>
+          בגישה האסינכרונית המודרנית, השרת מחזיר <strong>נתונים גולמיים ב-JSON</strong> (למשל <code>[{id:1, title:"foo", content:"bar"}]</code>) במקום HTML שלם, והלקוח בונה בעצמו את התצוגה ומשלב אותה בדף. זה גם חוסך רוחב-פס וגם מאפשר חוויית משתמש חלקה (בלי הבהוב). זה בדיוק מה שמאפשר אפליקציות web "חיות" כמו Gmail.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="push">
+      <h3><span class="num">10.</span> Polling, Long-polling, Streaming</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה: השרת רוצה "לדחוף"</span>
+          בתקשורת קלאסית <strong>הלקוח יוזם</strong> בקשות, וה<strong>שרת מחכה</strong> להן. אבל מה אם לשרת יש מידע חדש (התראה, התקדמות משימה) והוא רוצה <strong>לדחוף (push)</strong> אותו ללקוח? HTTP לא בנוי לזה ישירות — לכן יש כמה תחבולות.
+        </div>
+      </div>
+
+      <h4>Polling (תשאול)</h4>
+      <p>הלקוח <strong>שואל את השרת שוב ושוב</strong> אם יש עדכון (למשל כל 30 שניות). אם יש מידע חדש — מחזירים אותו, אחרת — מחזירים את התשובה הקודמת.</p>
+      <pre class="ascii-diagram"><code>Client                          Server
+  │── "תן לי תוצאה" ──────────────▶│
+  │◀──────────────── 0:0 ──────────│
+  │  (ממתין זמן מה)                 │
+  │── "תן לי תוצאה" ──────────────▶│
+  │◀──────────────── 0:1 ──────────│
+  │  (ממתין זמן מה) ...             │</code></pre>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">החיסרון של polling</span>
+          טעינות חוזרות תכופות — רע ל-UX ולביצועים, ה-UI עלול "להבהב", <strong>במיוחד כשהבקשה מבוזבזת</strong> כי אין מידע חדש (שאלנו, אבל שום דבר לא השתנה).
+        </div>
+      </div>
+
+      <h4 style="margin-top:1.5rem">Long-polling (תשאול ארוך)</h4>
+      <p>הלקוח שואל, אבל ה<strong>שרת מעכב את התשובה</strong> עד שיש מידע חדש. ברגע שיש — עונה, והלקוח שואל מיד שוב.</p>
+      <pre class="ascii-diagram"><code>Client                          Server
+  │── "תן לי תוצאה" ──────────────▶│  השרת מחזיק את
+  │       (השרת ממתין...)          │  הבקשה פתוחה עד
+  │◀──────────────── 0:1 ──────────│  שמשהו משתנה</code></pre>
+      <p>היתרון: פחות בקשות מבוזבזות — <strong>השרת</strong> הוא זה שמעכב את התשובה, ולא הלקוח שמתשאל לריק.</p>
+
+      <h4 style="margin-top:1.5rem">Streaming (הזרמה)</h4>
+      <p>הלקוח שולח בקשה אחת, וה<strong>שרת לא סוגר את החיבור</strong> — הוא ממשיך לכתוב לתוכו עדכונים לאורך זמן.</p>
+      <pre class="ascii-diagram"><code>Client                          Server
+  │── "תן לי תוצאה" ──────────────▶│  חיבור אחד נשאר פתוח,
+  │◀──────────────── 0:0 ──────────│  והשרת ממשיך לכתוב:
+  │◀──────────────── 0:1 ──────────│  parent.update(10)
+  │◀──────────────── 1:1 ──────────│  parent.update(20) ...</code></pre>
+      <div class="callout tip">
+        <span class="ic">📊</span>
+        <div class="body">
+          <span class="title">מתי כל אחד? — דוגמה משלי</span>
+          <strong>Polling</strong>: עדכונים נדירים ולא דחופים (מזג אוויר כל 10 דק'). <strong>Long-polling</strong>: צ'אט/התראות (רוצים מיידיות בלי להציף בבקשות). <strong>Streaming</strong>: זרם רציף ומהיר (מחיר מניה, מד התקדמות). היום קיימים גם <em>WebSockets</em> ו-<em>Server-Sent Events</em> שמשכללים את הרעיונות האלה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · Async ב-JavaScript</h2>
+
+    <!-- 11 -->
+    <section id="ajax">
+      <h3><span class="num">11.</span> AJAX — fetch ו-polling</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>AJAX</strong> (Asynchronous JavaScript And XML) הוא הטכניקה שמאפשרת ל-JS לשלוח בקשות לשרת <strong>ברקע</strong> ולעדכן את הדף בלי לטעון אותו מחדש. ב-JS המודרני עושים זאת עם <code>fetch</code>.
+        </div>
+      </div>
+
+      <p>דוגמה — מד התקדמות שמתשאל את השרת כל 3 שניות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html + js · AJAX polling</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;h1&gt;Progress:&lt;/h1&gt;
+&lt;div class="progressBar" style="background-color:green;width:0px"&gt;0%&lt;/div&gt;
+&lt;script&gt;
+  var current = 0;
+
+  function fetchProgress() {
+      fetch("http://localhost:8080/Progress")
+          .then(response =&gt; response.json())
+          .then(data =&gt; {
+              if (data.progress != current) {
+                  current = data.progress;
+                  const progressBar = document.querySelector('.progressBar');
+                  progressBar.style.width = `${data.progress}%`;
+                  progressBar.textContent = `${data.progress}%`;
+              }
+          })
+          .catch(error =&gt; {
+              console.error('Error fetching progress:', error);
+          });
+  }
+
+  setInterval(fetchProgress, 3000);
+&lt;/script&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס</span>
+          <ul style="margin:0">
+            <li><code>fetch(url)</code> — שולח בקשת HTTP ומחזיר <strong>Promise</strong> (הבטחה לתוצאה עתידית — מיד נסביר).</li>
+            <li><code>.then(callback)</code> — "כשה-Promise יסתיים בהצלחה, הרץ את ה-callback". משרשרים: קודם הופכים את התשובה ל-JSON, אחר כך משתמשים בנתונים.</li>
+            <li><code>.catch(...)</code> — מטפל בשגיאה אם הבקשה נכשלה.</li>
+            <li><code>setInterval(fn, 3000)</code> — מריץ את <code>fn</code> כל 3000 מילישניות = polling.</li>
+            <li><code>document.querySelector('.progressBar')</code> — מאתר את האלמנט ב-DOM כדי לעדכן אותו.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="promise">
+      <h3><span class="num">12.</span> Promise</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Promise</strong> הוא אובייקט שמייצג <strong>תוצאה עתידית</strong> של פעולה אסינכרונית — משהו שעוד לא קרה אבל יקרה (או ייכשל). זה הבסיס לכל ה-async ב-JS.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Promise</span><button class="copy-btn">העתק</button></div>
+        <pre><code>let foo = new Promise((resolve, reject) =&gt; {
+    setTimeout(() =&gt; {
+        resolve('42');
+    }, 2000);
+    console.log('Hiiiiush')
+})
+
+function bar(data) {
+    console.log(data)
+    return data + data
+}
+
+function bar2(data) {
+    console.log(data)
+}
+
+foo.then(bar).then(bar2);</code></pre>
+      </div>
+
+      <p><strong>מה קורה כאן:</strong></p>
+      <ul>
+        <li>ה-Promise מתחיל לרוץ מיד — מדפיס <code>Hiiiiush</code>, ומתזמן <code>resolve('42')</code> בעוד 2 שניות.</li>
+        <li>אחרי 2 שניות ה-Promise "נפתר" (resolved) עם הערך <code>'42'</code>.</li>
+        <li><code>.then(bar)</code> — מקבל את <code>'42'</code>, מדפיס אותו, ומחזיר <code>'4242'</code> (שרשור מחרוזות).</li>
+        <li><code>.then(bar2)</code> — מקבל את <code>'4242'</code> (מה ש-<code>bar</code> החזיר) ומדפיס.</li>
+      </ul>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">המהות של then</span>
+          <code>then</code> "מצרף callbacks לפתרון/דחייה של ה-Promise". הוא מקבל פונקציה ל-<code>onfulfilled</code> (הצלחה) ואופציונלית ל-<code>onrejected</code> (כישלון), ו<strong>מחזיר Promise חדש</strong> — ולכן אפשר לשרשר <code>.then().then()</code>. הערך שמחזירים מ-<code>then</code> אחד עובר ל-<code>then</code> הבא.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="event-loop">
+      <h3><span class="num">13.</span> Event Loop</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — איך JS עושה async עם thread אחד?</span>
+          JavaScript הוא <strong>single-threaded</strong> — thread אחד בלבד! אז איך הוא מטפל בכמה דברים "במקביל"? התשובה היא ה-<strong>Event Loop</strong>.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · מה יודפס קודם?</span><button class="copy-btn">העתק</button></div>
+        <pre><code>setTimeout(function (){
+    console.log('foo');
+}, 2000);
+
+console.log('bar');</code></pre>
+      </div>
+      <p>הפלט הוא <code>bar</code> ואז <code>foo</code> — למרות ש-<code>setTimeout</code> נכתב ראשון! כי הוא מתוזמן ל"אחר כך", וה-<code>console.log('bar')</code> רץ מיד.</p>
+
+      <pre class="ascii-diagram"><code> ┌──────────────┐         ┌──────────────┐
+ │  Stack/Heap  │ ───────▶│     APIs     │   (setTimeout, fetch,
+ │ (קוד שרץ עכשיו)│        │ (פעולות אסינכ')│    טיימרים — רצים "בצד")
+ └──────────────┘         └──────┬───────┘
+        ▲                        │ כשמסתיים, ה-callback
+   Event loop                    ▼ נכנס לתור
+ ┌──────────────────────────────────────────┐
+ │              Task queue                    │
+ └──────────────────────────────────────────┘
+   ה-Event loop לוקח מהתור ומחזיר ל-Stack
+   רק כשה-Stack ריק</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">⚙️</span>
+        <div class="body">
+          <span class="title">איך זה עובד</span>
+          הקוד הסינכרוני רץ על ה-<strong>Stack</strong>. פעולות אסינכרוניות (טיימרים, בקשות רשת) נמסרות ל-<strong>APIs</strong> שמטפלים בהן "בצד". כשהן מסתיימות, ה-callback שלהן נכנס ל-<strong>Task queue</strong>. ה-<strong>Event loop</strong> מעביר משימות מהתור ל-Stack <em>רק כשה-Stack ריק</em>. לכן <code>bar</code> (סינכרוני) תמיד יודפס לפני <code>foo</code> (callback בתור), גם אם ה-timeout היה 0.
+        </div>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="async-await">
+      <h3><span class="num">14.</span> async / await</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          שרשור <code>.then().then()</code> נעשה מסורבל. <strong>async/await</strong> הוא סוכר תחבירי (syntactic sugar) מעל Promises — מאפשר לכתוב קוד אסינכרוני שנראה <strong>סינכרוני וקריא</strong>.
+        </div>
+      </div>
+
+      <p>אותו מד התקדמות מקודם, עכשיו עם async/await:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · async/await</span><button class="copy-btn">העתק</button></div>
+        <pre><code>let current = 0;
+
+async function fetchProgress() {
+    try {
+        const response = await fetch("http://localhost:8080/Progress");
+
+        const data = await response.json();
+
+        if (data.progress !== current) {
+            current = data.progress;
+            const progressBar = document.querySelector('.progressBar');
+            progressBar.style.width = `${data.progress}%`;
+            progressBar.textContent = `${data.progress}%`;
+        }
+    } catch (error) {
+        console.error('Error fetching progress:', error);
+    }
+}
+
+setInterval(fetchProgress, 3000);</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס — השוו ל-then</span>
+          <ul style="margin:0">
+            <li><code>async function</code> — מסמן שהפונקציה אסינכרונית (תמיד מחזירה Promise).</li>
+            <li><code>await fetch(...)</code> — "<strong>חכה</strong> שה-Promise ייפתר, ותן לי את הערך" — בלי <code>.then</code>! במקום callback מקונן, פשוט <code>const response = await ...</code>.</li>
+            <li><code>try/catch</code> — מחליף את <code>.catch(...)</code> לטיפול בשגיאות, בדיוק כמו בקוד סינכרוני רגיל.</li>
+          </ul>
+          <strong>אותה התנהגות</strong> כמו גרסת ה-<code>.then</code> מקודם — רק קריא בהרבה. <code>await</code> "מחביא" את ה-Promise ונותן תחושת קוד שורה-אחרי-שורה (אבל מתחת למכסה המנוע, ה-event loop עדיין עובד).
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבור להרצאה הקודמת</span>
+          זוכרים threads ו-race conditions מהרצאה 4? JavaScript נמנע מהם דרך מודל <strong>single-thread + event loop</strong>: אין שני threads שניגשים לזיכרון בו-זמנית, ולכן אין race conditions קלאסיים. המחיר: צריך לחשוב באופן אסינכרוני (Promises/await) במקום לחסום את ה-thread היחיד.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ה' · ארכיטקטורה</h2>
+
+    <!-- 15 -->
+    <section id="layers-tiers">
+      <h3><span class="num">15.</span> Layers ו-Tiers</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ככל שאפליקציה גדלה, צריך לארגן אותה. הרעיון: <strong>הפרדת אחריות (separation of responsibilities)</strong>. שני מושגים שנשמעים דומים אבל שונים: <strong>layers</strong> (שכבות) ו-<strong>tiers</strong> (רבדים).
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th></th><th>Layers (שכבות)</th><th>Tiers (רבדים)</th></tr></thead>
+        <tbody>
+          <tr><td>סוג ההפרדה</td><td><strong>לוגית</strong> (בקוד)</td><td><strong>פיזית</strong> (מכונות נפרדות)</td></tr>
+          <tr><td>היכן רצים</td><td>יכולות לרוץ על אותה מכונה</td><td>רצים על מכונות שונות</td></tr>
+        </tbody>
+      </table>
+
+      <p>כל layer יכול לרוץ על מכונה נפרדת, או כמה layers על אותה מכונה. לגבי האינטראקציה:</p>
+      <ul>
+        <li><strong>Closed layer architecture</strong> — שכבה מדברת רק עם השכנה הישירה.</li>
+        <li><strong>Open layer architecture</strong> — שכבה יכולה לדבר עם כל שכבה אחרת.</li>
+      </ul>
+
+      <p><strong>למה בכלל לחלק? (Rationale):</strong></p>
+      <ul>
+        <li><strong>פיתוח</strong> — אנשים שונים עובדים על שכבות שונות במקביל.</li>
+        <li><strong>תלות</strong> — אפשר להחליף מימוש של שכבה בלי לשנות את האחרות.</li>
+        <li><strong>Scalability</strong> — כל tier ניתן להגדלה (scale) באופן עצמאי.</li>
+        <li><strong>Testability</strong> — קל לבדוק לוגיקה של שכבה ספציפית.</li>
+      </ul>
+
+      <p>הארכיטקטורה הקלאסית — <strong>3-Tier</strong>:</p>
+      <pre class="ascii-diagram"><code> Presentation Tier        Application Tier         Data Tier
+ ┌──────────────────┐    ┌──────────────────┐    ┌──────────────┐
+ │ Web UI (browser) │◀──▶│   Web server     │◀──▶│   Database   │
+ │ GUI (desktop)    │    │ (ASP.NET/servlet)│    │(MySQL/Mongo) │
+ │ GUI (mobile)     │    │                  │    │              │
+ └──────────────────┘    └──────────────────┘    └──────────────┘</code></pre>
+
+      <p>ובתוך כל tier יש <strong>layers לוגיים</strong>:</p>
+      <table>
+        <thead><tr><th>Layer</th><th>אחריות</th></tr></thead>
+        <tbody>
+          <tr><td><strong>PL</strong> — Presentation Layer</td><td>הצגת נתונים, טיפול באירועי UI, אינטראקציות משתמש.</td></tr>
+          <tr><td><strong>BL</strong> — Business Logic Layer</td><td>מה האפליקציה <em>עושה</em> — אלגוריתמים, עיבוד נתונים.</td></tr>
+          <tr><td><strong>DAL</strong> — Data Access Layer</td><td>שמירה/שליפה/עדכון של נתונים מתמשכים (persisted).</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">layers ≠ tiers — הנקודה החשובה</span>
+          אותם <strong>layers</strong> לוגיים (PL/BL/DAL) יכולים להתפרס על <strong>tiers</strong> שונים. למשל באפליקציית client בלבד — כל ה-PL+BL+DAL על מכשיר המשתמש (tier אחד). באפליקציית web — ה-PL בדפדפן, BL+DAL בשרת. כלומר: "layer" זה <em>איך הקוד מאורגן</em>, "tier" זה <em>איפה הוא רץ פיזית</em>. (וכפי שהמצגת מציינת — לפעמים צריך גם קצת לוגיקה/תצוגה בצד "הלא צפוי".)
+        </div>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section id="mvc">
+      <h3><span class="num">16.</span> MVC — Model, View, Controller</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — המוטיבציה</span>
+          ככל שה-GUI נעשה עשיר ומורכב, הוא דורש לוגיקה. <strong>איפה לשים אותה?</strong> ב-BL? ב-PL? איך מאפשרים לחלקים שונים להתפתח בקצב שונה <em>בלי לצמד (couple) אותם בחוזקה</em>? תבנית <strong>MVC</strong> נותנת תשובה.
+        </div>
+      </div>
+
+      <p><strong>המטרה: הפרדת אחריות (separation of concerns)</strong> לשלושה חלקים:</p>
+      <table>
+        <thead><tr><th>רכיב</th><th>אחריות</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Model</strong></td><td>ייצוג ועיבוד הנתונים.</td></tr>
+          <tr><td><strong>View</strong></td><td>הצגה (ויזואליזציה) של נתוני ה-Model.</td></tr>
+          <tr><td><strong>Controller</strong></td><td>מתווך את האינטראקציות בין Model, View, והמשתמש.</td></tr>
+        </tbody>
+      </table>
+
+      <pre class="ascii-diagram"><code>                  ┌────────────┐
+                  │ Controller │
+                  └─┬────────┬─┘
+       User         │        │  Manipulates
+     interaction    │        ▼
+            ┌────────┴─┐   ┌───────┐
+            │   View   │◀──│ Model │
+            └──────────┘   └───────┘
+                  Updates</code></pre>
+
+      <p><strong>הזרימה ב-web (MVC variation):</strong></p>
+      <pre class="ascii-diagram"><code> Browser                    Controller
+   │── 1. request ──────────────▶│
+   │                       2. invoke ↓
+   │                            Model ── 3. data ──▶ Controller
+   │                       4. data ↓
+   │                            View ── 5. data visualization ──▶ Controller
+   │◀── 6. response (data visualization) ──│</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🎭</span>
+        <div class="body">
+          <span class="title">אנלוגיה משלי — מסעדה</span>
+          <strong>Model</strong> = המטבח והמזווה (הנתונים והכנתם). <strong>View</strong> = הצלחת שמוגשת ללקוח (התצוגה). <strong>Controller</strong> = המלצר — מקבל את ההזמנה מהלקוח, מעביר למטבח, ומחזיר את הצלחת. הלקוח לא מדבר ישירות עם המטבח, והמטבח לא מעצב צלחות — כל אחד עושה את שלו. כך אפשר להחליף את העיצוב של הצלחת בלי לגעת במתכון.
+        </div>
+      </div>
+    </section>
+
+    <!-- 17 -->
+    <section id="node-mvc">
+      <h3><span class="num">17.</span> MVC ב-NodeJS</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          נראה איך MVC מתממש בפועל בפרויקט NodeJS — מבנה תיקיות שמשקף בדיוק את שלושת הרכיבים.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>MVC/
+├── controllers/
+│   └── articles.js     ← ה-Controller
+├── models/
+│   └── article.js      ← ה-Model
+├── routes/
+│   └── articles.js     ← הניתוב
+├── views/
+│   └── articles.ejs    ← ה-View (תבנית)
+├── app.js
+└── package.json</code></pre>
+
+      <p><strong>Model</strong> — הנתונים ופעולותיהם:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · models/article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const articles = [
+    { id : 1, title : "Hello",  content : "world" },
+    { id : 2, title : "Hello2", content : "world2" },
+    { id : 3, title : "Hello3", content : "world3" }
+];
+
+exports.getArticles = () =&gt; {
+    return articles;
+};</code></pre>
+      </div>
+
+      <p><strong>Controller</strong> — מקבל בקשה, שולף מה-Model, ומבקש מה-View לרנדר:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · controllers/articles.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Article = require('../models/article');
+
+const index = (req, res) =&gt; {
+    res.render("../views/articles", { articles: Article.getArticles() });
+}
+
+module.exports = {
+    index
+};</code></pre>
+      </div>
+
+      <p><strong>View</strong> — תבנית EJS שמכניסה את הנתונים ל-HTML:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">ejs · views/articles.ejs</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;title&gt;&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;main role="main"&gt;
+        &lt;%for (var i = 0; i &lt; articles.length; i++) {%&gt;
+        &lt;article&gt;
+            &lt;span&gt;&lt;%=articles[i].id%&gt;&lt;/span&gt;
+            &lt;span&gt;&lt;%=articles[i].title%&gt;&lt;/span&gt;
+            &lt;span&gt;&lt;%=articles[i].content%&gt;&lt;/span&gt;
+        &lt;/article&gt;
+        &lt;%}%&gt;
+    &lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס — EJS templating</span>
+          <ul style="margin:0">
+            <li><code>exports.getArticles</code> / <code>module.exports</code> — כך NodeJS "מייצא" פונקציות ממודול אחד כדי ש-<code>require</code> במודול אחר יוכל להשתמש בהן.</li>
+            <li><code>res.render("view", data)</code> — אומר ל-View לבנות HTML מהתבנית + הנתונים.</li>
+            <li>ב-EJS: <code>&lt;% ... %&gt;</code> = קוד JS (לולאה, תנאי), ו-<code>&lt;%= ... %&gt;</code> = <em>הדפסת ערך</em> לתוך ה-HTML. כך הלולאה מייצרת <code>&lt;article&gt;</code> לכל כתבה.</li>
+          </ul>
+          זו בדיוק תבנית ה-"UI template" מהדיאגרמות בתחילת ההרצאה — ה-View מקבל נתונים מה-Controller ובונה מהם את התצוגה.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🏛️</span>
+        <div class="body">
+          <span class="title">חיבור הכל יחד — מ-ASP.NET ועד Android</span>
+          את אותה תבנית MVC רואים בכל מקום: <strong>ASP.NET Core MVC</strong> (השרת מרנדר View ומחזיר HTML), <strong>ASP.NET Web API</strong> (השרת מחזיר JSON, והלקוח בונה את ה-View), ו<strong>Android</strong> (View → ViewModel → Repository → Local data). כולן וריאציות על אותו רעיון: <em>הפרדת המידע מהתצוגה מהבקרה</em> — בדיוק העקרונות (SOLID, separation of concerns) שראינו בהרצאה 2, מיושמים בקנה מידה של מערכת שלמה.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li>אפשר לכתוב שרת HTTP ידנית (סוקטים) אבל זה מייגע ונוטה לשגיאות → משתמשים ב-<strong>frameworks</strong> (NodeJS, Express).</li>
+            <li>שרת מטפל בבקשה ב-4 שלבים: request object → handler function → response object → תרגום ל-HTTP.</li>
+            <li><strong>HTTP</strong>: GET (safe + idempotent, פרמטרים ב-URL) מול POST (לא safe, נתונים ב-body). <strong>REST</strong> = משאבים + URI + פעלי HTTP + JSON.</li>
+            <li>תקשורת <strong>סינכרונית</strong> (טעינה מלאה, מהבהב) מול <strong>אסינכרונית</strong> (עדכון חלקי, JSON). לדחיפה מהשרת: <strong>polling / long-polling / streaming</strong>.</li>
+            <li><strong>JS async</strong>: <code>fetch</code> מחזיר <strong>Promise</strong>; <code>.then</code> משרשר; ה-<strong>event loop</strong> מאפשר async עם thread יחיד; <strong>async/await</strong> = כתיבה קריאה מעל Promises.</li>
+            <li><strong>ארכיטקטורה</strong>: <strong>layers</strong> (לוגי: PL/BL/DAL) מול <strong>tiers</strong> (פיזי: Presentation/Application/Data). <strong>MVC</strong> מפריד Model/View/Controller — מיושם בכל פלטפורמה.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-04.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 4 · תהליכים ותהליכונים</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-05.html">
+        <span class="dir">תרגול 5 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

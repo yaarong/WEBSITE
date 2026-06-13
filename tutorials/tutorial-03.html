@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 3 · העמסת אופרטורים, STL ו-Templates</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 3 · אופרטורים, STL, Templates</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 3</div>
+      <h1>העמסת אופרטורים, ספריית STL ו-Templates</h1>
+      <p>שלושה נושאי C++ מרכזיים: <strong>העמסת אופרטורים</strong> (לתת ל-<code>+</code>, <code>[]</code>, <code>&lt;&lt;</code> משמעות למחלקות שלנו), ספריית התבניות הסטנדרטית <strong>STL</strong> (containers, iterators, algorithms), ו-<strong>Templates</strong> — קוד גנרי ש-C++ מייצר בזמן קומפילציה.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — העמסת אופרטורים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#friend">Friend functions</a></li>
+            <li><a class="link" href="#operators">העמסת אופרטורים — בסיס וכללים</a></li>
+            <li><a class="link" href="#special">אופרטורים מיוחדים — ++ ו-()</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — STL</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#containers">Containers — vector, map, list</a></li>
+            <li><a class="link" href="#iterators">Iterators</a></li>
+            <li><a class="link" href="#algorithms">Algorithms</a></li>
+            <li><a class="link" href="#pitfalls">מלכודות נפוצות</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — Templates</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#templates">מה זה template (מול Java/C)</a></li>
+            <li><a class="link" href="#tsyntax">תחביר — function ו-class templates</a></li>
+            <li><a class="link" href="#special-t">Specializations</a></li>
+            <li><a class="link" href="#constexpr">constexpr, type_traits, static_assert</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · העמסת אופרטורים</h2>
+
+    <!-- 1 -->
+    <section id="friend">
+      <h3><span class="num">1.</span> Friend functions</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">מה זה friend</span>
+          <strong>friend function/class</strong> = פונקציה או מחלקה שאינה חלק מהמחלקה, אבל מורשית לגשת לממברים ה<strong>פרטיים</strong> שלה. <strong>friend שובר אנקפסולציה!</strong> — לכן משתמשים בו במשורה: בעיקר עבור <strong>אופרטורים</strong> של המחלקה ומחלקות "מנהלות" (design patterns). לא נאפשר לאף אחד אחר.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · friend</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Point {
+public:
+    Point(int x, int y) : m_x(x), m_y(y) {}
+    // מתירים לאופרטור הפלט לגשת לשדות הפרטיים:
+    friend std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const Point&amp; p);
+private:
+    int m_x, m_y;
+};
+
+std::ostream&amp; operator&lt;&lt;(std::ostream&amp; os, const Point&amp; p) {
+    return os &lt;&lt; "(" &lt;&lt; p.m_x &lt;&lt; ", " &lt;&lt; p.m_y &lt;&lt; ")";  // גישה ל-private
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="operators">
+      <h3><span class="num">2.</span> העמסת אופרטורים — בסיס וכללים</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בניגוד ל-Java, ב-C++ אפשר להגדיר מה אופרטורים (<code>+</code>, <code>*</code>, <code>==</code>, <code>[]</code>, <code>&lt;&lt;</code>...) עושים על המחלקות שלנו. למשל למספרים מרוכבים, מטריצות ווקטורים יש אריתמטיקה טבעית.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · חתימות אופרטורים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Point  operator+(const Point&amp; ob);     // חיבור
+Point&amp; operator*=(const Point&amp; ob);    // הכפלה-והשמה
+Matrix operator/(std::int32_t num);    // חילוק בסקלר
+bool   operator!();                    // אונארי</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">📏</span>
+        <div class="body">
+          <span class="title">כללים — מתי ואיך</span>
+          <ul style="margin:0">
+            <li>הפעולה צריכה להיות <strong>מובנת מאליה</strong> — אל תמציאו פונקציות מוזרות כאופרטורים.</li>
+            <li>אם מימשת אופרטור ממשפחה מוכרת — <strong>ממש את כולם</strong>: לא <code>+</code>,<code>*</code>,<code>/</code> בלי <code>-</code>; לא <code>==</code>,<code>&lt;=</code>,<code>&gt;</code> בלי <code>&gt;=</code>; ממש גם <code>++</code> prefix וגם postfix.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🚫</span>
+        <div class="body">
+          <span class="title">מגבלות</span>
+          אי אפשר: לשנות את ה<strong>קדימות</strong> של אופרטור; לשנות את <strong>מספר הארגומנטים</strong> שהוא מקבל (פרט ל-<code>operator()</code>); ליצור אופרטורים <strong>חדשים</strong> (כמו <code>**=</code>).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">↔️</span>
+        <div class="body">
+          <span class="title">אופרטורים "מימין ומשמאל"</span>
+          כשמממשים אופרטור כמתודה, האובייקט הוא תמיד <em>צד שמאל</em>. כדי לתמוך ב-<code>2 + point</code> (סקלר משמאל), מממשים אופרטור כ-<strong>פונקציה חופשית</strong> (לרוב <code>friend</code>) שמקבלת את שני האופרנדים.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="special">
+      <h3><span class="num">3.</span> אופרטורים מיוחדים — <code>++</code> ו-<code>()</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · ++ prefix מול postfix</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Counter {
+public:
+    Counter&amp; operator++() { ++m_v; return *this; }       // ++x (pre)
+    Counter  operator++(int) {                            // x++ (post)
+        Counter tmp = *this; ++m_v; return tmp;           // ה-int מבדיל ביניהם
+    }
+private:
+    int m_v = 0;
+};</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">איך מבדילים pre מ-post</span>
+          <code>operator++()</code> (בלי פרמטר) = <strong>prefix</strong> (<code>++x</code>), מחזיר רפרנס. <code>operator++(int)</code> (פרמטר <code>int</code> דמה, לא בשימוש) = <strong>postfix</strong> (<code>x++</code>), מחזיר עותק של הערך הישן.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎛️</span>
+        <div class="body">
+          <span class="title"><code>operator()</code> — Functor</span>
+          העמסת אופרטור הקריאה הופכת אובייקט ל-"function object" (functor) — אובייקט שאפשר "לקרוא לו" כמו פונקציה. ניתן להעמיס בכל צורה (כל מספר ארגומנטים). למשל למטריצה: <code>int operator()(size_t i, size_t j) const;</code> → גישה עם <code>m(2, 3)</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · ספריית STL</h2>
+
+    <!-- 4 -->
+    <section id="containers">
+      <h3><span class="num">4.</span> Containers — vector, map, list</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-<strong>STL</strong> (Standard Template Library) הוא מימוש C++ של אלגוריתמים ומבני-נתונים מוכרים. לבנות מבני-נתונים בעצמנו שוב ושוב = בזבוז זמן, באגים, וביצועים גרועים. <strong>במקום זה — להשתמש ב-STL</strong> (גם בטוח יותר: יש בדיקות גבולות, בניגוד למערכי C). לכל ה-containers יש <code>size()</code>, <code>empty()</code>, <code>clear()</code>.
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Container</th><th>מה זה</th><th>סיבוכיות</th></tr></thead>
+        <tbody>
+          <tr><td><code>vector</code></td><td>מערך דינמי</td><td>גישה O(1), הוספה/הסרה בסוף O(1) amortized</td></tr>
+          <tr><td><code>map</code></td><td>אסוציאטיבי (key→value), כמו BST</td><td>הכל O(log n)</td></tr>
+          <tr><td><code>list</code></td><td>רשימה מקושרת כפולה</td><td>הוספה/הסרה בקצוות O(1)</td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · vector ו-map</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;vector&gt;
+#include &lt;map&gt;
+
+std::vector&lt;int&gt; v;
+v.push_back(10);        // הוספה בסוף
+v.push_back(20);
+int x = v[0];           // גישה כמו מערך C
+v.pop_back();           // הסרת האחרון (UB אם ריק!)
+
+std::map&lt;std::string, int&gt; ages;
+ages["Cohen"] = 30;     // הכנסה/עדכון
+if (ages.count("Cohen")) { /* קיים — count מחזיר 0 או 1 */ }</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">שתי מלכודות חשובות</span>
+          <code>operator[]</code> על <strong>map</strong> <em>מכניס</em> איבר אם הוא לא קיים — להשתמש בזהירות (אם רק בודקים קיום, להשתמש ב-<code>count</code>/<code>find</code>). ועל <strong>vector</strong> אין בדיקת גבולות (UB מחוץ לטווח) — להשתמש ב-<code>.at()</code> לבדיקה. ולגבי <code>list</code> — הטיפ מהמצגת: <em>פשוט אל תשתמשו בו</em> (ברוב המקרים <code>vector</code> מהיר יותר בפועל).
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="iterators">
+      <h3><span class="num">5.</span> Iterators</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">מה זה iterator</span>
+          ב-C++, <strong>iterator</strong> הוא בעצם <em>מצביע לנתונים</em> + סט קטן של פעולות. השתיים הנפוצות: <strong>dereference</strong> (<code>*it</code> = הערך) ו-<strong>increment</strong> (<code>++it</code> = האיבר הבא). כל container תומך ב-<code>begin()</code> (iterator לאיבר הראשון) ו-<code>end()</code> (iterator מיוחד <em>אחרי</em> האחרון — לא ניתן ל-dereference, כמו null).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · מעבר על container</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// עם iterator מפורש:
+for (auto it = v.begin(); it != v.end(); ++it)
+    std::cout &lt;&lt; *it;
+
+// for-each (מועדף!):
+for (const auto&amp; x : v)
+    std::cout &lt;&lt; x;
+
+// מעבר על map:
+for (const auto&amp; [key, value] : ages)   // structured binding (C++17)
+    std::cout &lt;&lt; key &lt;&lt; "=" &lt;&lt; value;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">היררכיית ה-iterators</span>
+          מהחלש לחזק: <strong>input/output</strong> (קריאה/כתיבה חד-פעמית) → <strong>forward</strong> (linked list) → <strong>bidirectional</strong> (doubly-linked, תומך <code>--</code>) → <strong>random-access</strong> (vector, תומך <code>+</code>, <code>&lt;</code>, גישה ישירה). ה-iterators של STL מובטחים להיות לפחות forward. הכוח: אלגוריתם עובד על <strong>טווח (range)</strong> של iterators — ללא תלות ב-container הספציפי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="algorithms">
+      <h3><span class="num">6.</span> Algorithms</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הספרייה <code>&lt;algorithm&gt;</code> = אוסף פונקציות שעובדות על <strong>טווחים</strong>. טווח = זוג iterators <code>[begin, end)</code> — כולל את ההתחלה, <em>לא</em> כולל את הסוף. <code>[begin, end)</code> = כל ה-container; <code>[it, it)</code> = טווח ריק.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · אלגוריתמים נפוצים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;algorithm&gt;
+
+auto it = std::find(v.begin(), v.end(), 20);   // מחפש 20
+int n   = std::count(v.begin(), v.end(), 5);   // סופר מופעים של 5
+std::sort(v.begin(), v.end());                 // ממיין
+std::sort(v.begin(), v.end(),                  // עם השוואה מותאמת:
+          [](int a, int b) { return a &gt; b; }); // סדר יורד (lambda)</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">אלגוריתמים מול לולאות</span>
+          למה להעדיף אלגוריתמי STL על לולאות? הם <strong>פחות נוטים לשגיאות</strong>, בד"כ <strong>יעילים יותר</strong>, וה<strong>קוד ברור יותר</strong> (האלגוריתם מתעד את עצמו — <code>std::sort</code> אומר בדיוק מה קורה). <strong>כלל אצבע:</strong> נמנעים מלולאות; אם בכל זאת — שתהיה לפחות for-each.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="pitfalls">
+      <h3><span class="num">7.</span> מלכודות נפוצות ב-STL</h3>
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">לשים לב</span>
+          <ul style="margin:0">
+            <li>STL <strong>לא thread-safe</strong> על האובייקטים שלכם — לקרוא את התיעוד.</li>
+            <li>STL <strong>לא משחרר</strong> מה שהוא לא הקצה.</li>
+            <li><code>vector[i]</code> — אין בדיקת גבולות (UB). <code>vector.at(i)</code> — יש.</li>
+            <li><code>map[key]</code> — מבצע <em>הכנסה</em> אם המפתח לא קיים!</li>
+            <li>חלק מהפונקציות (כמו <code>remove_if</code>) לא עושות מה שנדמה — לקרוא תיעוד לפני שימוש.</li>
+            <li>לא להשתמש במערכי C כלל — <code>std::array</code> הוא תחליף טוב.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · Templates</h2>
+
+    <!-- 8 -->
+    <section id="templates">
+      <h3><span class="num">8.</span> מה זה template (מול Java/C)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Templates</strong> = דרך לייצר <em>קוד גנרי</em>. שלא כמו Java generics (שרק עושים auto-cast, אותו קוד לכולם, רק על אובייקטים), ב-C++ הקומפיילר <strong>מייצר קוד חדש לכל טיפוס</strong> שבו משתמשים. זה נותן יותר גמישות (עובד על כל טיפוס, כולל פרימיטיביים) — אבל מגדיל את הקובץ הבינארי.
+        </div>
+      </div>
+      <table>
+        <thead><tr><th></th><th>C++ Templates</th><th>Java Generics</th><th>C (<code>void*</code>)</th></tr></thead>
+        <tbody>
+          <tr><td>מנגנון</td><td>קוד חדש לכל טיפוס</td><td>אותו קוד, auto-cast</td><td>אותו קוד, cast ידני</td></tr>
+          <tr><td>עובד על</td><td>כל הטיפוסים</td><td>רק אובייקטים</td><td>רק מצביעים</td></tr>
+          <tr><td>שגיאות</td><td>בזמן קומפילציה</td><td>בזמן קומפילציה</td><td>בזמן ריצה</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">⏱️</span>
+        <div class="body">
+          <span class="title">Templates = פולימורפיזם בזמן קומפילציה</span>
+          ירושה+virtual = פולימורפיזם בזמן <strong>ריצה</strong> (גמיש, איטי, שגיאות בריצה). Templates = פולימורפיזם בזמן <strong>קומפילציה</strong> (מהיר, גנרי, שגיאות בקומפילציה, אבל קשה יותר לכתוב). שתי דרכים להשיג "חוזה שטיפוסים שונים ממלאים".
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="tsyntax">
+      <h3><span class="num">9.</span> תחביר — function ו-class templates</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · function template</span><button class="copy-btn">העתק</button></div>
+        <pre><code>template &lt;typename T&gt;          // אפשר גם class במקום typename
+T max(T a, T b) {
+    return (a &gt; b) ? a : b;
+}
+
+max(3, 7);          // T מוסק כ-int
+max(2.5, 1.0);      // T מוסק כ-double
+max&lt;double&gt;(2, 3);   // ציון מפורש כשהקומפיילר לא יכול להסיק</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · class template + non-type param</span><button class="copy-btn">העתק</button></div>
+        <pre><code>template &lt;typename T&gt;
+class Box {
+    T m_value;
+public:
+    Box(T v) : m_value(v) {}
+    T get() const { return m_value; }
+};
+Box&lt;int&gt; b(42);
+
+// פרמטר תבנית מטיפוס פרימיטיבי (non-type) — למשל מערך בגודל קבוע:
+template &lt;typename T, int SIZE&gt;
+class FixedArray { T data[SIZE]; };
+FixedArray&lt;int, 10&gt; arr;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">‎typename‎ מול ‎class‎</span>
+          ברוב המקרים <code>template &lt;typename T&gt;</code> ו-<code>template &lt;class T&gt;</code> זהים. יש מקרים מיוחדים שבהם חייבים אחד מהם. ניתן גם פרמטרים מטיפוס פרימיטיבי (<code>int SIZE</code>) — שימושי למערכים בגודל קבוע.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="special-t">
+      <h3><span class="num">10.</span> Template Specializations</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לפעמים רוצים שתבנית תעבוד <em>אחרת</em> עבור טיפוס מסוים — למשל פונקציה גנרית שמתנהגת מיוחד עבור <code>int</code>, או מחלקה שעובדת אחרת עם <code>std::string</code>. זה <strong>specialization</strong>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · specialization</span><button class="copy-btn">העתק</button></div>
+        <pre><code>template &lt;typename T&gt;
+std::string describe(T x) { return "generic"; }
+
+template &lt;&gt;                                  // התמחות מלאה ל-bool
+std::string describe&lt;bool&gt;(bool x) { return x ? "true" : "false"; }
+
+describe(42);     // "generic"
+describe(true);   // "true"</code></pre>
+      </div>
+    </section>
+
+    <!-- 11 -->
+    <section id="constexpr">
+      <h3><span class="num">11.</span> <code>constexpr</code>, type_traits ו-<code>static_assert</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">חישוב בזמן קומפילציה</span>
+          התגלה שמנגנון ה-templates הוא <strong>Turing-complete</strong> — אפשר לחשב כל דבר בזמן קומפילציה (נקרא <strong>TMP</strong> — Template Meta Programming). בעקבות זאת נוספה המילה <code>constexpr</code>: מסמנת שמשתנה/פונקציה/מחלקה <em>יכולים</em> (משתנה — חייב) להיות מחושבים בזמן קומפילציה. <strong>משתנה <code>constexpr</code> מחושב בקומפילציה ולא תופס מקום בריצה</strong> — לכן תמיד נגדיר קבועי-קומפילציה כ-<code>constexpr</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · constexpr (פיבונאצ'י בקומפילציה)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>constexpr int fib(int n) {
+    return (n &lt; 2) ? n : fib(n - 1) + fib(n - 2);
+}
+constexpr int f10 = fib(10);   // 55 — מחושב בזמן קומפילציה!</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">type_traits, static_assert, if constexpr</span>
+          <ul style="margin:0">
+            <li><strong><code>&lt;type_traits&gt;</code></strong> — בדיקות זמן-קומפילציה על טיפוסים. למשל <code>std::is_pointer&lt;T&gt;::value</code> (או <code>std::is_pointer_v&lt;T&gt;</code> מ-C++14). ממומשות דרך template specialization.</li>
+            <li><strong><code>static_assert(condition, "msg")</code></strong> — מוודא תנאי בזמן קומפילציה. מונע הודעות שגיאה באורך 4000 שורות כשטיפוס לא מתאים נכנס לתבנית.</li>
+            <li><strong><code>if constexpr</code></strong> (C++17) — תנאי שנבדק בזמן קומפילציה; <em>רק הענף הפעיל מתקמפל</em>. מחליף את ה-<code>#if</code>/<code>#elif</code> המכוער של C, ונוח לשילוב עם type_traits.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📚</span>
+        <div class="body">
+          <span class="title">נושאים מתקדמים (להמשך)</span>
+          Variadic templates (מספר משתנה של פרמטרים), SFINAE, Concepts (C++20), ו-<code>std::variant</code> — מעבר להיקף התרגול, אבל שווה להכיר את השמות.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>אופרטורים:</strong> <code>friend</code> לגישה ל-private; העמסה עם כללים (משפחה שלמה, פעולה מובנת); <code>++</code> pre/post, <code>operator()</code> (functor).</li>
+            <li><strong>STL:</strong> containers (<code>vector</code>/<code>map</code>/<code>list</code>), <code>iterators</code> (<code>begin</code>/<code>end</code>, היררכיה), <code>algorithms</code> (<code>find</code>/<code>sort</code>...) — להעדיף על לולאות. זהירות ממלכודות (<code>map[]</code>, <code>vector[]</code>).</li>
+            <li><strong>Templates:</strong> קוד גנרי שמיוצר בקומפילציה (פולימורפיזם בזמן קומפילציה); function/class templates, specializations; <code>constexpr</code>, <code>type_traits</code>, <code>static_assert</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-02.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 2 · OOP ב-C++</span>
+      </a>
+      <a class="next" href="tutorial-04.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 4 · JavaScript</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

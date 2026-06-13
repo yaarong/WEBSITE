@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 6 · עיבוד מקבילי ו-Threads</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 6 · Threads</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 6</div>
+      <h1>עיבוד מקבילי ו-Threads</h1>
+      <p>איך מריצים כמה דברים <strong>במקביל</strong>. נכיר את ההבדל בין <strong>process</strong> ל-<strong>thread</strong>, את הבעיות שמקביליות יוצרת (<strong>race conditions</strong>, <strong>deadlock</strong>) ואת הפתרון (<strong>mutex</strong>), ואת ה-API: <strong>POSIX threads</strong> (C) ו-<strong>std::thread</strong> (C++) עם mutexes, locks, atomics ו-condition variables.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — מושגים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#process">Process מול Thread</a></li>
+            <li><a class="link" href="#terms">מושגים, Join, ויעילות</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — הבעיות</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#race">Critical section ו-Race conditions</a></li>
+            <li><a class="link" href="#mutex">Mutex, Deadlock ו-Starvation</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — POSIX threads</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#pthreads">pthreads ו-mutexes</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — C++ threads</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#cppthreads">std::thread ו-locks</a></li>
+            <li><a class="link" href="#advanced">Atomic, Condition variables, Thread pool</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · מושגים</h2>
+
+    <!-- 1 -->
+    <section id="process">
+      <h3><span class="num">1.</span> Process מול Thread</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          זוכרים שלתוכנית יש 4 איזורי זיכרון (Data, Text, Stack, Heap — תרגול 1)? בפישוט: ה<strong>נתונים</strong> (איזורי הזיכרון) הם ה-<strong>process</strong>, וה<strong>יחידה שמריצה פקודות</strong> היא ה-<strong>thread</strong>.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מי מחזיק מה</span>
+          <ul style="margin:0">
+            <li><strong>Process</strong> = תוכנית שרצה. מחזיק את ה-<strong>code, heap ו-data</strong> (משותפים).</li>
+            <li><strong>Thread</strong> = יחידת הרצה. לכל thread יש <strong>registers, stack ו-program counter</strong> משלו.</li>
+            <li>process מכיל לפחות thread אחד (ה-<strong>main thread</strong>, שנקודת הכניסה שלו ב-C/C++ היא <code>main</code>), ויכול להחזיק רבים.</li>
+            <li><strong>ה-threads לא מסונכרנים</strong> — הם יכולים לרוץ בכל סדר אפשרי. (זה בדיוק מקור הבעיות בהמשך.)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="terms">
+      <h3><span class="num">2.</span> מושגים, Join, ויעילות</h3>
+      <table>
+        <thead><tr><th>מושג</th><th>פירוש</th></tr></thead>
+        <tbody>
+          <tr><td><strong>CPU-bound</strong></td><td>זמן הסיום נקבע ע"י מהירות המעבד</td></tr>
+          <tr><td><strong>IO-bound</strong></td><td>זמן הסיום נקבע ע"י מהירות פעולות הקלט/פלט (המתנה)</td></tr>
+          <tr><td><strong>User thread</strong></td><td>thread תוכנתי, לא נתמך ע"י ה-OS</td></tr>
+          <tr><td><strong>Kernel thread</strong></td><td>נתמך ע"י ה-OS, יכול להריץ שתי פקודות בו-זמנית</td></tr>
+          <tr><td><strong>Context-switch</strong></td><td>המעבר מ-thread אחד לאחר</td></tr>
+          <tr><td><strong>Atomic operation</strong></td><td>פעולה שלא ניתנת להפרעה באמצע</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <span class="ic">⚛️</span>
+        <div class="body">
+          <span class="title">למה <code>i++</code> מסוכן</span>
+          <code>i++</code> נראה אטומי אבל <em>אינו</em> — הוא מתפרק ל-3 פעולות: (1) שמירת הערך של <code>i</code>, (2) הגדלה, (3) החזרת הערך הישן. <strong>context-switch יכול לקרות בין הפעולות!</strong> ב-C/C++ מניחים שכל הפעולות <em>לא</em> אטומיות.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">Join — המתנה ל-thread</span>
+          thread אחד יכול <strong>לחכות</strong> ל-thread אחר שיסיים — זה <code>join</code>. בעת join אפשר גם לקבל את ערך ההחזרה של ה-thread. (זה פותר את הבעיה: thread 1 שיצר את thread 2 רוצה את התוצאה שלו → עושה join.)
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">יתרונות וחסרונות</span>
+          <strong>יתרונות:</strong> ריצה מקבילית (multicore), כש-thread ממתין ל-I/O אחרים עובדים, וארגון קוד ליחידות. <strong>חסרונות:</strong> קוד ודיבוג קשים בהרבה, overhead של context-switch, וקשה לאופטם. תוכנית יעילה כשהיא CPU-bound (משימות IO-bound מבזבזות זמן בהמתנה).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · הבעיות</h2>
+
+    <!-- 3 -->
+    <section id="race">
+      <h3><span class="num">3.</span> Critical Section ו-Race Conditions</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">Critical Section</span>
+          <strong>קטע קריטי</strong> = כל קטע קוד שניגש ל<strong>משאב משותף</strong> (קובץ, משתנה) — לקריאה או לכתיבה. גישה מקבילית למשאבים משותפים עלולה להוביל להתנהגות לא צפויה, ולכן נחשבת <em>לא בטוחה</em>. (קריאה בלבד בד"כ בטוחה במקביל — אבל אלא אם מובטח, כל פעולה על משאב משותף נחשבת לא בטוחה.)
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🏁</span>
+        <div class="body">
+          <span class="title">Race Condition</span>
+          המצב שבו שתי משימות (או יותר) רצות בו-זמנית, ועלולות להתבצע <strong>בסדר שהמתכנת לא התכוון אליו</strong>, מה שמוביל לתוצאות לא דטרמיניסטיות ולא רצויות. <strong>זה באג.</strong>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">דוגמה · משיכה מחשבון בנק</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// amount = 1000, שני threads מושכים 500 כל אחד במקביל:
+//
+// מצופה:                       race condition:
+//  T1: read  amount (1000)      T1: read amount (1000)
+//  T1: amount -= 500 → 500      T2: read amount (1000)   ← לפני ש-T1 כתב!
+//  T2: read  amount (500)       T1: amount -= 500 → 500
+//  T2: amount -= 500 → 0        T2: amount -= 500 → 500
+//  תוצאה: 0  ✅                 תוצאה: 500  ❌ (כסף "נוצר"!)</code></pre>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="mutex">
+      <h3><span class="num">4.</span> Mutex, Deadlock ו-Starvation</h3>
+      <div class="callout tip">
+        <span class="ic">🔒</span>
+        <div class="body">
+          <span class="title">Mutual Exclusion — הפתרון</span>
+          הפתרון הפשוט לבעיית הקטע הקריטי: <strong>mutual exclusion</strong> — שני threads לא יכולים להריץ את הקטע הקריטי במקביל. הכלי: <strong>mutex</strong> (lock). ה-mutex נעול/לא-נעול; אם thread מנסה לנעול mutex נעול — הוא ימתין עד שישתחרר. <em>"כרטיס כניסה" יחיד לקטע הקריטי</em> — רק מי שמחזיק את הכרטיס נכנס.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סוגי mutex</span>
+          <strong>recursive</strong> (ניתן לנעול כמה פעמים), <strong>fast</strong> (רק התכונות הבסיסיות), <strong>shared</strong> (לקריאה/כתיבה). שחרור mutex לא-נעול = undefined behavior.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🔴</span>
+        <div class="body">
+          <span class="title">Deadlock</span>
+          המצב שבו שני threads מחכים זה לזה (בד"כ למשאב משותף) — אף אחד לא ימשיך והתוכנית "תיתקע".
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">deadlock — סדר נעילה הפוך</span><button class="copy-btn">העתק</button></div>
+            <pre><code>// Thread A          // Thread B
+lock(m2);            lock(m1);
+lock(m1);  ←┐    ┌─→ lock(m2);    ← כל אחד מחכה ל-mutex שהשני מחזיק!
+...         └────┘   ...
+unlock(m1);          unlock(m2);
+unlock(m2);          unlock(m1);</code></pre>
+          </div>
+          <strong>מניעה:</strong> לנעול mutexes תמיד באותו סדר.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🍽️</span>
+        <div class="body">
+          <span class="title">Starvation</span>
+          מצב שבו thread אחד נמנע ממנו לקבל את המשאבים הדרושים לו לעבודתו. בד"כ מניחים שזה לא קורה; אם כן — מיישמים מנגנון הוגנות (fairness).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · POSIX threads (C)</h2>
+
+    <!-- 5 -->
+    <section id="pthreads">
+      <h3><span class="num">5.</span> pthreads ו-mutexes</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מערכות Unix לא מכירות "threading" מובנה, ולכן יש מימוש תוכנתי — <strong>pthread</strong> (POSIX threads). זה ה-low-level שעליו בנויות ספריות C++. צריך <code>#include &lt;pthread.h&gt;</code> ולקשר עם <code>libpthread</code>. הספרייה מחזירה <strong>0 בהצלחה</strong> וקוד שגיאה אחרת.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">c · יצירה ו-join</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;pthread.h&gt;
+
+void* worker(void* arg) {        // נקודת כניסה: void* → void*
+    int n = *(int*)arg;
+    // ... עבודה
+    return nullptr;
+}
+
+int main() {
+    pthread_t tid;
+    int arg = 42;
+    pthread_create(&amp;tid, nullptr, worker, &amp;arg);  // (id, attr, fn, arg)
+    pthread_join(tid, nullptr);                    // ממתין לסיום (retval=null)
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הקריאות החשובות</span>
+          <ul style="margin:0">
+            <li><code>pthread_create(&amp;tid, attr, start_routine, arg)</code> — <code>attr</code> בד"כ <code>nullptr</code>; <code>start_routine</code> חייבת להיות פונקציה <code>void* f(void*)</code>.</li>
+            <li><code>pthread_join(tid, &amp;retval)</code> — ממתין ל-thread ומקבל את ערך ההחזרה (או <code>nullptr</code> להתעלם).</li>
+            <li><code>pthread_exit</code> / <code>return</code> — סיום thread. <code>pthread_detach</code> — thread ש"מנקה אחרי עצמו" (לא צריך join).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">c · mutex</span><button class="copy-btn">העתק</button></div>
+        <pre><code>pthread_mutex_t mutex;
+pthread_mutex_init(&amp;mutex, nullptr);   // לפני השימוש
+
+pthread_mutex_lock(&amp;mutex);            // נכנס לקטע הקריטי (ממתין אם נעול)
+// ... critical section
+pthread_mutex_unlock(&amp;mutex);          // יוצא
+
+pthread_mutex_destroy(&amp;mutex);         // בסיום</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">חוקי ה-mutex</span>
+          חובה <code>init</code> לפני שימוש ו-<code>destroy</code> בסיום (ואסור לאתחל פעמיים). <code>lock</code> נתקע אם נעול; <code>trylock</code> חוזר מיד עם <code>EBUSY</code>; <code>unlock</code> — רק ה-thread שנעל יכול לשחרר. מעבירים את ה-mutex <strong>by pointer</strong> (כדי שכולם ישתפו את אותו אובייקט).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · C++ threads</h2>
+
+    <!-- 6 -->
+    <section id="cppthreads">
+      <h3><span class="num">6.</span> <code>std::thread</code> ו-locks</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          C++11 מציעה ממשק threading מובנה, נוח ו-cross-platform (בנוי על pthread ב-Linux). <code>#include &lt;thread&gt;</code>. יוצר thread כמעט מכל callable, ואפילו ממתודות.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · std::thread</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;thread&gt;
+
+void worker(int n) { /* ... */ }
+
+std::thread t(worker, 42);   // יצירה + הרצה
+t.join();                    // המתנה לסיום (או t.detach())</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">3 המתודות + מלכודת ארגומנטים</span>
+          <code>join</code> / <code>detach</code> (כמו POSIX), ו-<code>joinable</code> (האם רץ/הסתיים-אך-לא-detached). <strong>מלכודת:</strong> הארגומנטים מועברים כ-rvalue — אי אפשר להעביר lvalue reference ישירות; עוטפים ב-<code>std::ref(var)</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · mutex + lock_guard</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;mutex&gt;
+
+std::mutex m;
+
+void safe_increment() {
+    std::lock_guard&lt;std::mutex&gt; guard(m);   // נועל בבנאי
+    // ... critical section
+}   // ← משתחרר אוטומטית ב-destructor (סוף ה-scope)</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🛡️</span>
+        <div class="body">
+          <span class="title">RAII על mutexes — lock_guard ו-unique_lock</span>
+          <ul style="margin:0">
+            <li><code>std::mutex</code> ישיר (<code>lock</code>/<code>unlock</code>) — low-level, <em>לא RAII</em> → נמנעים ממנו ישירות.</li>
+            <li><strong><code>lock_guard</code></strong> — נועל בבנאי, משחרר ב-destructor. הדרך הקלה ביותר; לשימוש ב-scopes קצרים. (RAII — בדיוק כמו תרגול 2!)</li>
+            <li><strong><code>unique_lock</code></strong> — גמיש יותר (אפשר לא לנעול מיד, יש <code>owns_lock</code> וכו'). דרוש ל-condition variables.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="advanced">
+      <h3><span class="num">7.</span> Atomic, Condition Variables ו-Thread Pool</h3>
+      <div class="callout syntax">
+        <span class="ic">⚛️</span>
+        <div class="body">
+          <span class="title">Atomic — בלי mutex</span>
+          ל-טיפוסים פרימיטיביים (int, char, bool), <code>std::atomic</code> (<code>#include &lt;atomic&gt;</code>) מספק פעולות אטומיות <em>בלי</em> mutex — יעיל מאוד. <code>std::atomic&lt;int&gt; counter; counter++;</code> בטוח בין threads.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🌀</span>
+        <div class="body">
+          <span class="title">Busy waiting — הדרך הרעה להמתין</span>
+          להמתין ל-thread אחר ע"י לולאה ריקה (<code>while (!done) {}</code>) = <strong>busy waiting</strong> — מבזבז את המעבד לחלוטין. יש דרך טובה יותר.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔔</span>
+        <div class="body">
+          <span class="title">Condition Variable — הדרך הנכונה</span>
+          אובייקט סנכרון שאפשר <strong>להמתין עליו</strong> (<code>wait</code>) ו<strong>להעיר אותו</strong> (<code>notify_one</code> / <code>notify_all</code>). ה-thread הממתין "נרדם" (לא מבזבז CPU) עד שמישהו מעיר אותו. דורש <code>unique_lock</code> נעול — הוא משחרר אותו בזמן ההמתנה ונועל מחדש כשמסתיים. <strong>הערה:</strong> עלול להתעורר גם בלי שהתנאי התקיים ("spurious wakeup") — לכן בודקים את התנאי בלולאה.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🏊</span>
+        <div class="body">
+          <span class="title">Thread Pool — design pattern</span>
+          שרת מטפל בהרבה בקשות קצרות וחוזרות. גישה נאיבית: <em>thread חדש לכל בקשה</em> — אבל יצירה/מחיקה של אלפי threads = overhead אדיר ו-thrashing. <strong>הפתרון — Thread Pool:</strong> יוצרים מראש מספר קבוע של threads + <strong>תור משימות</strong>. כל thread ממתין שהתור יתמלא, שולף משימה, מבצע אותה, וחוזר להמתין. <em>שימוש חוזר ב-threads</em> במקום ליצור חדשים — חוסך את ה-overhead.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>Process</strong> (code/heap/data משותפים) מול <strong>thread</strong> (stack/registers/PC משלו). threads לא מסונכרנים.</li>
+            <li><strong>הבעיות:</strong> קטע קריטי → <strong>race condition</strong> (תוצאות לא דטרמיניסטיות), <strong>deadlock</strong> (המתנה הדדית), <strong>starvation</strong>. <code>i++</code> לא אטומי!</li>
+            <li><strong>הפתרון:</strong> <strong>mutex</strong> (mutual exclusion) — כרטיס כניסה יחיד לקטע הקריטי.</li>
+            <li><strong>POSIX:</strong> <code>pthread_create</code>/<code>join</code>, <code>pthread_mutex_lock</code>/<code>unlock</code>.</li>
+            <li><strong>C++:</strong> <code>std::thread</code>, ו-RAII על mutexes (<code>lock_guard</code>/<code>unique_lock</code>), <code>std::atomic</code>, <strong>condition variables</strong> (במקום busy waiting), ותבנית <strong>thread pool</strong>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-05.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 5 · רשתות ו-Sockets</span>
+      </a>
+      <a class="next" href="tutorial-07.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 7 · HTML ו-JavaScript ב-Web</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 8 · ממשק משתמש (GUI) — מ-XML/HTML ועד React</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 8 · ממשק משתמש (GUI)</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 8</div>
+      <h1>ממשק משתמש (GUI) — מבניית רכיבים ב-code, דרך XML/HTML ו-CSS, ועד React</h1>
+      <p>עד עכשיו עסקנו בעיקר ב<strong>צד השרת</strong> (Node, Express, MVC). ההרצאה הזו עוסקת ב<strong>צד שהמשתמש רואה</strong> — ה-<strong>GUI</strong> (Graphical User Interface). נתחיל מהשאלה "מה בכלל מרכיב ממשק גרפי?", נראה למה <em>לא</em> בונים UI ישירות ב-code, נכיר את שפות ה-<strong>Markup</strong> (XML, HTML), <strong>CSS</strong> לעיצוב, את ה-<strong>Listener pattern</strong> (תכנות מונחה-אירועים), ולבסוף נעלה רמה: למה צריך <strong>frameworks</strong> מודרניים ונבנה את אתר ה-<strong>Foo News</strong> מחדש ב-<strong>React</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי — איך הכל מתחבר</span>
+        ההרצאה משווה כל הזמן בין <strong>שלוש פלטפורמות</strong>: <strong>Android</strong> (מובייל), <strong>Web</strong> (דפדפן), ו-<strong>.NET/WPF</strong> (דסקטופ). זה לא מקרי — הרעיונות זהים בכולן: רכיבים גרפיים הם אובייקטים, בונים אותם בשפת תיאור (markup), מעצבים בנפרד (styling), ומגיבים לפעולות המשתמש (events). ברגע שמבינים את התבנית במקום אחד — מזהים אותה בכל מקום. בסוף נגיע ל-React, שלוקח את כל הרעיונות האלה ועוטף אותם בצורה מודרנית.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — מה זה GUI ואיך (לא) בונים אותו</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#what">מהו GUI — Web, Mobile, Desktop</a></li>
+            <li><a class="link" href="#native">Native מול Cross-Platform</a></li>
+            <li><a class="link" href="#objects">רכיבים גרפיים = אובייקטים (בנייה ב-code)</a></li>
+            <li><a class="link" href="#separate">הפרדת UI מלוגיקה — שפת Markup</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — שפות Markup: XML ו-HTML</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#xml">XML — שפת תיאור נתונים</a></li>
+            <li><a class="link" href="#xml-android">XML באנדרואיד — Layouts ו-Resources</a></li>
+            <li><a class="link" href="#html">HTML — GUI לדפדפן</a></li>
+            <li><a class="link" href="#elements">רכיבי GUI — השוואה בין הפלטפורמות</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — עיצוב (Styling) ו-CSS</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#styling-web">עיצוב ב-Web — inline → \u200E&lt;style&gt;\u200E → קובץ CSS</a></li>
+            <li><a class="link" href="#specificity">CSS Specificity — מי מנצח?</a></li>
+            <li><a class="link" href="#styling-android">עיצוב ב-Android + String Resources (i18n)</a></li>
+            <li><a class="link" href="#dotnet">Desktop .NET — מ-code ל-XAML</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — אירועים (Event-Driven)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#events">Listener Pattern — Event &amp; Handler</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ה' — אתר Foo News ב-Web גולמי</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#news-app">בניית האתר ב-HTML+CSS — והמגבלה</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ו' — Frameworks מודרניים: React</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#frameworks">הבעיה והפתרון — React/Vue/Angular</a></li>
+            <li><a class="link" href="#react-cdn">React מהיסוד — createElement, JSX, Babel</a></li>
+            <li><a class="link" href="#cra">פרויקט React אמיתי — create-react-app</a></li>
+            <li><a class="link" href="#components">Components ו-JSX — רכיב Article</a></li>
+            <li><a class="link" href="#props">Props — העברת נתונים לרכיב</a></li>
+            <li><a class="link" href="#map">רשימת רכיבים מ-data — \u200Emap\u200E</a></li>
+            <li><a class="link" href="#state">State ו-\u200EuseState\u200E — UI שמגיב לשינוי</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · מה זה GUI ואיך (לא) בונים אותו</h2>
+
+    <!-- 1 -->
+    <section id="what">
+      <h3><span class="num">1.</span> מהו GUI — Web, Mobile, Desktop</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>GUI</strong> = <em>Graphical User Interface</em> — הממשק הגרפי שדרכו המשתמש מתקשר עם התוכנה (כפתורים, שדות, תפריטים, תמונות), בניגוד לממשק טקסטואלי (CLI / טרמינל). לכל סוג של פלטפורמה יש "מערכת GUI" משלה, אבל העקרונות משותפים.
+        </div>
+      </div>
+
+      <p>שלושת העולמות המרכזיים שנשווה ביניהם לאורך ההרצאה:</p>
+      <table>
+        <thead><tr><th>פלטפורמה</th><th>איפה רץ</th><th>טכנולוגיה אופיינית</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Web GUI</strong></td><td>בתוך דפדפן</td><td>HTML + CSS + JavaScript</td></tr>
+          <tr><td><strong>Mobile GUI</strong></td><td>אפליקציית מובייל</td><td>Android (Java/Kotlin + XML)</td></tr>
+          <tr><td><strong>Desktop GUI</strong></td><td>תוכנת מחשב</td><td>.NET / WPF (C# + XAML)</td></tr>
+        </tbody>
+      </table>
+      <p>נתמקד בעיקר ב-<strong>Web</strong> (כי לשם נגיע עם React), אבל נשווה כל הזמן ל-Android ו-.NET כדי לראות שהרעיונות אוניברסליים.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="native">
+      <h3><span class="num">2.</span> Native מול Cross-Platform</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — דילמה הנדסית</span>
+          כשבונים אפליקציה שצריכה לרוץ על כמה מערכות (iOS, Android, Windows...), יש שתי גישות עקרוניות. ההבדל ביניהן הוא קלאסי בהנדסת תוכנה: <em>ביצועים והתאמה מקסימלית</em> מול <em>שיתוף קוד ומהירות פיתוח</em>.
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>גישה</th><th>רעיון</th><th>יתרונות</th><th>חסרונות</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Native</strong></td>
+            <td>פותחים לכל פלטפורמה בנפרד, בשפה/כלים שלה</td>
+            <td>ביצועים מעולים, חוויית משתמש מקומית, גישה מלאה ל-APIs של המכשיר</td>
+            <td>קוד נפרד לכל פלטפורמה (כפילות, תחזוקה כפולה)</td>
+          </tr>
+          <tr>
+            <td><strong>Cross-Platform</strong></td>
+            <td>"Write once, run anywhere" — קוד אחד לכל הפלטפורמות</td>
+            <td>קוד משותף לכל הפלטפורמות הנתמכות</td>
+            <td>קשה להגיע לאיכות של native (ביצועים/חוויה)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>דוגמאות:</strong> Native — Kotlin/Java לאנדרואיד, Swift ל-iOS. Cross-Platform — .NET MAUI, וגם React Native ו-Flutter. (ה-Web עצמו הוא במובן מסוים ה-cross-platform האולטימטיבי: אתר אחד רץ בכל דפדפן בכל מכשיר.)</p>
+    </section>
+
+    <!-- 3 -->
+    <section id="objects">
+      <h3><span class="num">3.</span> רכיבים גרפיים הם אובייקטים — ובנייה ב-code</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — תובנת המפתח</span>
+          כל פריט שאתם רואים על המסך — חלון, כפתור, תווית (label), שדה טקסט — הוא <strong>אובייקט</strong> בקוד. לאובייקט יש "members" (שדות ומתודות) שאחראים על הציור שלו ועל המאפיינים שלו, ואנחנו יכולים לשנות אותם כדי להתאים את הרכיב. זה הבסיס להכל: GUI הוא בסופו של דבר עץ של אובייקטים.
+        </div>
+      </div>
+
+      <p>הדרך ה"נאיבית" לבנות ממשק היא ליצור את האובייקטים ידנית בקוד. ב-<strong>Android (Java/Kotlin)</strong> זה נראה כך:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Android — בניית UI ב-code</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        TextView textView = new TextView(this);
+        textView.setText("Hello World!");
+
+        LinearLayout linearLayout = new LinearLayout(this);
+
+        linearLayout.addView(textView);
+        setContentView(linearLayout);
+    }
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מה קורה כאן?</span>
+          <ul style="margin:0">
+            <li><code>new TextView(this)</code> — יוצרים אובייקט תווית (להצגת טקסט) ו-<code>setText</code> קובע את תוכנו.</li>
+            <li><code>new LinearLayout(this)</code> — <em>container</em> שמסדר רכיבים בשורה/טור. <code>addView</code> מוסיף את התווית לתוכו.</li>
+            <li><code>setContentView(linearLayout)</code> — קובע את העץ הזה כתוכן של המסך.</li>
+          </ul>
+          שימו לב לרעיון: בונים <strong>עץ</strong> — layout שמכיל רכיבים. זה ה"DOM" של אנדרואיד.
+        </div>
+      </div>
+
+      <p>ואותו דבר ב-<strong>Web (JavaScript)</strong> — מוסיפים צומת טקסט ל-DOM (ראינו DOM בהרצאה 6):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Web — בניית UI ב-code</span><button class="copy-btn">העתק</button></div>
+        <pre><code>var txt = document.createTextNode("Hello world");
+document.body.appendChild(txt);</code></pre>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="separate">
+      <h3><span class="num">4.</span> הבעיה בבנייה ב-code → הפרדת UI מלוגיקה</h3>
+
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">למה בנייה ב-code היא לא best practice</span>
+          אפשר לבנות UI כך — אבל בדרך כלל <em>לא כדאי</em>:
+          <ul style="margin:.4rem 0 0">
+            <li><strong>קשה לקרוא ולתחזק</strong> — קוד הבנייה מתערבב עם הלוגיקה, וקשה "לראות" את מבנה המסך מתוך השורות.</li>
+            <li><strong>דורש ידע בתכנות</strong> — ובמיוחד בשפה הספציפית. מעצב/ת UI לא אמור/ה לכתוב Java כדי לסדר כפתור.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הפתרון — שפת Markup</span>
+          מפרידים את <strong>קוד ה-UI</strong> מ<strong>קוד הלוגיקה</strong>, ומתארים את הרכיבים בשפת <strong>Markup</strong> — שפה שמתארת אילו אובייקטים ליצור, בפורמט קריא וגמיש. חשוב: עדיין נוצרים אובייקטים מאחורי הקלעים, אז עדיין אפשר לעבוד איתם ב-code כשצריך — פשוט לא חייבים. זו בדיוק <strong>הפרדת האחריות (SRP)</strong> מהרצאה 2, ואותו רעיון של "תיאור מול ביצוע".
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · שפות Markup — XML ו-HTML</h2>
+
+    <!-- 5 -->
+    <section id="xml">
+      <h3><span class="num">5.</span> XML — <span dir="ltr">eXtensible Markup Language</span></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>XML</strong> היא שפת markup לשמירה ולהעברה של נתונים בצורה <em>מובְנית</em>. הנתונים מאורגנים בעזרת <strong>תגיות (tags)</strong>, ו-"eXtensible" (ניתנת להרחבה) פירושו שאת שמות התגיות אתם <em>ממציאים בעצמכם</em> — אין רשימה קבועה. זה ההבדל הגדול מ-HTML, שבה התגיות קבועות מראש (<code>&lt;p&gt;</code>, <code>&lt;div&gt;</code>...).
+        </div>
+      </div>
+
+      <p>הדוגמה המינימלית:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · המבנה הבסיסי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;foo&gt;
+    &lt;bar&gt;Hello, World!&lt;/bar&gt;
+&lt;/foo&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אנטומיה של XML</span>
+          <ul style="margin:0">
+            <li>שורת ה-<code>&lt;?xml ... ?&gt;</code> בראש — <em>הכרזה (prolog)</em> שמציינת גרסה וקידוד.</li>
+            <li>כל <strong>אלמנט</strong> נפתח בתגית <code>&lt;foo&gt;</code> ונסגר ב-<code>&lt;/foo&gt;</code>. מה שביניהן הוא התוכן.</li>
+            <li>אלמנטים <strong>מקוננים</strong> זה בתוך זה ויוצרים <strong>עץ</strong> (כאן <code>bar</code> הוא ילד של <code>foo</code>).</li>
+            <li>חייב להיות <strong>שורש אחד</strong> (root) שעוטף את הכל.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>דוגמה עשירה יותר — מאגר כתבות חדשות (שימו לב: זה אותו "Foo News" שנפגוש שוב ושוב):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · news_articles.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;news_articles&gt;
+    &lt;article&gt;
+        &lt;headline&gt;World's Largest Foo Created in Foobar Event&lt;/headline&gt;
+        &lt;author&gt;Baz Caz&lt;/author&gt;
+        &lt;category&gt;Mystery&lt;/category&gt;
+        &lt;publication_date&gt;2024-01-11&lt;/publication_date&gt;
+    &lt;/article&gt;
+    &lt;article&gt;
+        &lt;headline&gt;Unicorn Called Bar in West of Foobar&lt;/headline&gt;
+        &lt;author&gt;Foo foo&lt;/author&gt;
+        &lt;category&gt;Nature&lt;/category&gt;
+        &lt;publication_date&gt;2024-01-10&lt;/publication_date&gt;
+    &lt;/article&gt;
+&lt;/news_articles&gt;</code></pre>
+      </div>
+      <p>שימו לב כמה זה קריא: גם בלי לדעת כלום על הפורמט, ברור שיש שתי כתבות ולכל אחת כותרת, מחבר, קטגוריה ותאריך. <em>זו</em> המטרה של markup.</p>
+    </section>
+
+    <!-- 6 -->
+    <section id="xml-android">
+      <h3><span class="num">6.</span> XML באנדרואיד — Layouts ו-Resource Files</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אנדרואיד משתמשת ב-XML <em>המון</em> — בעיקר ל-<strong>הגדרת ה-UI</strong> (layouts) ול-<strong>resources</strong> (מחרוזות, צבעים, סגנונות). במקום לבנות את המסך ב-Java, מתארים אותו בקובץ XML, וה-Activity רק "טוענת" אותו.
+        </div>
+      </div>
+
+      <p>במקום כל קוד הבנייה מסעיף 3, ה-Activity מצטמצמת לשורה אחת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainActivity.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);   // ← טוען את ה-XML
+    }
+}</code></pre>
+      </div>
+
+      <p>וה-UI מתואר בקובץ XML נפרד:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · res/layout/activity_main.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Hello world" /&gt;
+
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תחביר ומושגים</span>
+          <ul style="margin:0">
+            <li><code>R.layout.activity_main</code> — <code>R</code> הוא מחלקה אוטומטית שאנדרואיד מייצרת, שמפנה לכל ה-resources. <code>R.layout.activity_main</code> = "קובץ ה-layout בשם activity_main".</li>
+            <li><code>android:</code> — <em>namespace</em> (מרחב שמות) שמבדיל את מאפייני אנדרואיד; מוגדר ב-<code>xmlns:android="..."</code>.</li>
+            <li><code>match_parent</code> = "תפוס את כל רוחב/גובה ההורה"; <code>wrap_content</code> = "תפוס בדיוק כמה שצריך לתוכן".</li>
+            <li><code>orientation="vertical"</code> — סידור הילדים בטור (אפשר גם <code>horizontal</code>).</li>
+            <li>תגית שנסגרת ב-<code>/&gt;</code> (כמו <code>&lt;TextView ... /&gt;</code>) היא תגית <strong>ריקה</strong> — בלי ילדים.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="html">
+      <h3><span class="num">7.</span> HTML — <span dir="ltr">HyperText Markup Language</span></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>HTML</strong> היא שפת ה-markup של ה-Web: היא מתארת את ה<strong>מבנה והתוכן</strong> של עמוד. הדפדפן לוקח את קובץ ה-HTML ומצייר אותו ויזואלית. בדומה ל-XML היא משתמשת בתגיות — אבל כאן התגיות <em>קבועות ומוגדרות מראש</em> (<code>html</code>, <code>head</code>, <code>body</code>, <code>p</code>, <code>button</code>...).
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">כלל אצבע</span>
+          HTML יכולה להכיל גם אלמנטים של עיצוב — אבל <strong>עדיף שלא</strong>. ההפרדה הנכונה: HTML ל<em>מבנה/תוכן</em>, CSS ל<em>עיצוב</em>, JavaScript ל<em>התנהגות</em>. נראה את זה בפועל בחלק העיצוב.
+        </div>
+      </div>
+
+      <p>אותו "Hello world" כמו ב-Android, אבל ב-HTML:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+    &lt;head&gt;&lt;/head&gt;
+    &lt;body&gt;
+        Hello world
+    &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">השלד הקבוע של כל עמוד</span>
+          <ul style="margin:0">
+            <li><code>&lt;!DOCTYPE html&gt;</code> — מצהיר שזה מסמך HTML5.</li>
+            <li><code>&lt;html&gt;</code> — שורש המסמך.</li>
+            <li><code>&lt;head&gt;</code> — מטא-מידע (כותרת, קישור ל-CSS, קידוד) — לא מוצג בגוף העמוד.</li>
+            <li><code>&lt;body&gt;</code> — התוכן שהמשתמש רואה בפועל.</li>
+          </ul>
+          זה בדיוק ה-<code>article.ejs</code> מהרצאה 7 — קובץ EJS הוא בסך הכל HTML עם "חורים" דינמיים.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="elements">
+      <h3><span class="num">8.</span> רכיבי GUI — אותם רעיונות, שלוש שפות</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לכל פלטפורמה יש סט רכיבים בסיסיים: תווית להצגת טקסט, שדה לקלט, וכפתור. השמות שונים — הרעיון זהה לחלוטין. הנה אותו ממשק ("Foo / Bar / Foobar") בשלוש השפות.
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th>רכיב</th><th>Android (XML)</th><th>Web (HTML)</th><th>.NET (XAML)</th></tr></thead>
+        <tbody>
+          <tr><td>תווית (טקסט להצגה)</td><td><code>&lt;TextView&gt;</code></td><td><code>&lt;span&gt;</code></td><td><code>&lt;Label&gt;</code></td></tr>
+          <tr><td>שדה קלט</td><td><code>&lt;EditText&gt;</code></td><td><code>&lt;input&gt;</code></td><td><code>&lt;TextBox&gt;</code></td></tr>
+          <tr><td>כפתור</td><td><code>&lt;Button&gt;</code></td><td><code>&lt;button&gt;</code></td><td><code>&lt;Button&gt;</code></td></tr>
+          <tr><td>Container/Layout</td><td><code>&lt;LinearLayout&gt;</code></td><td><code>&lt;div&gt;</code></td><td><code>&lt;StackPanel&gt;</code></td></tr>
+        </tbody>
+      </table>
+
+      <p><strong>Android:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · Android</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;TextView  android:text="Foo" ... /&gt;
+    &lt;EditText  android:text="Bar" ... /&gt;
+    &lt;Button    android:text="Foobar" ... /&gt;
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+
+      <p><strong>Web:</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · Web</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;html&gt;
+    &lt;head&gt;&lt;/head&gt;
+    &lt;body&gt;
+        &lt;span&gt;Foo&lt;/span&gt;
+        &lt;input value="Bar"&gt;&lt;/input&gt;
+        &lt;button&gt;Foobar&lt;/button&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <p><strong>.NET (XAML):</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · .NET / WPF</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;StackPanel&gt;
+    &lt;Label&gt;Foo&lt;/Label&gt;
+    &lt;TextBox&gt;Bar&lt;/TextBox&gt;
+    &lt;Button&gt;Foobar&lt;/Button&gt;
+&lt;/StackPanel&gt;</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">למדו לזהות את התבנית</span>
+          ברגע שמזהים ש-"תווית/קלט/כפתור בתוך container" חוזר בכל הפלטפורמות — לימוד פלטפורמה חדשה הופך לתרגום מילון, לא ללימוד מאפס. זה בדיוק כוחה של חשיבה בתבניות (patterns).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · עיצוב (Styling) ו-CSS</h2>
+
+    <!-- 9 -->
+    <section id="styling-web">
+      <h3><span class="num">9.</span> עיצוב ב-Web — מ-inline ועד קובץ CSS</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מסע בשלושה שלבים</span>
+          נראה את אותו עיצוב (כפתור ירוק) בשלוש דרכים, מהגרועה לטובה. זה ממחיש בדיוק <em>למה</em> מפרידים עיצוב מתוכן.
+        </div>
+      </div>
+
+      <p><strong>שלב 1 — inline style</strong> (עיצוב ישירות על האלמנט). עובד, אבל מתערבב בתוכן ולא ניתן לשימוש חוזר:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · inline (לא מומלץ)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;button style="background-color:#00FF00;
+               color:#FF0000;
+               font-size:18pt;
+               margin:10px"&gt;Foo&lt;/button&gt;
+&lt;button&gt;Bar&lt;/button&gt;
+&lt;button&gt;Foobar&lt;/button&gt;</code></pre>
+      </div>
+
+      <p><strong>שלב 2 — בלוק <code>&lt;style&gt;</code> ב-<code>&lt;head&gt;</code></strong>. עכשיו <em>כל</em> הכפתורים מקבלים את העיצוב במכה אחת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · internal CSS</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;html&gt;
+&lt;head&gt;
+    &lt;style&gt;
+        button {
+            background-color:#00FF00;
+            color:#FF0000;
+            font-size:18pt;
+            margin:10px
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;button&gt;Foo&lt;/button&gt;
+    &lt;button&gt;Bar&lt;/button&gt;
+    &lt;button&gt;Foobar&lt;/button&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <p><strong>שלב 3 — קובץ CSS חיצוני</strong>. ההפרדה המלאה: ה-HTML נקי לגמרי, והעיצוב חי בקובץ נפרד שאפשר לשתף בין עמודים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">css · index.css</span><button class="copy-btn">העתק</button></div>
+        <pre><code>button {
+    margin:10px;
+    background-color:#00FF00;
+    color:#FF0000;
+    font-size:18pt
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html — מקשר ל-CSS</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;html&gt;
+&lt;head&gt;
+    &lt;link href="index.css" rel="stylesheet"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;button&gt;Foo&lt;/button&gt;
+    &lt;button&gt;Bar&lt;/button&gt;
+    &lt;button&gt;Foobar&lt;/button&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סלקטורים — type, class, id</span>
+          ב-CSS, כל כלל מתחיל ב-<strong>selector</strong> שקובע <em>על מי</em> הוא חל:
+          <ul style="margin:.4rem 0 0">
+            <li><code>button { ... }</code> — <strong>type selector</strong>: כל אלמנטי ה-<code>&lt;button&gt;</code>.</li>
+            <li><code>.green-bg { ... }</code> — <strong>class selector</strong> (נקודה): כל אלמנט עם <code>class="green-bg"</code>. ניתן לשימוש חוזר על הרבה אלמנטים.</li>
+            <li><code>#danger-btn { ... }</code> — <strong>id selector</strong> (סולמית): האלמנט היחיד עם <code>id="danger-btn"</code>. id אמור להיות ייחודי בעמוד.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>שילוב של השלושה — שימו לב איך אלמנט יכול לקבל גם class וגם id:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">css · index.css</span><button class="copy-btn">העתק</button></div>
+        <pre><code>button {
+    background-color:#00FF00;
+    color:#FF0000;
+    font-size:18pt;
+    margin:10px;
+}
+#danger-btn {
+    background-color:#0000FF;
+}
+.green-bg {
+    background-color:#000000;
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;button&gt;Foo&lt;/button&gt;
+&lt;button class="green-bg"&gt;Bar&lt;/button&gt;
+&lt;button class="green-bg" id="danger-btn"&gt;Foobar&lt;/button&gt;</code></pre>
+      </div>
+      <p>אבל רגע — לכפתור השלישי יש <em>שלושה</em> כללים שנוגעים בצבע הרקע (type, class, ו-id). מי מנצח? לכאן נכנס <strong>Specificity</strong>.</p>
+    </section>
+
+    <!-- 10 -->
+    <section id="specificity">
+      <h3><span class="num">10.</span> CSS Specificity — מי מנצח כשיש התנגשות?</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כשכמה כללים מגדירים את אותו מאפיין על אותו אלמנט, הדפדפן צריך להכריע. הוא עושה זאת לפי <strong>specificity</strong> — "ניקוד ספציפיות": כלל ספציפי יותר גובר על כללי יותר. זה אחד המקורות הנפוצים ביותר ל"למה לעזאזל הצבע לא משתנה?!".
+        </div>
+      </div>
+
+      <p>סדר העדיפות, מהחזק לחלש (אפשר לחשוב על זה כ-4 ספרות <span dir="ltr">(a, b, c, d)</span>):</p>
+      <table>
+        <thead><tr><th>#</th><th>סוג</th><th>משקל <span dir="ltr">(a,b,c,d)</span></th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Inline styles (<code>style="..."</code>)</td><td dir="ltr">(1, 0, 0, 0)</td></tr>
+          <tr><td>2</td><td>ID selectors (<code>#id</code>)</td><td dir="ltr">(0, 1, 0, 0)</td></tr>
+          <tr><td>3</td><td>Class / attribute / pseudo-class (<code>.cls</code>, <code>:hover</code>)</td><td dir="ltr">(0, 0, 1, 0)</td></tr>
+          <tr><td>4</td><td>Type / pseudo-element (<code>button</code>, <code>::before</code>)</td><td dir="ltr">(0, 0, 0, 1)</td></tr>
+          <tr><td>5</td><td>Universal selector (<code>*</code>)</td><td dir="ltr">(0, 0, 0, 0)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">🃏</span>
+        <div class="body">
+          <span class="title">שני חוקי-זהב</span>
+          <ul style="margin:0">
+            <li><code>!important</code> הוא <strong>ג'וקר</strong> — גובר כמעט על הכל (ולכן יש להשתמש בו במשורה, כמוצא אחרון).</li>
+            <li>כששתי הגדרות באותה ספציפיות בדיוק — <strong>האחרונה מנצחת</strong> (סדר הופעה בקובץ).</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>דוגמאות חישוב (בקירוב נוח: id=100, class=10, type=1):</p>
+      <table>
+        <thead><tr><th>Selector</th><th>ניקוד</th><th>הסבר</th></tr></thead>
+        <tbody>
+          <tr><td><code>button</code></td><td>1</td><td>type selector אחד</td></tr>
+          <tr><td><code>.green-bg</code></td><td>10</td><td>class selector אחד</td></tr>
+          <tr><td><code>#danger-btn</code></td><td>100</td><td>id selector אחד</td></tr>
+          <tr><td><code>button.green-bg</code></td><td>11</td><td>type + class (1 + 10)</td></tr>
+        </tbody>
+      </table>
+      <p>לכן בכפתור השלישי מהסעיף הקודם, ה-<code>#danger-btn</code> (100) גובר על <code>.green-bg</code> (10) ועל <code>button</code> (1) — הרקע יהיה כחול.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="styling-android">
+      <h3><span class="num">11.</span> עיצוב ב-Android + String Resources (i18n)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אותו עיקרון בדיוק כמו ב-Web: אפשר לעצב inline (מאפיינים על האלמנט), אבל עדיף לרכז את העיצוב ב-<strong>style</strong> נפרד ולהפנות אליו — בדיוק כמו class ב-CSS.
+        </div>
+      </div>
+
+      <p>מגדירים <code>&lt;style&gt;</code> בקובץ resources, ומפנים אליו מהכפתור עם <code>style="@style/myBtn"</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · res/values/styles.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;resources&gt;
+    &lt;style name="myBtn"&gt;
+        &lt;item name="android:background"&gt;#00FF00&lt;/item&gt;
+        &lt;item name="android:textColor"&gt;#FF0000&lt;/item&gt;
+        &lt;item name="android:textSize"&gt;18sp&lt;/item&gt;
+        &lt;item name="android:layout_margin"&gt;10dp&lt;/item&gt;
+    &lt;/style&gt;
+&lt;/resources&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · activity_main.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;Button
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Foo"
+    style="@style/myBtn" /&gt;</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🌍</span>
+        <div class="body">
+          <span class="title">String Resources — והקשר ל-i18n (בינאום)</span>
+          אנדרואיד מעודדת לא לכתוב טקסט "קשיח" ב-layout, אלא להפנות ל-<strong>string resource</strong>: <code>android:text="@string/foo"</code>, כשהמחרוזות מוגדרות בקובץ נפרד. למה? כי כך אפשר לספק <em>קובץ מחרוזות שונה לכל שפה</em> — וכל האפליקציה מתורגמת בלי לגעת ב-layout.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · res/values/strings.xml (אנגלית)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;resources&gt;
+    &lt;string name="app_name"&gt;My Application&lt;/string&gt;
+    &lt;string name="foo"&gt;Foo&lt;/string&gt;
+    &lt;string name="bar"&gt;Bar&lt;/string&gt;
+    &lt;string name="foobar"&gt;Foobar&lt;/string&gt;
+&lt;/resources&gt;</code></pre>
+      </div>
+      <p>קובץ מחרוזות אחר (למשל ספרדית) ימפה את אותם שמות לערכים <code>Hola</code>, <code>Cómo</code>, <code>estás</code> — ואותו layout בדיוק יוצג בשפה אחרת לגמרי. השם נשאר <code>@string/foo</code>, רק הערך מתחלף.</p>
+    </section>
+
+    <!-- 12 -->
+    <section id="dotnet">
+      <h3><span class="num">12.</span> Desktop .NET — מ-code ל-XAML</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בדיוק כמו באנדרואיד וב-web, גם ב-.NET (WPF) אפשר לבנות UI ב-code (C#) — אבל עדיף ב-markup. שפת ה-markup של .NET נקראת <strong>XAML</strong> (סוג של XML), והעיצוב מתנהג בדיוק כמו ב-CSS/Android.
+        </div>
+      </div>
+
+      <p><strong>בנייה ב-code (C#):</strong></p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">csharp · MainWindow.xaml.cs</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public partial class MainWindow : Window {
+    public MainWindow() {
+        InitializeComponent();
+        Button button = new Button();
+        button.Content = "Hello world";
+        button.HorizontalAlignment = HorizontalAlignment.Center;
+        button.VerticalAlignment = VerticalAlignment.Center;
+        Title = "Hello world";
+        Content = button;
+    }
+}</code></pre>
+      </div>
+
+      <p><strong>אותו דבר ב-XAML</strong> (קריא ומופרד מהלוגיקה):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · MainWindow.xaml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;Window x:Class="HelloWorld.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hello world"&gt;
+    &lt;StackPanel&gt;
+        &lt;Label&gt;Foo&lt;/Label&gt;
+        &lt;TextBox&gt;Bar&lt;/TextBox&gt;
+        &lt;Button&gt;Foobar&lt;/Button&gt;
+    &lt;/StackPanel&gt;
+&lt;/Window&gt;</code></pre>
+      </div>
+
+      <p><strong>Styling</strong> — מגדירים <code>&lt;Style&gt;</code> ב-<code>Window.Resources</code> ומפנים אליו עם <code>StaticResource</code> (שוב — בדיוק רעיון ה-class):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · עיצוב ב-XAML</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;Window.Resources&gt;
+    &lt;Style x:Key="MyButtonStyle" TargetType="Button"&gt;
+        &lt;Setter Property="Background"  Value="Azure" /&gt;
+        &lt;Setter Property="Foreground"  Value="#FFFFFF" /&gt;
+        &lt;Setter Property="FontSize"    Value="18" /&gt;
+        &lt;Setter Property="Margin"      Value="10" /&gt;
+    &lt;/Style&gt;
+&lt;/Window.Resources&gt;
+
+&lt;StackPanel&gt;
+    &lt;Button Style="{StaticResource MyButtonStyle}"&gt;Foo&lt;/Button&gt;
+    &lt;Button Style="{StaticResource MyButtonStyle}"&gt;Bar&lt;/Button&gt;
+    &lt;Button Style="{StaticResource MyButtonStyle}"&gt;Foobar&lt;/Button&gt;
+&lt;/StackPanel&gt;</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">אותו סיפור, שלוש פעמים</span>
+          שמתם לב? בכל שלוש הפלטפורמות ראינו את אותו מסע: <em>inline → סגנון מרוכז עם שם → הפניה אליו</em>. CSS class, Android <code>@style/myBtn</code>, ו-.NET <code>StaticResource</code> הם אותו רעיון בדיוק. זו בדיוק התובנה שתחזור גם ב-React.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · תכנות מונחה-אירועים (Event-Driven)</h2>
+
+    <!-- 13 -->
+    <section id="events">
+      <h3><span class="num">13.</span> Listener Pattern — Event &amp; Event Handler</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — איך UI "מגיב"</span>
+          עד עכשיו בנינו ועיצבנו רכיבים <em>סטטיים</em>. אבל ממשק צריך להגיב למשתמש (לחיצה, הקלדה, גלילה). זה נעשה ב<strong>תכנות מונחה-אירועים</strong>: אנחנו לא "שואלים כל הזמן" אם נלחץ כפתור — אנחנו <em>נרשמים מראש</em> לאירוע, והמערכת קוראת לקוד שלנו כשהוא קורה. זוהי תבנית ה-<strong>Listener</strong> (מאזין).
+        </div>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שני מושגי המפתח</span>
+          <ul style="margin:0">
+            <li><strong>Event</strong> (אירוע) — משהו שקרה (נלחץ כפתור, הסתיימה טעינה, הוקלד מקש).</li>
+            <li><strong>Event Handler</strong> (מטפל) — הקוד שאנחנו רושמים מראש, שירוץ כשהאירוע מתרחש.</li>
+          </ul>
+          אנחנו <em>"מאזינים"</em> לאירוע ומספקים handler. ה-handler הוא <strong>callback</strong> — פונקציה שמישהו אחר יקרא לה בעתיד (בדיוק כמו ה-handlers של Express מהרצאה 7!).
+        </div>
+      </div>
+
+      <p><strong>Web — שלוש דרכים</strong> (מהפשוטה לטובה):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · 1) onclick כמאפיין (inline)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;button id="myButton"
+        onclick="alert('Button Clicked!')"&gt;Click me&lt;/button&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · 2) addEventListener (מומלץ)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;button id="myButton"&gt;Click me&lt;/button&gt;
+&lt;script type="text/javascript"&gt;
+    const btn = document.getElementById('myButton');
+    btn.addEventListener('click', function() {
+        alert('Button Clicked!');
+    });
+&lt;/script&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · 3) השמה ל-onclick</span><button class="copy-btn">העתק</button></div>
+        <pre><code>btn.onclick = function() {
+    alert('Button Clicked!');
+};</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">המלכודת מהרצאה 6 — שוב!</span>
+          בדרך 3 כותבים <code>btn.onclick = myFunc</code> — <strong>בלי סוגריים</strong>. רושמים את <em>הפונקציה עצמה</em> כ-handler. אם נכתוב <code>btn.onclick = myFunc()</code> (עם סוגריים), נריץ אותה <em>מיד</em> ונשים את הערך המוחזר במקום ה-handler. זו בדיוק אותה מלכודת <code>onclick = show</code> מהרצאה 6, ואותו עיקרון של "מעבירים פונקציה, לא קוראים לה" מ-Express בהרצאה 7.
+        </div>
+      </div>
+
+      <p><strong>Android</strong> — אותו רעיון בדיוק עם <code>setOnClickListener</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Android — Listener</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Button myButton = findViewById(R.id.myButton);
+myButton.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        Toast.makeText(MainActivity.this,
+            "Button Clicked!",
+            Toast.LENGTH_SHORT).show();
+    }
+});</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אותה תבנית, מבטא שונה</span>
+          <code>setOnClickListener</code> מקבל אובייקט <code>View.OnClickListener</code> שמממש את המתודה <code>onClick</code> — וזה ה-handler. (<code>Toast</code> הוא הודעה קופצת קטנה.) בדיוק כמו <code>addEventListener('click', handler)</code> ב-Web: רושמים מאזין, מספקים handler, המערכת קוראת לו בלחיצה. <strong>Listener Pattern</strong> במלוא הדרו.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ה' · אתר Foo News ב-Web גולמי</h2>
+
+    <!-- 14 -->
+    <section id="news-app">
+      <h3><span class="num">14.</span> בניית האתר ב-HTML+CSS — והמגבלה שתוביל ל-React</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          נחבר את הכל לדוגמה אחת: אתר חדשות "Foo News" (אותו דומיין מהרצאה 7 ומה-XML למעלה). נבנה אותו ב-HTML+CSS "גולמי" — וניווכח בבעיה שתסביר <em>למה</em> בכלל המציאו frameworks.
+        </div>
+      </div>
+
+      <p>גרסה בסיסית — כל כתבה היא <code>&lt;article&gt;</code> עם השדות שלה, ובראש כותרת עם <code>&lt;header&gt;</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;link href="index.css" rel="stylesheet"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;header&gt;
+        &lt;h1&gt;Foo news&lt;/h1&gt;
+    &lt;/header&gt;
+    &lt;a href="article.html?id=1"&gt;
+        &lt;article&gt;
+            &lt;h3&gt;World's Largest Foo Created in Foobar Event&lt;/h3&gt;
+            &lt;span&gt;Baz Caz&lt;/span&gt;
+            &lt;category&gt;Mystery&lt;/category&gt;
+            &lt;publication_date&gt;2024-01-11&lt;/publication_date&gt;
+            &lt;img src="umbrella.png"&gt;
+        &lt;/article&gt;
+    &lt;/a&gt;
+    &lt;a href="article.html?id=2"&gt;
+        &lt;article&gt;
+            &lt;h3&gt;Unicorn Called Bar in West of Foobar&lt;/h3&gt;
+            &lt;span&gt;Grace Lewis&lt;/span&gt;
+            &lt;category&gt;Nature&lt;/category&gt;
+            &lt;publication_date&gt;2024-01-10&lt;/publication_date&gt;
+            &lt;img src="sunset.png"&gt;
+        &lt;/article&gt;
+    &lt;/a&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">css · index.css</span><button class="copy-btn">העתק</button></div>
+        <pre><code>article {
+    padding:10px;
+    margin: 5px;
+    background-color: blue;
+    color: #fff;
+}
+#headline {
+    text-align:center;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(to right, #e74c3c, #e67e22);
+}
+article img {
+    float:right;
+}
+a article:hover {
+    background-color: yellow !important;
+    border: 2px solid #ff9900;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">כמה דברים מעניינים ב-CSS הזה</span>
+          <ul style="margin:0">
+            <li><code>a article:hover</code> — סלקטור מורכב + <strong>pseudo-class</strong> <code>:hover</code> (כשהעכבר מעל). העיצוב חל רק בריחוף.</li>
+            <li><code>!important</code> — ה"ג'וקר" מסעיף ה-specificity, כדי לכפות את הצהוב.</li>
+            <li><code>linear-gradient</code>, <code>box-shadow</code>, <code>float</code> — תכונות עיצוב נפוצות (מעבר צבע, צל, ועיגון תמונה לצד).</li>
+            <li>עטיפת ה-<code>&lt;article&gt;</code> ב-<code>&lt;a href="article.html?id=1"&gt;</code> הופכת את כל הכרטיס ללינק — שימו לב ל-<code>?id=1</code>: זה ה-query string מהרצאה 7 (<code>req.query</code>).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🧱</span>
+        <div class="body">
+          <span class="title">המגבלה — וזה הרגע החשוב</span>
+          שימו לב לכפילות: כל כתבה דורשת לשכפל ידנית את אותו בלוק <code>&lt;a&gt;&lt;article&gt;...&lt;/article&gt;&lt;/a&gt;</code> ולמלא ערכים. עכשיו דמיינו 100 כתבות, או רשימה שמשתנה בזמן אמת, או רכיב שחוזר בעשרות עמודים. <strong>ב-HTML/CSS/JS גולמי זה הופך לבלתי-נסבל</strong> — שכפול קוד, סנכרון ידני של ה-DOM, ובלגן. זו בדיוק הבעיה שה-frameworks המודרניים נולדו לפתור.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ו' · Frameworks מודרניים — React</h2>
+
+    <!-- 15 -->
+    <section id="frameworks">
+      <h3><span class="num">15.</span> הבעיה והפתרון</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>הבעיה:</strong> ככל שממשקים נעשים מורכבים יותר (נתונים שמשתנים, אלפי רכיבים, אינטראקציות), פיתוח ב-HTML/JS גולמי הופך קשה מאוד — צריך לעדכן את ה-DOM ידנית בכל שינוי, ולשמור על סנכרון בין הנתונים לתצוגה.
+          <br><strong>הפתרון:</strong> <em>Web UI Frameworks</em> — למשל <strong>React</strong>, <strong>Vue</strong>, <strong>Angular</strong>. הם נותנים לנו לתאר את ה-UI כפונקציה של הנתונים, והם דואגים לעדכן את ה-DOM אוטומטית כשהנתונים משתנים.
+        </div>
+      </div>
+    </section>
+
+    <!-- 16 -->
+    <section id="react-cdn">
+      <h3><span class="num">16.</span> React מהיסוד — createElement, JSX, ו-Babel</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לפני שנשתמש ב-React "האמיתי", נבין מה הוא עושה מתחת למכסה — בעזרת אותו "Hello" שלוש פעמים: ב-JS גולמי, עם <code>React.createElement</code>, ולבסוף עם JSX.
+        </div>
+      </div>
+
+      <p><strong>1) JS גולמי</strong> — יוצרים אלמנט ידנית ומוסיפים ל-DOM (כמו בסעיף 3):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · DOM גולמי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;div id="root"&gt;&lt;/div&gt;
+&lt;script&gt;
+    const h = document.createElement('h1')
+    h.textContent = 'Hello'
+    h.className = 'foo'
+    document.getElementById('root').appendChild(h)
+&lt;/script&gt;</code></pre>
+      </div>
+
+      <p><strong>2) React.createElement</strong> — React יוצר ומנהל את האלמנט, ו-<code>ReactDOM.render</code> "מצייר" אותו לתוך ה-<code>#root</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · React.createElement</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;div id="root"&gt;&lt;/div&gt;
+&lt;script src="react.development.js"&gt;&lt;/script&gt;
+&lt;script src="react-dom.development.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+    const h = React.createElement('h1', {
+        className : 'foo'
+    }, 'Hello')
+    ReactDOM.render(h, document.getElementById('root'))
+&lt;/script&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>React.createElement(type, props, children)</code></span>
+          שלושת הארגומנטים: <strong>סוג</strong> האלמנט (<code>'h1'</code>), אובייקט ה-<strong>props</strong> (מאפיינים, כאן <code>className</code>), וה-<strong>children</strong> (התוכן, כאן <code>'Hello'</code>). <code>ReactDOM.render(element, container)</code> מצייר את האלמנט לתוך ה-<code>#root</code> שב-HTML.
+        </div>
+      </div>
+
+      <p><strong>3) JSX</strong> — לכתוב <code>createElement</code> ביד מסורבל. JSX מאפשר לכתוב מה שנראה כמו HTML <em>בתוך</em> ה-JS:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · עם Babel</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;script src="babel.js"&gt;&lt;/script&gt;
+&lt;script type="text/babel"&gt;
+    const h = &lt;h1&gt;Hello {1+2}
+        &lt;div&gt;
+            &lt;span className="foo"&gt;Hi&lt;/span&gt;
+        &lt;/div&gt;
+    &lt;/h1&gt;
+    ReactDOM.render(h, document.getElementById('root'))
+&lt;/script&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">JSX — תחביר</span>
+          <ul style="margin:0">
+            <li>נראה כמו HTML, אבל זה <strong>לא</strong> — זה "סוכר תחבירי" ש<em>מתורגם</em> ל-<code>React.createElement</code>.</li>
+            <li><code>{ ... }</code> — סוגריים מסולסלים "בורחים" חזרה ל-JavaScript: <code>{1+2}</code> ידפיס <code>3</code>. ככה מזריקים ערכים דינמיים (בדיוק כמו <code>&lt;%= %&gt;</code> ב-EJS!).</li>
+            <li>שימו לב: <code>className</code> ולא <code>class</code> — כי <code>class</code> היא מילה שמורה ב-JavaScript.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">⚙️</span>
+        <div class="body">
+          <span class="title">Transpilation — מה זה Babel?</span>
+          JavaScript מתפתחת ומוסיפה תחביר חדש (וגם JSX אינו תחביר JS חוקי שהדפדפן מבין). <strong>Transpilation</strong> = המרה של תחביר חדש ל-תחביר ישן יותר שכל הדפדפנים מבינים. <strong>Babel</strong> הוא ה-transpiler שממיר JSX (ו-ES חדש) ל-JavaScript "רגיל". זה קורה לפני שהקוד מגיע לדפדפן.
+        </div>
+      </div>
+    </section>
+
+    <!-- 17 -->
+    <section id="cra">
+      <h3><span class="num">17.</span> פרויקט React אמיתי — <span dir="ltr">create-react-app</span></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בפועל לא טוענים React דרך <code>&lt;script&gt;</code> — משתמשים בכלי שמקים פרויקט מסודר עם Babel, שרת פיתוח, בדיקות והכל מוכן. הקלאסי הוא <strong>create-react-app</strong>. נבנה איתו את Foo News מחדש.
+        </div>
+      </div>
+
+      <p>מבנה הפרויקט (תיקיית <code>src/</code>), עם <code>package.json</code> שמגדיר תלויות וסקריפטים — בדיוק כמו שראינו ב-Node בהרצאות הקודמות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">text · מבנה תיקיות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>news/
+├── node_modules/
+├── public/
+├── src/
+│   ├── App/          (App.js, App.css, App.test.js)
+│   ├── article/      (Article.js, Article.css)
+│   ├── articlesList/
+│   ├── data/         (db.json)
+│   ├── header/
+│   ├── index.js      ← נקודת הכניסה
+│   └── index.css
+├── package.json
+└── package-lock.json</code></pre>
+      </div>
+
+      <p><strong>index.js</strong> — נקודת הכניסה: מצייר את רכיב ה-<code>&lt;App /&gt;</code> לתוך ה-<code>#root</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · src/index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App/App';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+    &lt;React.StrictMode&gt;
+        &lt;App /&gt;
+    &lt;/React.StrictMode&gt;
+);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תחביר</span>
+          <ul style="margin:0">
+            <li><code>import X from '...'</code> — תחביר ה-modules המודרני (ES Modules), מקביל ל-<code>require</code> שראינו בהרצאה 6/7.</li>
+            <li>אפשר אפילו לעשות <code>import './index.css'</code> — מייבאים גם CSS! הכלי דואג לחבר אותו.</li>
+            <li><code>createRoot(...).render(...)</code> — ה-API המודרני (במקום <code>ReactDOM.render</code> הישן מסעיף 16).</li>
+            <li><code>&lt;React.StrictMode&gt;</code> — עטיפה שמפעילה בדיקות נוספות בפיתוח (לא חובה להבנה כרגע).</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>App.js</strong> — הרכיב הראשי. <em>רכיב ב-React הוא פונקציה שמחזירה JSX</em>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · src/App/App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './App.css';
+
+function App() {
+    return (
+        &lt;div className="App"&gt;
+            Hello world
+        &lt;/div&gt;
+    );
+}
+
+export default App;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>package.json</code> — תלויות וסקריפטים</span>
+          הפרויקט תלוי ב-<code>react</code>, <code>react-dom</code>, ו-<code>react-scripts</code>. הסקריפטים: <code>npm start</code> (שרת פיתוח), <code>npm run build</code> (גרסת production), <code>npm test</code> (בדיקות). זה אותו רעיון של <code>package.json</code> מ-Node שכבר מכירים.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🧪</span>
+        <div class="body">
+          <span class="title">בונוס — בדיקות (Testing)</span>
+          create-react-app מגיע עם בדיקות מובנות. למשל <code>App.test.js</code> בודק "האם הטקסט Hello world קיים?":
+          <div class="code-block" style="margin-top:.6rem">
+            <div class="code-head"><span class="lang">js · App.test.js</span><button class="copy-btn">העתק</button></div>
+            <pre><code>import { render, screen } from '@testing-library/react';
+import App from './App';
+
+test('check if hello world exists', () =&gt; {
+    render(&lt;App /&gt;);
+    const linkElement = screen.getByText(/Hello world/i);
+    expect(linkElement).toBeInTheDocument();
+});</code></pre>
+          </div>
+          אם ה-<code>&lt;div&gt;</code> ריק → הבדיקה <strong>נכשלת</strong> (<span dir="ltr">FAIL: Unable to find element with the text /Hello world/i</span>). מוסיפים "Hello world" → הבדיקה <strong>עוברת</strong> (PASS). זו גישת <em>בדיקות אוטומטיות</em> שמוודאת שה-UI אכן מציג את מה שציפינו.
+        </div>
+      </div>
+    </section>
+
+    <!-- 18 -->
+    <section id="components">
+      <h3><span class="num">18.</span> Components — בונים את רכיב <code>Article</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הרעיון המרכזי של React</span>
+          הכוח של React הוא <strong>components</strong>: רכיבים לשימוש חוזר. במקום לשכפל את ה-HTML של כתבה (כמו ב-vanilla), מגדירים <em>פעם אחת</em> רכיב <code>Article</code>, ומשתמשים בו כמה פעמים שרוצים — כמו תגית HTML חדשה משלנו.
+        </div>
+      </div>
+
+      <p>רכיב מינימלי — פונקציה שמחזירה JSX, ו-<code>export</code> כדי שאפשר יהיה לייבא אותו:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · src/article/Article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Article() {
+    return (
+        &lt;div&gt;Hello world&lt;/div&gt;
+    );
+}
+
+export default Article;</code></pre>
+      </div>
+
+      <p>וב-<code>App</code> משתמשים בו כמו תגית — אפילו כמה פעמים:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './App.css';
+import Article from '../article/Article'
+
+function App() {
+    return (
+        &lt;div className="App"&gt;
+            &lt;Article /&gt;
+            &lt;Article /&gt;
+        &lt;/div&gt;
+    );
+}
+
+export default App;</code></pre>
+      </div>
+      <p>התוצאה: "Hello world" מופיע פעמיים. כל <code>&lt;Article /&gt;</code> הוא מופע של הרכיב.</p>
+
+      <p>נמלא את הרכיב בתוכן אמיתי + נעצב אותו בקובץ CSS צמוד, ואפילו <strong>נייבא תמונה (SVG) כרכיב</strong>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Article.js — גרסה מלאה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './Article.css'
+import { ReactComponent as Umbrella } from './umbrella.svg';
+
+function Article() {
+    return (
+        &lt;a href="article.html?id=1"&gt;
+            &lt;article&gt;
+                &lt;h3&gt;My title&lt;/h3&gt;
+                &lt;span&gt;Bar caz, &lt;time&gt;2024-1-11&lt;/time&gt;&lt;/span&gt;
+                &lt;p&gt;Nature&lt;/p&gt;
+                &lt;Umbrella /&gt;
+            &lt;/article&gt;
+        &lt;/a&gt;
+    );
+}
+
+export default Article;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">css · Article.css</span><button class="copy-btn">העתק</button></div>
+        <pre><code>article {
+    padding:10px;
+    margin: 5px;
+    background-color: blue;
+    color: #fff;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ייבוא SVG כרכיב</span>
+          <code>import { ReactComponent as Umbrella } from './umbrella.svg'</code> — create-react-app מאפשר לייבא קובץ SVG ולהשתמש בו כ<strong>רכיב React</strong> (<code>&lt;Umbrella /&gt;</code>). זה ממחיש את הרעיון ש-<em>הכל הוא רכיב</em> — אפילו תמונה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 19 -->
+    <section id="props">
+      <h3><span class="num">19.</span> Props — העברת נתונים לרכיב</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה</span>
+          כרגע כל <code>&lt;Article /&gt;</code> מציג בדיוק את אותו תוכן קשיח. אבל אנחנו רוצים שכל כתבה תציג נתונים <em>משלה</em>. הפתרון: <strong>props</strong> — "ארגומנטים" שמעבירים לרכיב, בדיוק כמו מאפיינים (attributes) של תגית HTML.
+        </div>
+      </div>
+
+      <p>מעבירים props ב-<code>App</code> (נראה כמו attributes):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function App() {
+    return (
+        &lt;div className="App"&gt;
+            &lt;Article id="1"
+                     title="My title"
+                     author="Bar caz"
+                     category="Nature"
+                     publication_date="2024-1-11" /&gt;
+            &lt;Article id="2"
+                     title="My title2"
+                     author="Bar caz2"
+                     category="Nature2"
+                     publication_date="2024-1-12" /&gt;
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+
+      <p>והרכיב <strong>מקבל</strong> אותם ומזריק ל-JSX עם <code>{ }</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · Article.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './Article.css'
+import { ReactComponent as Umbrella } from './umbrella.svg';
+
+function Article({ id, title, author, category, publication_date }) {
+    return (
+        &lt;a href={"article.html?id=" + id}&gt;
+            &lt;article&gt;
+                &lt;h3&gt;{title}&lt;/h3&gt;
+                &lt;span&gt;{author}, &lt;time&gt;{publication_date}&lt;/time&gt;&lt;/span&gt;
+                &lt;div&gt;{category}&lt;/div&gt;
+                &lt;Umbrella /&gt;
+            &lt;/article&gt;
+        &lt;/a&gt;
+    );
+}
+
+export default Article;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תחביר ה-props</span>
+          <ul style="margin:0">
+            <li>הרכיב מקבל אובייקט אחד — <code>props</code>. כאן השתמשנו ב-<strong>destructuring</strong> כדי "לפרק" אותו ישירות לפרמטרים: <code>function Article({ id, title, ... })</code>.</li>
+            <li>בתוך ה-JSX, <code>{title}</code> מזריק את הערך — בדיוק כמו <code>&lt;%= foo.title %&gt;</code> ב-EJS מהרצאה 7!</li>
+            <li>גם בתוך מאפיין אפשר להשתמש ב-<code>{ }</code>: <code>href={"article.html?id=" + id}</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 20 -->
+    <section id="map">
+      <h3><span class="num">20.</span> רשימת רכיבים מתוך data — <code>map</code></h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עדיין כתבנו כל <code>&lt;Article&gt;</code> ביד. אבל בדרך כלל הנתונים מגיעים מ<strong>מקור נתונים</strong> (קובץ/שרת/מסד), ואנחנו רוצים <em>לייצר רכיב לכל פריט אוטומטית</em>. כאן נכנס <code>map</code>.
+        </div>
+      </div>
+
+      <p>הנתונים בקובץ JSON (זוכרים את ה-XML מההתחלה? אותן כתבות, פורמט אחר):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">json · src/data/db.json</span><button class="copy-btn">העתק</button></div>
+        <pre><code>[
+    {
+        "id" : 1,
+        "title" : "World's Largest Foo Created in Foobar Event",
+        "author" : "Baz Caz",
+        "category" : "Mystery",
+        "publication_date" : "2024-01-11",
+        "icon" : "umbrella.png"
+    },
+    {
+        "id" : 2,
+        "title" : "Unicorn Called Bar in West of Foobar",
+        "author" : "Grace Lewis",
+        "category" : "Nature",
+        "publication_date" : "2024-01-10",
+        "icon" : "sunset.png"
+    }
+]</code></pre>
+      </div>
+
+      <p>מייבאים את ה-data, ומריצים <code>map</code> שממיר כל אובייקט לרכיב <code>&lt;Article&gt;</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './App.css';
+import Article from '../article/Article'
+import articles from '../data/db.json'
+
+function App() {
+    return (
+        &lt;div className="App"&gt;
+            {
+                articles.map((article) =&gt;
+                    &lt;Article {...article} /&gt;
+                )
+            }
+        &lt;/div&gt;
+    );
+}
+
+export default App;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שני תחבירים חשובים</span>
+          <ul style="margin:0">
+            <li><code>articles.map((article) =&gt; &lt;Article ... /&gt;)</code> — <code>map</code> עובר על המערך ומחזיר מערך חדש, כאן מערך של רכיבי <code>&lt;Article&gt;</code>. React יודע לרנדר מערך של רכיבים.</li>
+            <li><code>{...article}</code> — <strong>spread של props</strong>: "פזר את כל מפתחות האובייקט כ-props". <code>{...article}</code> שקול ל-<code>id={article.id} title={article.title} ...</code> — קיצור אדיר.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">השוו ל-vanilla מסעיף 14</span>
+          זוכרים את הכפילות הנוראית? עכשיו <em>שורה אחת</em> של <code>map</code> מייצרת אינסוף כתבות מ-data. הוסיפו כתבה ל-JSON — היא תופיע אוטומטית. <strong>זה</strong> מה ש-React פותר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 21 -->
+    <section id="state">
+      <h3><span class="num">21.</span> State ו-<code>useState</code> — UI שמגיב לשינוי</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הקסם האמיתי</span>
+          עד כה ה-data היה קבוע. אבל ממשק אמיתי <em>משתנה</em> — מוסיפים כתבה, מוחקים, עורכים. ב-vanilla היינו צריכים לעדכן את ה-DOM ידנית. ב-React מספיק לעדכן את ה-<strong>state</strong>, ו-React <em>מרנדר מחדש</em> את מה שצריך אוטומטית. הכלי לכך: ה-Hook בשם <code>useState</code>.
+        </div>
+      </div>
+
+      <p>מגדירים state עם רשימת הכתבות ההתחלתית:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './App.css';
+import Article from '../article/Article'
+import articles from '../data/db.json'
+import { useState } from 'react';
+
+function App() {
+    const [articlesList, setArticleList] = useState(articles)
+
+    return (
+        &lt;div className="App"&gt;
+            { articlesList.map((article) =&gt; &lt;Article {...article} /&gt;) }
+        &lt;/div&gt;
+    );
+}
+
+export default App;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>useState</code> — איך קוראים את השורה</span>
+          <code>const [articlesList, setArticleList] = useState(articles)</code>:
+          <ul style="margin:.4rem 0 0">
+            <li><code>useState(articles)</code> — מאתחל state בערך ההתחלתי <code>articles</code>.</li>
+            <li>מחזיר <strong>זוג</strong> (array destructuring): <code>articlesList</code> = הערך הנוכחי, <code>setArticleList</code> = הפונקציה לעדכון הערך.</li>
+            <li><strong>חוק ברזל:</strong> משנים state <em>רק</em> דרך פונקציית ה-<code>set</code> — לעולם לא בהשמה ישירה. זה מה שמסמן ל-React לרנדר מחדש.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p>עכשיו נוסיף כפתור <strong>Add</strong> שמוסיף כתבה. שמים handler עם <code>onClick</code> (האירועים מחלק ד'!):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · App.js — גרסה סופית</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import './App.css';
+import Article from '../article/Article'
+import articles from '../data/db.json'
+import { useState } from 'react';
+
+function App() {
+    const [articlesList, setArticleList] = useState(articles)
+
+    const addArticle = () =&gt; {
+        const article = {
+            "id" : 3,
+            "title" : "Wowwwww! amazing!!!!",
+            "author" : "aaa bbb",
+            "category" : "Guess",
+            "publication_date" : "2024-01-12"
+        }
+        setArticleList([...articlesList, article])
+    }
+
+    return (
+        &lt;div className="App"&gt;
+            &lt;button onClick={addArticle}&gt;Add&lt;/button&gt;
+            { articlesList.map((article) =&gt; &lt;Article {...article} /&gt;) }
+        &lt;/div&gt;
+    );
+}
+
+export default App;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מה קורה בלחיצה?</span>
+          <ul style="margin:0">
+            <li><code>onClick={addArticle}</code> — רושמים את הפונקציה כ-handler (בלי סוגריים! המלכודת מסעיף 13).</li>
+            <li><code>setArticleList([...articlesList, article])</code> — יוצרים מערך <strong>חדש</strong> = כל הישנים (<code>...articlesList</code>) + החדש. לא משנים את הקיים — יוצרים חדש.</li>
+            <li>ברגע שה-state השתנה → React <strong>מרנדר מחדש</strong> את <code>App</code> → ה-<code>map</code> רץ שוב → הכתבה החדשה מופיעה. <em>בלי שנגענו ב-DOM בכלל.</em></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">זה כל הרעיון של React במשפט אחד</span>
+          <strong>ה-UI הוא פונקציה של ה-state.</strong> אתם לא מעדכנים את המסך — אתם מעדכנים נתונים, ו-React דואג שהמסך תמיד ישקף אותם. זה בדיוק מה שהיה כל כך קשה ב-vanilla מסעיף 14, וזו הסיבה שה-frameworks המודרניים השתלטו על עולם ה-Web.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>GUI = עץ של אובייקטים.</strong> אפשר לבנות ב-code, אבל עדיף ב-<strong>markup</strong> כדי להפריד תיאור מלוגיקה (SRP).</li>
+            <li><strong>Markup:</strong> XML (תגיות שאתה ממציא, לנתונים/Android), HTML (תגיות קבועות, ל-Web). אותו רעיון: עץ של אלמנטים.</li>
+            <li><strong>אותם רכיבים בכל מקום:</strong> תווית/קלט/כפתור/container — Android, Web ו-.NET רק משנים שמות.</li>
+            <li><strong>Styling:</strong> תמיד אותו מסע — inline → סגנון מרוכז עם שם → הפניה. CSS class ≈ Android <code>@style</code> ≈ .NET <code>StaticResource</code>. וב-CSS — <strong>specificity</strong> מכריע התנגשויות (inline &gt; id &gt; class &gt; type, ו-<code>!important</code> ג'וקר).</li>
+            <li><strong>Events:</strong> <strong>Listener pattern</strong> — נרשמים מראש ל-event, מספקים handler. <code>addEventListener</code> ≈ Android <code>setOnClickListener</code> ≈ React <code>onClick</code>. תמיד: מעבירים פונקציה, לא קוראים לה.</li>
+            <li><strong>למה Frameworks:</strong> UI גולמי = שכפול קוד ועדכון DOM ידני. <strong>React</strong> פותר: רכיבים לשימוש חוזר (<strong>components</strong> + <strong>props</strong>), data → רכיבים ב-<strong>map</strong>, ו-<strong>state</strong> (<code>useState</code>) שגורם לרינדור אוטומטי.</li>
+            <li><strong>הרעיון המרכזי של React:</strong> ה-UI הוא פונקציה של ה-state. JSX (דרך Babel/transpilation) מאפשר לכתוב את התצוגה כמו HTML בתוך JS.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבורים להרצאות קודמות</span>
+          <strong>Foo News</strong> מלווה אותנו: XML (כאן) → Express/EJS (הרצאה 7) → React (כאן). ה-<code>{title}</code> ב-JSX הוא ה-<code>&lt;%= %&gt;</code> מ-EJS. ה-<code>onClick={fn}</code> בלי סוגריים הוא המלכודת מהרצאה 6 ומ-Express. הפרדת UI/לוגיקה היא ה-SRP מהרצאה 2. <code>?id=1</code> הוא ה-query string מהרצאה 5/7.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">➡️</span>
+        <div class="body">
+          <span class="title">בהרצאה 9</span>
+          נחזור לצד השרת ונחבר את אתר ה-Foo News ל<strong>מסד נתונים אמיתי</strong> — MongoDB ו-Mongoose, שכבת services, פעולות אסינכרוניות ו-CRUD מלא. ה-Model מהמערך-בזיכרון (הרצאה 7) יוחלף סוף-סוף בנתונים אמיתיים ומתמשכים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-07.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 7 · MVC בפועל</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-08.html">
+        <span class="dir">תרגול 8 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

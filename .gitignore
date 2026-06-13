@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+
+# Source presentations (course material)
+*.pdf
+*.pptx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

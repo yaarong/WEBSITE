@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 3 · רשתות וסוקטים (Networking &amp; Sockets)</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 3 · רשתות וסוקטים</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 3</div>
+      <h1>רשתות וסוקטים · Networking &amp; Sockets</h1>
+      <p>איך שתי תוכנות במחשבים שונים מדברות ביניהן? נתחיל מהשאלה הכי בסיסית — "איך אליס שולחת הודעה לבוב" — ונבנה משם את כל התשתית: <strong>פרוטוקולים</strong>, <strong>שכבות הרשת</strong>, <strong>אנקפסולציה</strong>, <strong>פורטים</strong>, <strong>כתובות IP</strong>, ההבדל בין <strong>UDP ל-TCP</strong>, ולבסוף נכתוב בעצמנו שרת ולקוח עם <strong>Socket API</strong> ב-Python וב-C++.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">הסיפור של ההרצאה — מהבעיה אל הקוד</span>
+        ההרצאה בנויה כמסע אחד מתמשך. מתחילים מ<strong>בעיה</strong> פשוטה (שני אנשים שרוצים לדבר), מגלים שכדי לפתור אותה בקנה מידה גדול צריך <strong>מבנה</strong> (פרוטוקולים ושכבות), מבינים איך המידע <strong>נארז ונשלח</strong> בפועל (אנקפסולציה, פורטים, IP), ולבסוף מקבלים את הכלי המעשי שמאפשר לנו לכתוב תקשורת אמיתית — <strong>הסוקט</strong>. כל מושג תיאורטי בחלק הראשון "מתממש" בקוד בחלק השני.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — איך רשת עובדת (תיאוריה)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#motivation">מוטיבציה — אליס, בוב והבעיה</a></li>
+            <li><a class="link" href="#protocol">פרוטוקול — שפת התקשורת</a></li>
+            <li><a class="link" href="#layers">למה לא מחברים את כולם ישירות + שכבות</a></li>
+            <li><a class="link" href="#models">מודלי השכבות: OSI מול TCP/IP</a></li>
+            <li><a class="link" href="#encapsulation">אנקפסולציה — איך המידע נארז שכבה-שכבה</a></li>
+            <li><a class="link" href="#ports">פורטים (Ports)</a></li>
+            <li><a class="link" href="#ip">כתובת IP</a></li>
+            <li><a class="link" href="#udp-tcp">פרוטוקולי תעבורה: UDP מול TCP</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — Socket API (קוד)</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#socket-api">מהו סוקט (Socket)</a></li>
+            <li><a class="link" href="#udp-flow">זרימת UDP — לקוח ושרת</a></li>
+            <li><a class="link" href="#udp-py">UDP Echo ב-Python</a></li>
+            <li><a class="link" href="#udp-cpp">UDP Echo ב-C++</a></li>
+            <li><a class="link" href="#tcp-flow">זרימת TCP — לקוח ושרת</a></li>
+            <li><a class="link" href="#tcp-py">TCP Echo ב-Python</a></li>
+            <li><a class="link" href="#tcp-cpp">TCP Echo ב-C++</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART A -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · איך רשת עובדת</h2>
+
+    <!-- 1. Motivation -->
+    <section id="motivation">
+      <h3><span class="num">1.</span> מוטיבציה — אליס, בוב והבעיה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — למה מתחילים מסיפור?</span>
+          לפני שצוללים למונחים טכניים, ההרצאה בונה אינטואיציה דרך דוגמה: <strong>אליס</strong> רוצה לשלוח הודעה ל<strong>בוב</strong>. נראה שזה פשוט — אבל ככל שנרצה "יותר" (תמונות, וידאו, הרבה משתתפים), נגלה שצריך מבנה. כל קושי שנפגוש כאן יוליד פתרון בהמשך ההרצאה.
+        </div>
+      </div>
+
+      <p><strong>התרחיש האידיאלי:</strong> אליס מקלידה "Hi" במחשב שלה, ההודעה עוברת בכבל למחשב של בוב, ובוב רואה "From Alice: Hi". במצב הזה אליס ובוב פשוט <strong>מחברים את המחשבים ישירות זה לזה בכבל</strong>. זה עובד טוב כי:</p>
+      <ul>
+        <li>הם <strong>היחידים</strong> שמנסים לתקשר — אין למי "להתבלבל".</li>
+        <li>הם <strong>קרובים פיזית</strong> זה לזה — כבל אחד מספיק.</li>
+      </ul>
+
+      <p>כשהאפליקציה תומכת <strong>רק בטקסט</strong>, התקשורת פשוטה מאוד:</p>
+      <ol>
+        <li>אליס "דוחפת" (pushes) את הטקסט אל הכבל.</li>
+        <li>הטקסט נוסע לאורך הכבל אל הקצה השני.</li>
+        <li>בוב מקבל את הטקסט שמגיע מהכבל ומציג אותו.</li>
+      </ol>
+
+      <div class="callout warn">
+        <span class="ic">🤔</span>
+        <div class="body">
+          <span class="title">אבל מה אם נרצה יותר?</span>
+          מה קורה אם אליס רוצה לשלוח <strong>תמונה או וידאו</strong> ולא רק טקסט? עכשיו בוב צריך דרך <em>להבין איזה סוג מידע הגיע ואיך לעבד אותו</em> — וכדי שזה יקרה, אליס צריכה <em>להרכיב הודעה מתאימה</em> שמכריזה על סוג התוכן. זה בדיוק מה שמוביל אותנו למושג הבא: <strong>פרוטוקול</strong>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Protocol -->
+    <section id="protocol">
+      <h3><span class="num">2.</span> פרוטוקול — שפת התקשורת</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כדי ששני צדדים יוכלו לתקשר על <em>סוגי מידע שונים</em>, הם חייבים להסכים מראש על "שפה" משותפת — אילו הודעות קיימות, איך הן בנויות, ומה המשמעות שלהן. ה"שפה" הזו נקראת <strong>פרוטוקול</strong>.
+        </div>
+      </div>
+
+      <p>פרוטוקול הוא <strong>אוסף של חוקים דיגיטליים להחלפת מידע</strong>. פרוטוקול מגדיר שלושה דברים:</p>
+      <ul>
+        <li><strong>Types</strong> — אילו <em>סוגי הודעות</em> קיימים.</li>
+        <li><strong>Format (Syntax)</strong> — מהו <em>המבנה / התחביר</em> של ההודעות (איך הביטים מסודרים).</li>
+        <li><strong>Semantics</strong> — מהי <em>המשמעות</em> של התחביר, כולל <em>מתי</em> לשלוח מה.</li>
+      </ul>
+
+      <p><strong>דוגמה למבנה הודעה (message format):</strong></p>
+      <pre class="ascii-diagram"><code>┌─────────────── The entire message format ───────────────┐
+│                                                          │
+│   ┌──── Header part ────┐   ┌──────── Body part ───────┐ │
+│   ┌────────┬────────────┐   ┌──────────────────────────┐ │
+│   │  Type  │  Sub-type  │   │         Content          │ │
+│   └────────┴────────────┘   └──────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+   └──────────── Syntax: חלוקת ההודעה לשדות ─────────────┘</code></pre>
+
+      <p>וה<strong>סמנטיקה</strong> (מה כל שדה <em>אומר</em>):</p>
+      <table>
+        <thead><tr><th>שדה</th><th>משמעות</th><th>דוגמאות</th></tr></thead>
+        <tbody>
+          <tr><td><code>Type</code></td><td>סוג התוכן הכללי</td><td>text, image, video</td></tr>
+          <tr><td><code>Sub-type</code></td><td>הקידוד / הפורמט המדויק</td><td>gzip, png</td></tr>
+          <tr><td><code>Content</code></td><td>תוכן ההודעה עצמו</td><td>הבייטים של התמונה</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">Syntax מול Semantics — ההבדל בלב הפרק</span>
+          <strong>Syntax</strong> הוא <em>הצורה</em>: "להודעה יש שדה Type ואז שדה Sub-type ואז Content". <strong>Semantics</strong> הוא <em>הפירוש</em>: "אם כתוב <code>image</code> ב-Type ו-<code>png</code> ב-Sub-type — תפענח את ה-Content כתמונת PNG". אותו רצף ביטים בלי הסכמה על סמנטיקה הוא חסר משמעות. כשבוב מקבל הודעה כמו <code>[Image | png | H4sIAAf…]</code>, הוא יודע להציג תמונה במקום אוסף תווים אקראי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Layers -->
+    <section id="layers">
+      <h3><span class="num">3.</span> למה לא מחברים את כולם ישירות — ושכבות (Layers)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עד עכשיו דיברנו על אליס ובוב בלבד. אבל מה אם רוצים לתקשר עם <strong>הרבה אנשים</strong>? הפתרון של "כבל ישיר לכל אחד" קורס מיד — וזה מה שמכריח אותנו לחשוב בצורה מודולרית, כלומר ב<strong>שכבות</strong>.
+        </div>
+      </div>
+
+      <p><strong>הבעיה בחיבור ישיר של כולם לכולם:</strong></p>
+      <ul>
+        <li>זה יוצר בלגן — כבלים בכל מקום.</li>
+        <li>זה מוגבל — מחשב בודד היה צריך <strong>המון כרטיסי רשת</strong> (אחד לכל מחבר).</li>
+      </ul>
+
+      <p>הפתרון ההנדסי הקלאסי לבעיה מורכבת: <strong>לפרק אותה לחלקים קטנים ופשוטים יותר</strong>, כל אחד אחראי על היבט אחר. את הפירוק הזה אנחנו עושים ל<strong>שכבות (layers)</strong>:</p>
+      <ul>
+        <li>כל שכבה אחראית על היבט מסוים של המשימה הגדולה.</li>
+        <li>שכבות <strong>מקבלות ומספקות שירותים</strong> לשכבות אחרות (כל שכבה נשענת על זו שמתחתיה ומשרתת את זו שמעליה).</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">🏢</span>
+        <div class="body">
+          <span class="title">דוגמה משלי — משלוח חבילה בדואר</span>
+          תחשוב על שליחת חבילה: <em>אתה</em> כותב מכתב (שכבת אפליקציה), <em>פקיד הדואר</em> שם אותו במעטפה ומדביק בול (שכבת תעבורה), <em>מרכז המיון</em> מחליט לאיזו עיר לשלוח (שכבת רשת), ו<em>הנהג</em> מעביר בפועל מתחנה לתחנה (שכבת קישור). אף אחד לא צריך לדעת מה השני עושה בפנים — כל שכבה רק "מוסרת" לשכבה הבאה. בדיוק כך עובדת רשת מחשבים.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Models -->
+    <section id="models">
+      <h3><span class="num">4.</span> מודלי השכבות: OSI מול TCP/IP</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          קיימים שני "מפות דרכים" מקובלות לחלוקה לשכבות. <strong>OSI</strong> הוא המודל התיאורטי המלא (7 שכבות), ו-<strong>TCP/IP</strong> הוא המודל המעשי שעליו האינטרנט באמת רץ (5 שכבות בגרסה שנלמדת כאן). ה-OSI מאחד מספר שכבות עליונות אל תוך שכבת ה-Application של TCP/IP.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>      OSI Model                 TCP/IP Model
+   ┌──────────────┐          ┌──────────────┐
+   │ Application  │ ┐        │              │
+   ├──────────────┤ │        │              │
+   │ Presentation │ ├──────▶ │ Application  │
+   ├──────────────┤ │        │              │
+   │   Session    │ ┘        │              │
+   ├──────────────┤          ├──────────────┤
+   │  Transport   │ ───────▶ │  Transport   │
+   ├──────────────┤          ├──────────────┤
+   │   Network    │ ───────▶ │   Network    │
+   ├──────────────┤          ├──────────────┤
+   │     Link     │ ───────▶ │     Link     │
+   ├──────────────┤          ├──────────────┤
+   │   Physical   │ ───────▶ │   Physical   │
+   └──────────────┘          └──────────────┘</code></pre>
+
+      <p><strong>תפקיד כל שכבה (במודל TCP/IP):</strong></p>
+      <table>
+        <thead><tr><th>שכבה</th><th>אחראית על...</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Application</strong></td><td>פרוטוקולים לשליחת מידע בין <em>אפליקציות רשת</em> (HTTP, DNS וכו').</td></tr>
+          <tr><td><strong>Transport</strong></td><td>פרוטוקולים לשליחת מידע בין <em>תהליכים (processes)</em> — כאן חיים UDP ו-TCP.</td></tr>
+          <tr><td><strong>Network</strong></td><td>פרוטוקולים לשליחת מידע <em>ממקור ליעד</em> (ניתוב בין רשתות) — כאן חי ה-IP.</td></tr>
+          <tr><td><strong>Link</strong></td><td>פרוטוקולים לשליחת מידע בין <em>שכנים ברשת</em> (מכשירים מחוברים ישירות).</td></tr>
+          <tr><td><strong>Physical</strong></td><td>איך מעבירים בפועל <em>ביטים "על הכבל"</em> (חשמל, אור, גלי רדיו).</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">📌</span>
+        <div class="body">
+          <span class="title">איך זוכרים את הסדר</span>
+          מלמעלה למטה ב-TCP/IP: <strong>A</strong>pplication → <strong>T</strong>ransport → <strong>N</strong>etwork → <strong>L</strong>ink → <strong>P</strong>hysical. ככל שיורדים — מתרחקים מהמשתמש ומתקרבים לחומרה. נשתמש בידע הזה מיד כשנבין איך כל שכבה מוסיפה את ה"מעטפה" שלה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Encapsulation -->
+    <section id="encapsulation">
+      <h3><span class="num">5.</span> אנקפסולציה — איך המידע נארז שכבה-שכבה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הרעיון המרכזי של ההרצאה</span>
+          זהו אולי החלק החשוב ביותר. כשמידע יורד מהאפליקציה אל הכבל, <strong>כל שכבה עוטפת אותו ב"מעטפה" משלה</strong> — מוסיפה כותרת (Header) עם המידע שהיא צריכה. בצד המקבל קורה התהליך ההפוך: כל שכבה <strong>מקלפת</strong> את המעטפה שלה לפני שהיא מעבירה למעלה. זה נקרא <strong>אנקפסולציה (encapsulation)</strong> ו-<strong>דה-אנקפסולציה</strong>.
+        </div>
+      </div>
+
+      <p>בצד השולח (Alice), המידע יורד מלמעלה למטה וכל שכבה מוסיפה כותרת (<code>H</code> = Header) ושכבת הקישור מוסיפה גם זנב (<code>T</code> = Trailer):</p>
+
+      <pre class="ascii-diagram"><code>Application │                         │  Data  │
+Transport   │                  │ H_T │  Data  │   →  Segment / Datagram
+Network     │           │ H_N │ H_T │  Data  │   →  Packet
+Link        │ │ H_L │ H_N │ H_T │  Data  │ T_L │  →  Frame
+Physical    0101010100011010111110101010...        →  Bits on the wire</code></pre>
+
+      <p>בצד המקבל (Bob) זה קורה הפוך — הביטים עולים מלמטה למעלה, וכל שכבה מסירה (decapsulates) את הכותרת שלה עד שנשאר ה-<code>Data</code> המקורי שמגיע לאפליקציה.</p>
+
+      <p><strong>השמות של היחידה בכל שכבה</strong> (מונחים חשובים מאוד למבחן):</p>
+      <table>
+        <thead><tr><th>שכבה</th><th>שם היחידה (PDU)</th></tr></thead>
+        <tbody>
+          <tr><td>Transport</td><td><strong>Segment</strong> (ב-TCP) / <strong>Datagram</strong> (ב-UDP)</td></tr>
+          <tr><td>Network</td><td><strong>Packet</strong></td></tr>
+          <tr><td>Link</td><td><strong>Frame</strong></td></tr>
+          <tr><td>Physical</td><td><strong>Bits</strong></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">🪆</span>
+        <div class="body">
+          <span class="title">אנלוגיה — בובת מטריושקה / מעטפות בתוך מעטפות</span>
+          דמיין מכתב (<code>Data</code>) שאתה שם בתוך מעטפה (Transport), את המעטפה הזו בתוך מעטפה גדולה יותר (Network), ואותה בתוך עוד מעטפה (Link). כל "פותח" בצד השני מסיר מעטפה אחת בלבד — את שלו — ומעביר הלאה. אף שכבה לא נוגעת בכותרות של שכבה אחרת. זו הסיבה שהשכבות עצמאיות וניתנות להחלפה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Ports -->
+    <section id="ports">
+      <h3><span class="num">6.</span> פורטים (Ports)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — בעיית שכבת התעבורה</span>
+          על מחשב אחד רצות בו-זמנית הרבה אפליקציות רשת (דפדפן, משחק, תוכנת שיחות...). כשהודעה מגיעה למחשב — <strong>למי מהן היא שייכת?</strong> הפתרון הוא <strong>פורט</strong>: מספר שמזהה את האפליקציה הספציפית. זוהי העבודה של שכבת ה-Transport.
+        </div>
+      </div>
+
+      <ul>
+        <li>תוכנית שרצה במחשב נקראת <strong>תהליך (process)</strong>.</li>
+        <li><strong>פנימית</strong>, מערכת ההפעלה מזהה תהליכים לפי <strong>process id</strong>.</li>
+        <li><strong>חיצונית</strong>, אפליקציות רשת מזוהות לפי <strong>פורטים (ports)</strong>.</li>
+        <li>טווח מספרי הפורטים: <strong>0 – 65,535</strong> (כלומר <code>2¹⁶</code> ערכים — פורט הוא מספר של 16 ביט).</li>
+        <li>הטווח <strong>0 – 1,023</strong> שמור לשירותים מוכרים (well-known ports), למשל 80 ל-HTTP, 443 ל-HTTPS, 22 ל-SSH.</li>
+      </ul>
+
+      <p>אפליקציה "מאזינה" (listens) על פורט מסוים. לדוגמה: שרת מאזין על פורט 5656, ובמחשב הלקוח אפליקציה אחת מאזינה על 2222 ואחרת על 12345. הכותרת של שכבת התעבורה (<code>H_T</code>) מכילה <strong>פורט מקור</strong> ו<strong>פורט יעד</strong>:</p>
+
+      <pre class="ascii-diagram"><code>            ┌─────────── H_T (Transport header) ───────────┐
+┌────────┐  ┌──────────┬──────────────┐
+│  Data  │  │   5656   │    12345     │
+└────────┘  └──────────┴──────────────┘
+              Source port   Destination port</code></pre>
+
+      <p>כשהמידע מגיע לצד השני, שכבת התעבורה קוראת את <strong>פורט היעד</strong> (12345) ויודעת בדיוק לאיזו אפליקציה למסור את ה-<code>Data</code>. התהליך הזה נקרא <strong>demultiplexing</strong>.</p>
+
+      <div class="callout tip">
+        <span class="ic">🏠</span>
+        <div class="body">
+          <span class="title">אנלוגיה — כתובת IP = בניין, פורט = מספר דירה</span>
+          ה-IP (שנכיר מיד) מביא את ההודעה אל ה<em>בניין</em> הנכון (המחשב). ה<strong>פורט</strong> אומר לאיזו <em>דירה</em> (אפליקציה) למסור אותה בתוך הבניין. בלי פורט, ההודעה הייתה מגיעה למחשב אבל אף אחד לא היה יודע למי היא מיועדת.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. IP -->
+    <section id="ip">
+      <h3><span class="num">7.</span> כתובת IP</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — בעיית שכבת הרשת</span>
+          הפורט מזהה אפליקציה <em>בתוך</em> מחשב, אבל קודם צריך להגיע ל<strong>מחשב הנכון</strong>. במציאות המחשבים לא מחוברים ישירות לאותה רשת — הם מפוזרים בעולם. צריך דרך <strong>לזהות כל מחשב באופן ייחודי</strong> כדי למסור לו הודעה. זה תפקיד כתובת ה-IP, בשכבת הרשת.</div>
+      </div>
+
+      <ul>
+        <li>כתובת באורך <strong>32 ביט (IPv4)</strong> או <strong>128 ביט (IPv6)</strong>.</li>
+        <li>זוהי כתובת <strong>לוגית</strong> — מאפשרת חלוקה לרשתות והיררכיה (בניגוד לכתובת פיזית/חומרה).</li>
+        <li>שייכת ל<strong>שכבת הרשת (internet layer)</strong>.</li>
+        <li>מכשירים משתמשים בה כדי למסור מידע <strong>בין רשתות</strong>, ומאפשרת <strong>subnetting</strong> (חלוקת רשת לתת-רשתות).</li>
+        <li>דוגמה לכתובת: <code>172.16.254.1</code></li>
+      </ul>
+
+      <p>בדיוק כמו הפורטים, גם כאן יש <strong>מקור ויעד</strong> — אבל הפעם בכותרת של שכבת הרשת (<code>H_N</code>):</p>
+
+      <pre class="ascii-diagram"><code> Alice: 1.2.3.4                              Bob: 188.10.6.1
+
+            ┌─────────── H_N (Network header) ───────────┐
+┌────────┐  ┌──────────┬──────────────┐
+│ Data_T │  │ 1.2.3.4  │  188.10.6.1  │
+└────────┘  └──────────┴──────────────┘
+              Source IP    Destination IP
+
+  → כשהחבילה מגיעה לבוב, הוא בודק שה-Destination IP = שלו ✓
+    ורק אז מעלה את המידע לשכבות שמעליו.</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🔢</span>
+        <div class="body">
+          <span class="title">למה IPv6? — דוגמה/הקשר משלי</span>
+          ל-IPv4 יש רק <code>2³²</code> ≈ 4.3 מיליארד כתובות — וזה נגמר! העולם מתמלא במכשירים מחוברים (טלפונים, מקררים, רכבים...). IPv6 עם 128 ביט נותן <code>2¹²⁸</code> כתובות — מספר עצום (בערך מספר גרגרי החול בכדור הארץ, בריבוע). לכן המעבר ל-IPv6 הוא הכרחי לטווח הארוך.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">לסכם את ה"כתובת המלאה"</span>
+          כדי שהודעה תגיע ליעד מדויק צריך <strong>שני דברים יחד</strong>: <code>IP</code> (איזה מחשב — שכבת רשת) + <code>Port</code> (איזו אפליקציה במחשב — שכבת תעבורה). הצמד <code>(IP, Port)</code> הוא בדיוק מה שמגדיר נקודת קצה לתקשורת — ובהמשך נראה שזה בדיוק מה ש<strong>סוקט</strong> מייצג.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. UDP vs TCP -->
+    <section id="udp-tcp">
+      <h3><span class="num">8.</span> פרוטוקולי תעבורה: UDP מול TCP</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בשכבת התעבורה יש שתי אפשרויות עיקריות, ושתיהן משתמשות בפורטים. ההבדל ביניהן הוא <strong>הבטחות מול מהירות</strong>: TCP מבטיח שהכל יגיע נכון ובסדר, אבל איטי יותר; UDP מהיר אבל "זורק ושוכח". הבחירה ביניהן תלויה באפליקציה.
+        </div>
+      </div>
+
+      <table>
+        <thead><tr><th></th><th>UDP</th><th>TCP</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Reliability (אמינות)</strong></td><td>"Best-effort" (מאמץ מיטבי)</td><td>Reliable (אמין)</td></tr>
+          <tr><td><strong>Re-transmission</strong> (שליחה חוזרת של מה שאבד/נפגם)</td><td>✗</td><td>✓</td></tr>
+          <tr><td><strong>Ordering</strong> (שמירת סדר)</td><td>✗</td><td>✓</td></tr>
+          <tr><td><strong>Segmentation</strong> (פירוק לחתיכות)</td><td>✗</td><td>✓</td></tr>
+          <tr><td><strong>Delivers (מה מועבר)</strong></td><td>הודעות (Messages)</td><td>בייטים (Bytes / stream)</td></tr>
+          <tr><td><strong>Connection</strong></td><td>Connection-less (ללא חיבור)</td><td>Connection-oriented (מבוסס חיבור)</td></tr>
+          <tr><td><strong>Control mechanisms</strong></td><td>—</td><td>Flow / Congestion control</td></tr>
+          <tr><td><strong>Speed (מהירות)</strong></td><td style="color:var(--tutorial);font-weight:700">Faster (מהיר יותר)</td><td style="color:#ff6b6b;font-weight:700">Slower (איטי יותר)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="ic">🎮</span>
+        <div class="body">
+          <span class="title">מתי בוחרים מה? — דוגמה/הקשר משלי</span>
+          <strong>TCP</strong>: כשכל בייט קריטי — טעינת דף אינטרנט, הורדת קובץ, הודעות צ'אט. עדיף להמתין ולקבל הכל נכון. <br>
+          <strong>UDP</strong>: כשמהירות חשובה יותר משלמות — שיחות וידאו, סטרימינג, משחקים מקוונים, DNS. אם פריים אחד אבד בשיחת זום — עדיף "לדלג" עליו מאשר לעצור הכל ולחכות לשליחה חוזרת.
+        </div>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">"Delivers Messages מול Bytes" — נקודה שחשוב להבין</span>
+          ב-<strong>UDP</strong> כל <code>sendto</code> שולח <em>הודעה אחת שלמה</em> (datagram) — מה ששלחת זה מה שמתקבל, כיחידה. ב-<strong>TCP</strong> המידע הוא <em>זרם בייטים רציף</em>: אם תשלח "Hello" ואז "World", בצד השני הם עלולים להתקבל כ-"HelloWorld" בקריאה אחת, או מפוצלים אחרת. לכן ב-TCP צריך פרוטוקול אפליקטיבי שיודע איפה הודעה אחת נגמרת והבאה מתחילה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART B -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · Socket API — כותבים תקשורת בעצמנו</h2>
+
+    <!-- 9. Socket API -->
+    <section id="socket-api">
+      <h3><span class="num">9.</span> מהו סוקט (Socket)</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מהתיאוריה אל הקוד</span>
+          כל החלק הראשון תיאר <em>איך</em> רשת עובדת. עכשיו נשאל: איך <strong>אנחנו, כמתכנתים</strong>, ניגשים לכל זה? לא נכתוב כל שכבה בעצמנו — מערכת ההפעלה עושה את זה. היא נותנת לנו ממשק נקי: ה<strong>סוקט</strong>.
+        </div>
+      </div>
+
+      <ul>
+        <li><strong>סוקט הוא נקודת קצה לתקשורת</strong> (a communication's endpoint).</li>
+        <li><strong>Socket API</strong> הוא אוסף הקריאות שמאפשר תקשורת בין-תהליכית (IPC — Inter-Process Communication) מבוססת-סוקטים.</li>
+      </ul>
+
+      <p>מבחינת מיקום, הסוקט יושב בדיוק <strong>בין שכבת האפליקציה לשכבת התעבורה</strong> — הוא ה"דלת" שדרכה האפליקציה שלנו מוסרת מידע למערכת ההפעלה, וזו כבר דואגת לכל השאר (פורטים, IP, אנקפסולציה...):</p>
+
+      <pre class="ascii-diagram"><code> ┌───────────────┐
+ │  Application  │   ← הקוד שלנו
+ ├───────────────┤
+ │  ▓▓ Socket ▓▓ │   ← הממשק (API)
+ ├───────────────┤
+ │   Transport   │   ← UDP / TCP (מערכת ההפעלה)
+ ├───────────────┤
+ │    Network    │
+ └───────────────┘</code></pre>
+
+      <p>זוכרים את הצמד <code>(IP, Port)</code> מהפרק הקודם? סוקט הוא בדיוק הייצוג התוכנתי שלו. בהמשך נראה שסוקט UDP מזוהה ע"י <code>(Src IP, Src Port)</code>.</p>
+    </section>
+
+    <!-- 10. UDP flow -->
+    <section id="udp-flow">
+      <h3><span class="num">10.</span> זרימת UDP — לקוח ושרת</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          UDP הוא הפרוטוקול הפשוט יותר (ללא חיבור), אז נתחיל ממנו. נלמד את <strong>רצף הקריאות</strong> שכל צד מבצע. שים לב שאין כאן "חיבור" — הלקוח פשוט שולח, והשרת פשוט מקבל. כל הודעה עומדת בפני עצמה.
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>      CLIENT                         SERVER
+   ┌──────────┐                   ┌──────────┐
+   │  socket  │                   │  socket  │
+   └────┬─────┘                   └────┬─────┘
+        │                              │
+        │                         ┌────┴─────┐
+        │                         │   bind   │   ← "אני על פורט X"
+        │                         └────┬─────┘
+   ┌────┴─────┐                   ┌────┴─────┐
+   │  sendto  │ ────────────────▶ │ recvfrom │ ◀─┐  (loop:
+   └────┬─────┘                   └────┬─────┘   │   ממתין
+   ┌────┴─────┐                   ┌────┴─────┐   │   להודעה
+   │ recvfrom │ ◀──────────────── │  sendto  │ ──┘   הבאה)
+   └────┬─────┘                   └──────────┘
+   ┌────┴─────┐
+   │  close   │
+   └──────────┘</code></pre>
+
+      <table>
+        <thead><tr><th>קריאה</th><th>מה היא עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>socket()</code></td><td>יוצר את נקודת הקצה (הסוקט).</td></tr>
+          <tr><td><code>bind()</code></td><td>קושר את הסוקט לכתובת ופורט מקומיים — נחוץ בשרת כדי שלקוחות ידעו לאן לשלוח.</td></tr>
+          <tr><td><code>sendto()</code></td><td>שולח הודעה אל כתובת+פורט יעד (היעד מצוין בכל קריאה — אין חיבור קבוע).</td></tr>
+          <tr><td><code>recvfrom()</code></td><td>ממתין ומקבל הודעה, ומחזיר גם <em>מי שלח</em> (כדי שנוכל לענות).</td></tr>
+          <tr><td><code>close()</code></td><td>סוגר את הסוקט ומשחרר את המשאבים.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 11. UDP Python -->
+    <section id="udp-py">
+      <h3><span class="num">11.</span> UDP Echo ב-Python</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מהו "Echo server"?</span>
+          שרת Echo הוא הדוגמה הקלאסית ללימוד סוקטים: השרת פשוט <strong>מחזיר ללקוח את מה שהלקוח שלח</strong> (כאן — באותיות גדולות, כדי שנראה שמשהו קרה). זה מאפשר להתמקד במנגנון התקשורת בלי לוגיקה מסובכת.
+        </div>
+      </div>
+
+      <h4>שרת UDP (Python)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · udp_echo_server.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>from socket import socket, AF_INET, SOCK_DGRAM
+
+s = socket(AF_INET, SOCK_DGRAM)
+
+src_ip = ''
+src_port = 12345
+s.bind((src_ip, src_port))
+
+while True:
+    data, sender_info = s.recvfrom(2048)
+    s.sendto(data.upper(), sender_info)</code></pre>
+      </div>
+
+      <p><strong>הסבר שורה-שורה:</strong></p>
+      <table>
+        <thead><tr><th>קוד</th><th>מה קורה</th></tr></thead>
+        <tbody>
+          <tr><td><code>socket(AF_INET, SOCK_DGRAM)</code></td><td>יוצר סוקט. <code>AF_INET</code> = משפחת כתובות IPv4. <code>SOCK_DGRAM</code> = סוג datagram → <strong>UDP</strong>. (סוקט = נקודת קצה לתקשורת.)</td></tr>
+          <tr><td><code>src_ip = ''</code></td><td>מחרוזת ריקה = "האזן על <strong>כל</strong> כתובות ה-IP של המחשב" (כל כרטיסי הרשת).</td></tr>
+          <tr><td><code>s.bind((src_ip, src_port))</code></td><td>קושר את הסוקט לכתובת+פורט. <strong>סוקט UDP מזוהה ע"י (Src IP, Src port)</strong>. שים לב: הארגומנט הוא <em>tuple</em> אחד <code>(ip, port)</code>, ומכאן הסוגריים הכפולים.</td></tr>
+          <tr><td><code>while True:</code></td><td>לולאה אינסופית — השרת לעולם לא "מסיים", הוא תמיד מוכן ללקוח הבא.</td></tr>
+          <tr><td><code>data, sender_info = s.recvfrom(2048)</code></td><td><strong>ממתין</strong> עד שמגיעה הודעה. מחזיר שני דברים: ה-<code>data</code> שהתקבל, ו-<code>sender_info</code> = הזוג (IP, port) של מי ששלח. <code>2048</code> = כמות הבייטים המקסימלית לקריאה.</td></tr>
+          <tr><td><code>s.sendto(data.upper(), sender_info)</code></td><td>שולח את התשובה <strong>חזרה אל השולח</strong> (כי שמרנו את <code>sender_info</code>). <code>.upper()</code> הופך לאותיות גדולות — ה-"echo".</td></tr>
+        </tbody>
+      </table>
+
+      <h4 style="margin-top:1.5rem">לקוח UDP (Python)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · udp_echo_client.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>from socket import socket, AF_INET, SOCK_DGRAM
+
+s = socket(AF_INET, SOCK_DGRAM)
+
+dst_ip = '127.0.0.1'
+dst_port = 12345
+
+s.sendto('Hello', (dst_ip, dst_port))
+data, sender_info = s.recvfrom(2048)
+
+s.close()</code></pre>
+      </div>
+
+      <table>
+        <thead><tr><th>קוד</th><th>מה קורה</th></tr></thead>
+        <tbody>
+          <tr><td><code>dst_ip = '127.0.0.1'</code></td><td>כתובת היעד. <code>127.0.0.1</code> = <strong>localhost</strong> (loopback) — "המחשב הזה עצמו". שימושי לבדיקה שהשרת והלקוח רצים על אותו מחשב.</td></tr>
+          <tr><td><code>s.sendto('Hello', (dst_ip, dst_port))</code></td><td>שולח "Hello" אל היעד. בלקוח UDP <strong>אין צורך ב-bind</strong> — כשלא מציינים פורט מקור, <em>מערכת ההפעלה בוחרת אוטומטית פורט פנוי</em>.</td></tr>
+          <tr><td><code>data, sender_info = s.recvfrom(2048)</code></td><td>ממתין לתשובה מהשרת (ה-"HELLO" באותיות גדולות).</td></tr>
+          <tr><td><code>s.close()</code></td><td>סוגר את הסוקט. הלקוח סיים — בניגוד לשרת שממשיך בלולאה.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout syntax">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">איך זה נראה בפועל — אנקפסולציה חוזרת!</span>
+          כשהלקוח קורא ל-<code>sendto('Hello', ...)</code>, ה-<code>'Hello'</code> יורד דרך השכבות וכל אחת עוטפת אותו (בדיוק כמו בפרק 5):
+          <pre class="ascii-diagram" style="margin-top:.6rem"><code>Application:                                  │ Hello │
+Transport:                  │ Dst Port=12345 │ Hello │
+Network:    │ Dst IP=127.0.0.1 │ UDP header   │ Hello │</code></pre>
+          זו בדיוק התיאוריה מחלק א' — עכשיו אתה רואה אותה מתרחשת בקוד אמיתי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. UDP C++ -->
+    <section id="udp-cpp">
+      <h3><span class="num">12.</span> UDP Echo ב-C++</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          אותו רעיון בדיוק, אבל ב-C++ עם ה-Socket API של מערכת ההפעלה (POSIX/Linux). כאן הדברים <strong>מפורשים יותר</strong> — אנחנו מנהלים בעצמנו מבני-נתונים, גודל buffer, ובדיקת שגיאות. זה נראה ארוך יותר, אבל זה בדיוק אותו רצף קריאות.
+        </div>
+      </div>
+
+      <h4>שרת UDP מלא (C++)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · udp_echo_server.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+using namespace std;
+
+int main() {
+    const int server_port = 5555;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock &lt; 0) {
+        perror("error creating socket");
+    }
+
+    struct sockaddr_in sin;
+    memset(&amp;sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_port = htons(server_port);
+
+    if (bind(sock, (struct sockaddr *) &amp;sin, sizeof(sin)) &lt; 0) {
+        perror("error binding to socket");
+    }
+
+    struct sockaddr_in from;
+    unsigned int from_len = sizeof(struct sockaddr_in);
+    char buffer[4096];
+
+    int bytes = recvfrom(sock, buffer, sizeof(buffer), 0,
+                         (struct sockaddr *) &amp;from, &amp;from_len);
+    if (bytes &lt; 0) {
+        perror("error reading from socket");
+    }
+    cout &lt;&lt; "The client sent: " &lt;&lt; buffer &lt;&lt; endl;
+
+    int sent_bytes = sendto(sock, buffer, bytes, 0,
+                            (struct sockaddr *) &amp;from, sizeof(from));
+    if (sent_bytes &lt; 0) {
+        perror("error writing to socket");
+    }
+
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+
+      <p><strong>פירוק החלקים החשובים (ובדיוק אותן 4 קריאות מהדיאגרמה):</strong></p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · socket()</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int sock = socket(AF_INET, SOCK_DGRAM, 0);
+if (sock &lt; 0) {
+    perror("error creating socket");
+}</code></pre>
+      </div>
+      <p>יוצר סוקט ומחזיר <strong>file descriptor</strong> (מספר שלם — ב-Unix הכל הוא קובץ, גם סוקט). אם הערך שלילי — קרתה שגיאה. <code>SOCK_DGRAM</code> = UDP, והארגומנט השלישי <code>0</code> = פרוטוקול ברירת מחדל למשפחה הזו.</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · bind()</span><button class="copy-btn">העתק</button></div>
+        <pre><code>struct sockaddr_in sin;
+memset(&amp;sin, 0, sizeof(sin));
+sin.sin_family = AF_INET;
+sin.sin_addr.s_addr = INADDR_ANY;
+sin.sin_port = htons(server_port);
+
+if (bind(sock, (struct sockaddr *) &amp;sin, sizeof(sin)) &lt; 0) {
+    perror("error binding to socket");
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הסבר סינטקס — מבנה הכתובת ב-C++</span>
+          <ul style="margin:0">
+            <li><code>struct sockaddr_in</code> — מבנה שמחזיק כתובת IPv4 + פורט.</li>
+            <li><code>memset(&amp;sin, 0, sizeof(sin))</code> — מאפס את כל הבייטים של המבנה לפני השימוש (הרגל חשוב — מונע "זבל" בשדות שלא מילאנו).</li>
+            <li><code>sin.sin_family = AF_INET</code> — מצהיר שזו כתובת IPv4.</li>
+            <li><code>INADDR_ANY</code> — המקבילה ל-<code>''</code> בפייתון: "האזן על כל הכתובות".</li>
+            <li><code>htons(server_port)</code> — <strong>Host TO Network Short</strong>. ממיר את מספר הפורט מסדר-הבייטים של המחשב לסדר-הבייטים של הרשת (big-endian). חובה! מחשבים שונים שומרים מספרים בסדר שונה, והרשת דורשת סדר אחיד.</li>
+            <li><code>(struct sockaddr *) &amp;sin</code> — <em>casting</em>: ה-API הישן מצפה למצביע לטיפוס הגנרי <code>sockaddr</code>, אז אנחנו "ממירים" אליו את המצביע ל-<code>sockaddr_in</code> הספציפי שלנו.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · recvfrom()</span><button class="copy-btn">העתק</button></div>
+        <pre><code>struct sockaddr_in from;
+unsigned int from_len = sizeof(struct sockaddr_in);
+char buffer[4096];
+
+int bytes = recvfrom(sock, buffer, sizeof(buffer), 0,
+                     (struct sockaddr *) &amp;from, &amp;from_len);
+if (bytes &lt; 0) {
+    perror("error reading from socket");
+}</code></pre>
+      </div>
+      <p>ממתין להודעה. ה-<code>buffer</code> יתמלא במידע, <code>from</code> יתמלא בכתובת השולח (כדי שנדע למי לענות), והערך המוחזר <code>bytes</code> = כמה בייטים התקבלו בפועל.</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · sendto()</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int sent_bytes = sendto(sock, buffer, bytes, 0,
+                        (struct sockaddr *) &amp;from, sizeof(from));
+if (sent_bytes &lt; 0) {
+    perror("error writing to socket");
+}</code></pre>
+      </div>
+      <p>שולח <code>bytes</code> בייטים מתוך ה-<code>buffer</code> בחזרה אל <code>from</code> (השולח המקורי). זה ה-echo.</p>
+
+      <h4 style="margin-top:1.5rem">לקוח UDP מלא (C++)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · udp_echo_client.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+using namespace std;
+
+int main() {
+    const char* ip_address = "127.0.0.1";
+    const int port_no = 5555;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock &lt; 0) {
+        perror("error creating socket");
+    }
+
+    struct sockaddr_in sin;
+    memset(&amp;sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = inet_addr(ip_address);
+    sin.sin_port = htons(port_no);
+
+    char data[] = "hello";
+    int data_len = sizeof(data);
+    int sent_bytes = sendto(sock, data, data_len, 0,
+                            (struct sockaddr *) &amp;sin, sizeof(sin));
+    if (sent_bytes &lt; 0) {
+        perror("error writing to socket");
+    }
+
+    struct sockaddr_in from;
+    unsigned int from_len = sizeof(struct sockaddr_in);
+    char buffer[4096];
+    int bytes = recvfrom(sock, buffer, sizeof(buffer), 0,
+                         (struct sockaddr *) &amp;from, &amp;from_len);
+    if (bytes &lt; 0) {
+        perror("error reading from socket");
+    }
+    cout &lt;&lt; "The server sent: " &lt;&lt; buffer &lt;&lt; endl;
+
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ההבדל מהשרת — שתי שורות מפתח</span>
+          בלקוח אין <code>bind</code> ואין <code>INADDR_ANY</code>. במקום זה:
+          <ul style="margin:.4rem 0 0">
+            <li><code>inet_addr("127.0.0.1")</code> — ממיר מחרוזת IP (קריאה לאדם) למספר 32-ביט (הצורה שהרשת מבינה). זו המקבילה ל-<code>dst_ip</code> בפייתון.</li>
+            <li>הלקוח קורא ישר ל-<code>sendto</code> אל ה-<code>sin</code> של <strong>השרת</strong> — לא קושר את עצמו לפורט מסוים (מערכת ההפעלה תבחר).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">מלכודת נפוצה — <code>cout &lt;&lt; buffer</code></span>
+          ב-C++ מחרוזת חייבת להסתיים בתו <code>'\0'</code>. ה-<code>recvfrom</code> ממלא בייטים גולמיים אבל <strong>לא מוסיף <code>'\0'</code> אוטומטית</strong>. אם תדפיס <code>cout &lt;&lt; buffer</code> ישירות, אתה עלול לראות "זבל" אחרי ההודעה. תיקון בטוח: לאפס את ה-buffer מראש (<code>memset</code>), או להשתמש במספר הבייטים המוחזר (<code>buffer[bytes] = '\0';</code>). זו נקודה חשובה שלא מופיעה במפורש במצגת אבל מבדילה קוד שעובד "במזל" מקוד נכון.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. TCP flow -->
+    <section id="tcp-flow">
+      <h3><span class="num">13.</span> זרימת TCP — לקוח ושרת</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מה משתנה מ-UDP?</span>
+          TCP הוא <strong>מבוסס-חיבור</strong>. לפני ששולחים מידע, הלקוח והשרת "לוחצים ידיים" ופותחים חיבור יציב. לכן מופיעות פה קריאות חדשות: בלקוח <code>connect</code>, ובשרת <code>listen</code> ו-<code>accept</code>. אחרי שהחיבור פתוח, שולחים עם <code>send</code>/<code>recv</code> (בלי לציין יעד כל פעם — היעד כבר ידוע מהחיבור).
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>      CLIENT                         SERVER
+   ┌──────────┐                   ┌──────────┐
+   │  socket  │                   │  socket  │
+   └────┬─────┘                   └────┬─────┘
+        │                         ┌────┴─────┐
+        │                         │   bind   │
+        │                         └────┬─────┘
+        │                         ┌────┴─────┐
+        │                         │  listen  │ ◀─┐ (תור המתנה)
+        │                         └────┬─────┘   ┘
+        │                         ┌────┴─────┐
+   ┌────┴─────┐  ── connect ───▶  │  accept  │   ← נוצר חיבור!
+   │ connect  │                   └────┬─────┘
+   └────┬─────┘                        │
+   ┌────┴─────┐                   ┌────┴─────┐
+   │   send   │ ────────────────▶ │   recv   │ ◀─┐
+   └────┬─────┘                   └────┬─────┘   │ (loop כל
+   ┌────┴─────┐                   ┌────┴─────┐   │  עוד יש
+   │   recv   │ ◀──────────────── │   send   │ ──┘  מידע)
+   └────┬─────┘                   └────┬─────┘
+   ┌────┴─────┐                   ┌────┴─────┐
+   │  close   │                   │  close   │
+   └──────────┘                   └──────────┘</code></pre>
+
+      <table>
+        <thead><tr><th>קריאה (חדשה ב-TCP)</th><th>מה היא עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>listen(n)</code></td><td>הופך את הסוקט ל"מאזין" ומגדיר תור המתנה בגודל <code>n</code> לחיבורים נכנסים.</td></tr>
+          <tr><td><code>accept()</code></td><td>חוסם עד שלקוח מתחבר, ואז מחזיר <strong>סוקט חדש</strong> ייעודי לאותו לקוח (סוקט המאזין נשאר פנוי ללקוחות נוספים).</td></tr>
+          <tr><td><code>connect()</code></td><td>(בלקוח) פותח חיבור אל כתובת+פורט השרת.</td></tr>
+          <tr><td><code>send()</code> / <code>recv()</code></td><td>שולח/מקבל על חיבור קיים — <strong>בלי</strong> לציין יעד בכל פעם (היעד ידוע מהחיבור).</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 14. TCP Python -->
+    <section id="tcp-py">
+      <h3><span class="num">14.</span> TCP Echo ב-Python</h3>
+
+      <h4>שרת TCP (Python)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · tcp_echo_server.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import socket
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_ip = ''
+server_port = 12345
+server.bind((server_ip, server_port))
+server.listen(5)
+
+while True:
+    client_socket, client_address = server.accept()
+    print 'Connection from: ', client_address
+    data = client_socket.recv(1024)
+    while not data == '':
+        print 'Received: ', data
+        client_socket.send(data.upper())
+        data = client_socket.recv(1024)
+
+    print 'Client disconnected'
+    client_socket.close()</code></pre>
+      </div>
+
+      <table>
+        <thead><tr><th>קוד</th><th>מה קורה</th></tr></thead>
+        <tbody>
+          <tr><td><code>SOCK_STREAM</code></td><td>סוג stream → <strong>TCP</strong> (בניגוד ל-<code>SOCK_DGRAM</code> של UDP). זה ההבדל היחיד ביצירת הסוקט!</td></tr>
+          <tr><td><code>server.listen(5)</code></td><td>מתחיל להאזין; עד 5 חיבורים ממתינים בתור.</td></tr>
+          <tr><td><code>client_socket, client_address = server.accept()</code></td><td>ממתין ללקוח. מחזיר <strong>סוקט חדש</strong> (<code>client_socket</code>) שמייצג את החיבור הספציפי לאותו לקוח.</td></tr>
+          <tr><td><code>data = client_socket.recv(1024)</code></td><td>קורא עד 1024 בייטים מהלקוח.</td></tr>
+          <tr><td><code>while not data == '':</code></td><td>כל עוד מתקבל מידע — ממשיכים. כש-<code>recv</code> מחזיר מחרוזת <strong>ריקה</strong>, זה הסימן ש<strong>הלקוח סגר את החיבור</strong>.</td></tr>
+          <tr><td><code>client_socket.send(data.upper())</code></td><td>ה-echo — שולח חזרה באותיות גדולות (על סוקט החיבור, לא על סוקט השרת).</td></tr>
+        </tbody>
+      </table>
+
+      <h4 style="margin-top:1.5rem">לקוח TCP (Python)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · tcp_echo_client.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import socket
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+dest_ip = '127.0.0.1'
+dest_port = 12345
+s.connect((dest_ip, dest_port))
+
+msg = raw_input("Message to send: ")
+while not msg == 'quit':
+    s.send(msg)
+    data = s.recv(4096)
+    print "Server sent: ", data
+    msg = raw_input("Message to send: ")
+
+s.close()</code></pre>
+      </div>
+
+      <table>
+        <thead><tr><th>קוד</th><th>מה קורה</th></tr></thead>
+        <tbody>
+          <tr><td><code>s.connect((dest_ip, dest_port))</code></td><td>פותח חיבור אל השרת. <strong>זה החלק שלא קיים ב-UDP</strong> — מכאן והלאה היעד ידוע ולא צריך לציין אותו.</td></tr>
+          <tr><td><code>raw_input(...)</code></td><td>(Python 2) קורא שורת טקסט מהמשתמש. הלקוח שולח הודעות עד שמקלידים <code>quit</code>.</td></tr>
+          <tr><td><code>s.send(msg)</code> / <code>s.recv(4096)</code></td><td>שולח ומקבל על החיבור — בלי כתובת יעד, כי החיבור כבר קיים.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="ic">🐍</span>
+        <div class="body">
+          <span class="title">שים לב — זה קוד Python 2</span>
+          המצגת משתמשת ב-<code>print 'x'</code> (בלי סוגריים) וב-<code>raw_input</code> — שניהם <strong>Python 2</strong>. ב-Python 3 זה יהיה <code>print('x')</code> ו-<code>input(...)</code>, וגם צריך להעביר <code>bytes</code> ולא <code>str</code> (למשל <code>s.send(msg.encode())</code>). המנגנון זהה — רק התחביר השתנה בין הגרסאות.
+        </div>
+      </div>
+    </section>
+
+    <!-- 15. TCP C++ -->
+    <section id="tcp-cpp">
+      <h3><span class="num">15.</span> TCP Echo ב-C++</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          השרת והלקוח ב-C++ זהים כמעט לחלוטין לגרסת ה-UDP — אותם <code>socket</code>, <code>sockaddr_in</code>, <code>htons</code>, <code>bind</code>. ההבדלים: <code>SOCK_STREAM</code> במקום <code>SOCK_DGRAM</code>, ובשרת מתווספות <code>listen</code> ו-<code>accept</code>, ובלקוח <code>connect</code>. וגם — משתמשים ב-<code>send</code>/<code>recv</code> במקום <code>sendto</code>/<code>recvfrom</code>.
+        </div>
+      </div>
+
+      <h4>שרת TCP (C++)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · tcp_echo_server.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int main() {
+    const int server_port = 5555;
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock &lt; 0) {
+        perror("error creating socket");
+    }
+
+    struct sockaddr_in sin;
+    memset(&amp;sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_port = htons(server_port);
+
+    if (bind(sock, (struct sockaddr *) &amp;sin, sizeof(sin)) &lt; 0) {
+        perror("error binding socket");
+    }
+    if (listen(sock, 5) &lt; 0) {
+        perror("error listening to a socket");
+    }
+
+    struct sockaddr_in client_sin;
+    unsigned int addr_len = sizeof(client_sin);
+    int client_sock = accept(sock, (struct sockaddr *) &amp;client_sin, &amp;addr_len);
+    if (client_sock &lt; 0) {
+        perror("error accepting client");
+    }
+
+    char buffer[4096];
+    int expected_data_len = sizeof(buffer);
+    int read_bytes = recv(client_sock, buffer, expected_data_len, 0);
+    if (read_bytes == 0) {
+        // connection is closed
+    } else if (read_bytes &lt; 0) {
+        // error
+    } else {
+        cout &lt;&lt; buffer;
+    }
+
+    int sent_bytes = send(client_sock, buffer, read_bytes, 0);
+    if (sent_bytes &lt; 0) {
+        perror("error sending to client");
+    }
+
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שלוש הקריאות שמייחדות TCP בשרת</span>
+          <ul style="margin:0">
+            <li><code>listen(sock, 5)</code> — הופך לסוקט מאזין עם תור באורך 5.</li>
+            <li><code>accept(sock, ...)</code> — מחזיר <code>client_sock</code> חדש לחיבור הספציפי. שים לב: <code>recv</code>/<code>send</code> פועלים על <code>client_sock</code>, לא על <code>sock</code> המקורי.</li>
+            <li><code>recv</code> מחזיר <strong>0</strong> = הלקוח סגר את החיבור, ערך <strong>שלילי</strong> = שגיאה, ערך <strong>חיובי</strong> = מספר הבייטים שהתקבלו. שלושת המקרים מטופלים ב-<code>if/else if/else</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h4 style="margin-top:1.5rem">לקוח TCP (C++)</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · tcp_echo_client.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;sys/socket.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;netinet/in.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;unistd.h&gt;
+#include &lt;string.h&gt;
+using namespace std;
+
+int main() {
+    const char* ip_address = "127.0.0.1";
+    const int port_no = 5555;
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock &lt; 0) {
+        perror("error creating socket");
+    }
+
+    struct sockaddr_in sin;
+    memset(&amp;sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = inet_addr(ip_address);
+    sin.sin_port = htons(port_no);
+
+    if (connect(sock, (struct sockaddr *) &amp;sin, sizeof(sin)) &lt; 0) {
+        perror("error connecting to server");
+    }
+
+    char data_addr[] = "Im a message";
+    int data_len = strlen(data_addr);
+    int sent_bytes = send(sock, data_addr, data_len, 0);
+    if (sent_bytes &lt; 0) {
+        // error
+    }
+
+    char buffer[4096];
+    int expected_data_len = sizeof(buffer);
+    int read_bytes = recv(sock, buffer, expected_data_len, 0);
+    if (read_bytes == 0) {
+        // connection is closed
+    } else if (read_bytes &lt; 0) {
+        // error
+    } else {
+        cout &lt;&lt; buffer;
+    }
+
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+
+      <p>הלקוח: יוצר סוקט TCP, מגדיר את כתובת השרת (<code>inet_addr</code> + <code>htons</code>), פותח חיבור עם <code>connect</code>, שולח הודעה עם <code>send</code>, מקבל תשובה עם <code>recv</code>, וסוגר. שים לב ל-<code>strlen</code> שמחשב את אורך המחרוזת (בלי ה-<code>'\0'</code>) — בניגוד ל-<code>sizeof</code> שהיינו משתמשים בו עבור מערך.</p>
+
+      <div class="callout tip">
+        <span class="ic">🧪</span>
+        <div class="body">
+          <span class="title">איך מריצים את זה בפועל? — טיפ משלי</span>
+          פותחים <strong>שני טרמינלים</strong>. בראשון מריצים את השרת (הוא "נתקע" וממתין ב-<code>accept</code>/<code>recvfrom</code>). בשני מריצים את הלקוח. בגלל שהשתמשנו ב-<code>127.0.0.1</code>, שניהם רצים על אותו מחשב ומדברים דרך ה-loopback. אם תרצה להריץ על שני מחשבים שונים — תחליף את ה-IP של הלקוח לכתובת ה-IP האמיתית של השרת ברשת.
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה — מהבעיה אל הקוד</span>
+          <ul style="margin:0">
+            <li><strong>פרוטוקול</strong> = חוקים משותפים (Types, Syntax, Semantics) שמאפשרים לשני צדדים להבין זה את זה.</li>
+            <li><strong>שכבות</strong> מפרקות את המשימה המורכבת; <strong>OSI</strong> (7) מול <strong>TCP/IP</strong> (5).</li>
+            <li><strong>אנקפסולציה</strong> — כל שכבה עוטפת בכותרת משלה: Segment/Datagram → Packet → Frame → Bits.</li>
+            <li><strong>פורט</strong> מזהה אפליקציה במחשב (שכבת תעבורה); <strong>IP</strong> מזהה מחשב ברשת (שכבת רשת). הצמד <code>(IP, Port)</code> = יעד מלא.</li>
+            <li><strong>UDP</strong> = מהיר, ללא חיבור, "best-effort". <strong>TCP</strong> = אמין, מבוסס-חיבור, אבל איטי יותר.</li>
+            <li><strong>סוקט</strong> = נקודת קצה לתקשורת, הממשק שלנו אל הרשת. UDP: <code>socket→bind→recvfrom/sendto</code>. TCP: מוסיף <code>listen/accept</code> (שרת) ו-<code>connect</code> (לקוח).</li>
+            <li><strong>זכור את הזיהוי הזה ב-API:</strong> <code>SOCK_DGRAM</code>=UDP, <code>SOCK_STREAM</code>=TCP; <code>htons</code> לפורט; <code>INADDR_ANY</code> בשרת מול <code>inet_addr</code> בלקוח.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-02.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 2 · קוד טוב יותר + הנדסת תוכנה</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-03.html">
+        <span class="dir">תרגול 3 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

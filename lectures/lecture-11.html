@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 11 · פיתוח Android (חלק א')</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 11 · פיתוח Android</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 11</div>
+      <h1>פיתוח Android (חלק א') — Activities, Views, Intents, Lists ועוד</h1>
+      <p>בהרצאה 10 ראינו את הגישה ה-<strong>cross-platform</strong> (React Native). עכשיו נצלול לגישה ה-<strong>native</strong>: פיתוח אפליקציית Android "אמיתית" ב-Java. נכיר את אבני הבניין של Android — <strong>Activities</strong>, <strong>Views</strong> ו-layouts, מחזור החיים, <strong>Intents</strong> למעבר בין מסכים, רשימות (<strong>ListView</strong> ו-<strong>RecyclerView</strong>), <strong>Fragments</strong>, <strong>Services</strong>, התראות, מסד נתונים מקומי (<strong>Room</strong>), ועבודה עם <strong>threads</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">קונטקסט כללי</span>
+        בהרצאה 8 כבר ראינו הצצות ל-Android (XML layouts, TextView/Button, setOnClickListener). עכשיו נבנה את התמונה המלאה. שימו לב לאורך כל הדרך לתבניות המוכרות: עץ של רכיבים, הפרדת layout (XML) מלוגיקה (Java), ו-Listener pattern לאירועים — בדיוק כמו שראינו ב-web וב-React, רק בניב של Android.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — יסודות</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#challenges">אתגרי המובייל + רכיבי Android</a></li>
+            <li><a class="link" href="#activity">Activity ומחזור החיים</a></li>
+            <li><a class="link" href="#resources">Resources ו-R</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — Views ולוגיקה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#views">Views, ViewGroup ו-Layouts</a></li>
+            <li><a class="link" href="#logic">חיבור layout ללוגיקה</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — Intents וניווט</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#intent">Intent — מעבר בין Activities</a></li>
+            <li><a class="link" href="#manifest">Manifest ו-Activities stack</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — רשימות</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#listview">ListView ו-Adapter</a></li>
+            <li><a class="link" href="#custom-adapter">Adapter מותאם + ViewHolder</a></li>
+            <li><a class="link" href="#recycler">RecyclerView</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ה' — רכיבים מתקדמים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#fragments">Fragments</a></li>
+            <li><a class="link" href="#receivers">Broadcast Receivers ו-Notifications</a></li>
+            <li><a class="link" href="#services">Services</a></li>
+            <li><a class="link" href="#room">Room — מסד נתונים מקומי</a></li>
+            <li><a class="link" href="#threads">Threads ו-AsyncTask</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · יסודות</h2>
+
+    <!-- 1 -->
+    <section id="challenges">
+      <h3><span class="num">1.</span> אתגרי המובייל + רכיבי Android</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          פיתוח למובייל מציב אתגרים שאין ב-web/desktop, ו-Android בנויה כדי להתמודד איתם.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">📱</span>
+        <div class="body">
+          <span class="title">אתגרי המובייל</span>
+          <ul style="margin:0">
+            <li><strong>גרסאות OS</strong> רבות + הפצות שונות של יצרנים (Samsung, Xiaomi...).</li>
+            <li><strong>גדלי מסך ורזולוציות</strong> מגוונים.</li>
+            <li><strong>יעילות</strong> — סוללה ומשאבים מוגבלים; ה-OS <em>יכול לסגור תהליכים</em> בכל רגע כדי לפנות משאבים.</li>
+            <li><strong>קלט מגוון</strong> — מגע, מחוות (gestures), חיישנים.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p><strong>Android</strong> היא מערכת הפעלה מבוססת Linux לטלפונים, טאבלטים, שעונים, טלוויזיות ועוד. מגיעה עם <strong>SDK</strong> (אמולטורים, ספריות, תיעוד). רכיבי הליבה של אפליקציה:</p>
+      <table>
+        <thead><tr><th>רכיב</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Activity</strong></td><td>מסך בודד באפליקציה</td></tr>
+          <tr><td><strong>Fragment</strong></td><td>חלק מודולרי לשימוש חוזר בתוך Activity</td></tr>
+          <tr><td><strong>Intent</strong></td><td>"הודעה" לתקשורת בין רכיבים (למשל פתיחת מסך)</td></tr>
+          <tr><td><strong>Service</strong></td><td>לוגיקה ברקע (בלי UI)</td></tr>
+          <tr><td><strong>Broadcast Receiver</strong></td><td>מאזין לאירועי מערכת (למשל סיום אתחול)</td></tr>
+          <tr><td><strong>Content Provider</strong></td><td>שיתוף נתונים בין אפליקציות</td></tr>
+        </tbody>
+      </table>
+      <p>הבסיס תמיד: <strong>Java/Kotlin + XML</strong> — לוגיקה בקוד, layout ב-XML (ההפרדה מהרצאה 8).</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="activity">
+      <h3><span class="num">2.</span> Activity ומחזור החיים</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Activity</strong> = מסך בודד. יש לו UI (בדרך כלל) ולוגיקה (במחלקה). ה-Activity טוען את ה-layout שלו ב-<code>onCreate</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainActivity.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+    }
+}</code></pre>
+      </div>
+
+      <p>וה-layout המתאים (כאן עם <code>ConstraintLayout</code> — מסדר רכיבים לפי אילוצים יחסיים):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · res/layout/activity_main.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;?xml version="1.0" encoding="utf-8"?&gt;
+&lt;androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"&gt;
+
+    &lt;TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" /&gt;
+
+&lt;/androidx.constraintlayout.widget.ConstraintLayout&gt;</code></pre>
+      </div>
+      <p>ארבעת ה-<code>constraint</code> (top/bottom/left/right ל-parent) "נועלים" את ה-TextView במרכז המסך.</p>
+
+      <div class="callout info">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">מחזור החיים (Activity Life-cycle)</span>
+          ה-OS קורא ל-Activity דרך שרשרת callbacks לפי מצבו. זה קריטי במובייל — כי ה-OS יכול לעצור/להרוס את ה-Activity בכל רגע (שיחה נכנסת, מעבר לאפליקציה אחרת).
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code>      onCreate ──▶ onStart ──▶ onResume ──▶ [Activity בחזית, פעיל]
+                       ▲                          │
+                   onRestart                   onPause
+                       │                          ▼
+                       └────────  onStop  ◀───────┘
+                                    │
+                                 onDestroy</code></pre>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · מימוש ה-callbacks</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    @Override protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        setContentView(R.layout.activity_main);
+        Log.i("MainActivity", "onCreate");
+    }
+    @Override protected void onStart()   { super.onStart();   Log.i("MainActivity", "onStart"); }
+    @Override protected void onResume()  { super.onResume();  Log.i("MainActivity", "onResume"); }
+    @Override protected void onPause()   { super.onPause();   Log.i("MainActivity", "onPause"); }
+    @Override protected void onStop()    { super.onStop();    Log.i("MainActivity", "onStop"); }
+    @Override protected void onDestroy() { super.onDestroy(); Log.i("MainActivity", "onDestroy"); }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מתי כל callback</span>
+          <code>onCreate</code> (נוצר), <code>onStart</code> (נראה), <code>onResume</code> (אינטראקטיבי) → המשתמש פועל → <code>onPause</code> (מאבד פוקוס), <code>onStop</code> (לא נראה), <code>onDestroy</code> (נהרס). <code>onRestart</code> מחזיר Activity שנעצר. כאן שומרים/משחזרים מצב — למשל לעצור ניגון ב-<code>onPause</code>. (להשוואה: ב-React Native זה <code>useEffect</code>.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="resources">
+      <h3><span class="num">3.</span> Resources ו-<code>R</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ב-Android, נכסים שאינם קוד (layouts, מחרוזות, צבעים, תמונות) הם <strong>resources</strong> בתיקיית <code>res/</code>. ניגשים אליהם דרך מחלקה אוטומטית בשם <code>R</code>.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הפניה ל-resources</span>
+          <ul style="margin:0">
+            <li><strong>מ-Java:</strong> <code>R.layout.activity_main</code>, <code>R.string.foo</code>, <code>R.id.btnUpdate</code>.</li>
+            <li><strong>מ-XML:</strong> <code>@string/foo</code>, <code>@color/black</code>, <code>@drawable/icon</code>.</li>
+            <li><code>R</code> היא <em>הפניה</em> ל-resource, לא ה-resource עצמו (טעינה בפועל עשויה לדרוש קוד נוסף).</li>
+            <li><code>R</code> נוצרת ומתעדכנת <strong>אוטומטית</strong> ע"י כלי הבנייה.</li>
+          </ul>
+        </div>
+      </div>
+      <p>למשל קובץ המחרוזות (זוכרים את ה-i18n מהרצאה 8? קובץ <code>strings.xml</code> נפרד לכל שפה):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · res/values/strings.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;resources&gt;
+    &lt;string name="app_name"&gt;My Application&lt;/string&gt;
+    &lt;string name="button"&gt;foo&lt;/string&gt;
+    &lt;string name="checkbox"&gt;bar&lt;/string&gt;
+    &lt;string name="hello"&gt;hello&lt;/string&gt;
+&lt;/resources&gt;</code></pre>
+      </div>
+      <p>תיקייה כמו <code>values-land/</code> (landscape) או <code>values-es/</code> (ספרדית) תספק ערכים חלופיים לאותם שמות — וכך ה-UI מסתגל אוטומטית למצב/שפה.</p>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · Views ולוגיקה</h2>
+
+    <!-- 4 -->
+    <section id="views">
+      <h3><span class="num">4.</span> Views, ViewGroup ו-Layouts</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כל רכיב חזותי ב-Android יורש מהמחלקה <strong>View</strong>. אפשר ליצור Views ב-code, אבל עדיף ב-XML (הפרדת layout מלוגיקה — שוב, הרצאה 8).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · יצירת View ב-code מול XML</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// ב-Java:
+TextView hello = new TextView(this);
+hello.setText("Hello world");
+
+// ב-XML (מועדף):
+// &lt;TextView android:text="Hello world" /&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ViewGroup ו-Layouts</span>
+          <strong>ViewGroup</strong> = View שיכול להכיל Views אחרים. ה-<strong>Layouts</strong> הם תת-מחלקות של ViewGroup שמסדרות את הילדים בצורה מסוימת: <code>LinearLayout</code> (טור/שורה), <code>ConstraintLayout</code> (אילוצים יחסיים), <code>FrameLayout</code> ועוד. זה אותו רעיון של <strong>עץ רכיבים</strong> שראינו ב-View של React Native וב-div של HTML.
+        </div>
+      </div>
+
+      <p>דוגמה — מגוון רכיבים בתוך <code>LinearLayout</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · רכיבים שונים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;Button      android:text="@string/button" ... /&gt;
+    &lt;ImageButton app:srcCompat="@mipmap/ic_launcher" ... /&gt;
+    &lt;CheckBox    android:text="@string/checkbox" ... /&gt;
+    &lt;RadioGroup ...&gt;
+        &lt;RadioButton android:text="@string/radio1" ... /&gt;
+        &lt;RadioButton android:text="@string/radio2" ... /&gt;
+    &lt;/RadioGroup&gt;
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>gravity</code> מול <code>layout_gravity</code> — מלכודת נפוצה</span>
+          <code>android:gravity</code> — מיישר את <em>התוכן בתוך</em> ה-View (למשל הטקסט בתוך ה-TextView). <code>android:layout_gravity</code> — מיישר את <em>ה-View עצמו בתוך ההורה</em>. בלבול ביניהם הוא מקור תקלות קלאסי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="logic">
+      <h3><span class="num">5.</span> חיבור layout ללוגיקה</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-XML מגדיר <em>איך זה נראה</em>; ה-Java מגדיר <em>מה זה עושה</em>. הגשר ביניהם: <code>android:id</code> ב-XML, ו-<code>findViewById</code> ב-Java שמאתר את ה-View לפי ה-id.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · layout עם id-ים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;EditText android:id="@+id/etName"  ... android:hint="@string/etName" /&gt;
+&lt;Button   android:id="@+id/btnUpdate" ... android:text="@string/btnUpdate" /&gt;
+&lt;TextView android:id="@+id/tvName"   ... /&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · הלוגיקה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Button btn = findViewById(R.id.btnUpdate);
+
+        btn.setOnClickListener(view -&gt; {
+            EditText edName = findViewById(R.id.etName);
+            TextView tvName = findViewById(R.id.tvName);
+            tvName.setText(edName.getText().toString().toUpperCase());
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">\u200E@+id\u200E, findViewById, ו-lambda</span>
+          <ul style="margin:0">
+            <li><code>@+id/etName</code> — ה-<code>+</code> אומר "צור id חדש בשם הזה". בלי <code>+</code> = הפניה ל-id קיים.</li>
+            <li><code>findViewById(R.id.btnUpdate)</code> — מאתר את ה-View בזמן ריצה.</li>
+            <li><code>btn.setOnClickListener(view -&gt; {...})</code> — <strong>Listener pattern</strong> מהרצאה 8! כאן בתחביר <strong>lambda</strong> של Java (<code>view -&gt; {...}</code>) — קצר יותר מאשר <code>new View.OnClickListener(){...}</code>. שוב: מעבירים פונקציה, לא קוראים לה.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · Intents וניווט</h2>
+
+    <!-- 6 -->
+    <section id="intent">
+      <h3><span class="num">6.</span> Intent — מעבר בין Activities</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Intent</strong> = "כוונה" — דרך לתקשר בין רכיבים ב-Android, למשל לפתוח Activity אחר או לבקש מהמערכת לבצע פעולה. שני סוגים: <strong>explicit</strong> (מציינים בדיוק איזה Activity) ו-<strong>implicit</strong> (מציינים <em>פעולה</em>, והמערכת בוחרת מי יטפל).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Explicit מול Implicit</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// Explicit — פתח Activity ספציפי שלי
+Intent intent = new Intent(this, ActivityName.class);
+startActivity(intent);
+
+// Implicit — בקש מהמערכת "לפתוח כתובת" (כל דפדפן שמותקן)
+Intent intent = new Intent(Intent.ACTION_VIEW,
+                           Uri.parse("https://www.foo.com"));
+startActivity(intent);</code></pre>
+      </div>
+
+      <p><strong>העברת נתונים</strong> בין Activities עם <code>putExtra</code> / <code>getExtras</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Activity שולח (putExtra)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>btn.setOnClickListener(view -&gt; {
+    EditText edName = findViewById(R.id.etName);
+    Intent intent = new Intent(this, MainActivity2.class);
+    intent.putExtra("text", edName.getText().toString());
+    startActivity(intent);
+});</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Activity מקבל (getExtras)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity2 extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main2);
+
+        TextView tvName = findViewById(R.id.tvName);
+        Intent intent = getIntent();
+        String name = intent.getExtras().getString("text");
+        tvName.setText(name.toUpperCase());
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">putExtra / getExtras</span>
+          <code>putExtra("text", value)</code> מצרף נתון ל-Intent תחת מפתח. ב-Activity המקבל, <code>getIntent().getExtras().getString("text")</code> שולף אותו. זה ה-mechanism להעברת data בין מסכים — מקביל ל-props בהרצאה 8/10, אבל בין Activities.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="manifest">
+      <h3><span class="num">7.</span> Manifest ו-Activities Stack</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-<strong>AndroidManifest.xml</strong> הוא "תעודת הזהות" של האפליקציה: הוא מצהיר על כל ה-Activities, ההרשאות, והאייקון. בין השאר, הוא מגדיר <strong>intent-filters</strong> — אילו Intents כל Activity יודע לטפל בהם.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · AndroidManifest.xml (קטע)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;activity android:name=".MainActivity" android:exported="true"&gt;
+    &lt;intent-filter&gt;
+        &lt;action   android:name="android.intent.action.MAIN" /&gt;
+        &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ה-intent-filter המיוחד</span>
+          ה-<code>action.MAIN</code> + <code>category.LAUNCHER</code> מסמנים את ה-Activity ש<strong>נפתח כשלוחצים על אייקון האפליקציה</strong> — נקודת הכניסה. Activity עם intent-filter של <code>action.VIEW</code> + <code>data scheme="http"</code> יכול לטפל בקישורים — וכך implicit intent של "פתח כתובת" עשוי להגיע אליו.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">📚</span>
+        <div class="body">
+          <span class="title">Activities Stack (Back Stack)</span>
+          כל <code>startActivity</code> דוחף Activity חדש ל<strong>ערימה</strong>; כפתור ה-Back מוציא (pop) את העליון וחושף את הקודם. זו בדיוק ערימת ה-<code>Stack</code> מ-Expo Router (הרצאה 10) — אותו רעיון של ניווט-ערימה.
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code> Foreground:  [ FooActivity      ]  ◀── המשתמש רואה
+              [ AnotherActivity  ]
+              [ MainActivity     ]  ◀── תחתית הערימה
+                  Back Stack       (Back מוציא את העליון)</code></pre>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · רשימות</h2>
+
+    <!-- 8 -->
+    <section id="listview">
+      <h3><span class="num">8.</span> ListView ו-Adapter</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — תבנית ה-Adapter</span>
+          להצגת רשימה צריך שני דברים: <strong>ListView</strong> (ה-View שמציג את הרשימה) ו-<strong>Adapter</strong> (ה"מתאם" שמחבר בין הנתונים ל-Views של כל פריט). זו תבנית עיצוב מרכזית ב-Android: ה-ListView לא יודע כלום על הנתונים — ה-Adapter מתרגם נתון → View.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · ListView</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;ListView
+    android:id="@+id/lstFeed"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:dividerHeight="5dp" /&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · ArrayAdapter פשוט + onItemClick</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        ListView lst = findViewById(R.id.lstFeed);
+        ArrayAdapter&lt;String&gt; adapter = new ArrayAdapter&lt;String&gt;(this,
+            android.R.layout.simple_list_item_1,
+            getResources().getStringArray(R.array.menu));
+        lst.setAdapter(adapter);
+
+        lst.setOnItemClickListener((parent, view, position, id) -&gt; {
+            Toast.makeText(MainActivity.this,
+                ((TextView) view).getText().toString(),
+                Toast.LENGTH_LONG).show();
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ArrayAdapter</span>
+          <code>ArrayAdapter&lt;String&gt;</code> הוא adapter מובנה למערך מחרוזות. הוא מקבל את ה-context, layout לכל שורה (<code>simple_list_item_1</code> — מובנה), ואת מערך הנתונים. <code>setOnItemClickListener</code> מאזין ללחיצה על פריט (Listener pattern, שוב). <code>Toast</code> = הודעה קופצת קצרה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="custom-adapter">
+      <h3><span class="num">9.</span> Adapter מותאם + ViewHolder</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          לרשימה עם פריטים מורכבים (תמונה + שם + כפתורים — כמו פיד חברתי) צריך <strong>Adapter מותאם אישית</strong> שיורש מ-<code>BaseAdapter</code>. נתחיל ממחלקת המודל <code>Post</code>:
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Post.java (מודל)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class Post {
+    String name;
+    String whenPosted;
+    int profileImage;
+    int img;
+
+    public Post(String name, String whenPosted, int profileImage, int img) {
+        this.name = name; this.whenPosted = whenPosted;
+        this.profileImage = profileImage; this.img = img;
+    }
+    public String getName() { return name; }
+    public String getWhenPosted() { return whenPosted; }
+    // ... getters
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · FeedAdapter + ViewHolder</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class FeedAdapter extends BaseAdapter {
+    List&lt;Post&gt; posts;
+
+    private class ViewHolder {
+        TextView name;
+        TextView when;
+        ImageView profile;
+        ImageView img;
+    }
+
+    public FeedAdapter(List&lt;Post&gt; posts) { this.posts = posts; }
+
+    @Override public int getCount() { return posts.size(); }
+    @Override public Object getItem(int position) { return posts.get(position); }
+
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+        if (convertView == null) {
+            convertView = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.feed_post_layout, parent, false);
+
+            ViewHolder viewHolder = new ViewHolder();
+            viewHolder.name = convertView.findViewById(R.id.feed_post_name);
+            viewHolder.when = convertView.findViewById(R.id.feed_post_when);
+            viewHolder.profile = convertView.findViewById(R.id.feed_post_profile_img);
+            viewHolder.img = convertView.findViewById(R.id.feed_post_img);
+            convertView.setTag(viewHolder);
+        }
+
+        Post p = posts.get(position);
+        ViewHolder viewHolder = (ViewHolder) convertView.getTag();
+        viewHolder.name.setText(p.getName());
+        viewHolder.when.setText(p.getWhenPosted());
+        viewHolder.profile.setImageResource(p.getProfileImage());
+        viewHolder.img.setImageResource(p.getImg());
+
+        return convertView;
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תבנית ה-ViewHolder ו-convertView (חשוב לביצועים!)</span>
+          <ul style="margin:0">
+            <li><code>getView</code> נקרא לכל שורה. <code>LayoutInflater.inflate</code> "מנפח" XML ל-View אמיתי — פעולה <em>יקרה</em>.</li>
+            <li><code>convertView</code> — Android <strong>ממחזר</strong> Views של שורות שיצאו מהמסך. אם <code>convertView != null</code>, אפשר לעשות בו שימוש חוזר במקום לנפח מחדש.</li>
+            <li><strong>ViewHolder</strong> — שומר הפניות ל-Views (עם <code>setTag</code>/<code>getTag</code>) כדי לא לקרוא ל-<code>findViewById</code> בכל גלילה. זו אופטימיזציה קריטית — בלעדיה הרשימה "מקרטעת". (RecyclerView יאכוף את זה.)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="recycler">
+      <h3><span class="num">10.</span> RecyclerView</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>RecyclerView</strong> הוא היורש המודרני של ListView — יעיל יותר ומאכוף את תבנית ה-ViewHolder (לכן השם: הוא "ממחזר" Views). זה המקביל ל-<strong>FlatList</strong> מ-React Native (הרצאה 10).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainActivity — הגדרת RecyclerView</span><button class="copy-btn">העתק</button></div>
+        <pre><code>RecyclerView lstGrid = findViewById(R.id.lstGrid);
+GridAdapter gridAdapter = new GridAdapter(this, images);
+lstGrid.setAdapter(gridAdapter);
+lstGrid.setLayoutManager(
+    new StaggeredGridLayoutManager(2, LinearLayoutManager.VERTICAL));</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · GridAdapter</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class GridAdapter extends RecyclerView.Adapter&lt;GridAdapter.ViewHolder&gt; {
+    private int[] images;
+
+    public class ViewHolder extends RecyclerView.ViewHolder {
+        ImageView img;
+        ViewHolder(View itemView) {
+            super(itemView);
+            img = itemView.findViewById(R.id.grid_image);
+        }
+    }
+
+    GridAdapter(Context context, int[] images) { this.images = images; }
+
+    @Override
+    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext())
+            .inflate(R.layout.image_grid_layout, parent, false);
+        return new ViewHolder(view);
+    }
+
+    @Override
+    public void onBindViewHolder(ViewHolder holder, int position) {
+        holder.img.setImageResource(images[position]);
+    }
+
+    @Override
+    public int getItemCount() { return images.length; }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">שלוש המתודות של RecyclerView.Adapter</span>
+          <ul style="margin:0">
+            <li><code>onCreateViewHolder</code> — מנפח את ה-layout ויוצר ViewHolder (נקרא רק כשצריך View חדש).</li>
+            <li><code>onBindViewHolder</code> — ממלא ViewHolder קיים בנתונים של position מסוים (נקרא הרבה — בכל גלילה).</li>
+            <li><code>getItemCount</code> — כמה פריטים.</li>
+            <li><code>LayoutManager</code> (כמו <code>StaggeredGridLayoutManager</code>) קובע את <em>סידור</em> הפריטים — רשימה, רשת, וכו'.</li>
+          </ul>
+          ההפרדה בין create ל-bind היא בדיוק מה ש-ViewHolder ב-ListView עשה ידנית — כאן זה מובנה ומאולץ.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ה' · רכיבים מתקדמים</h2>
+
+    <!-- 11 -->
+    <section id="fragments">
+      <h3><span class="num">11.</span> Fragments</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Fragment</strong> = חתיכת UI+לוגיקה <em>מודולרית ולשימוש חוזר</em>, שחיה בתוך Activity (או fragment אחר). למה צריך? כדי לבנות מסכים מורכבים מחלקים, ולהתאים בין מסכי טלפון לטאבלט (למשל שני fragments זה לצד זה בטאבלט, ומסך-מסך בטלפון).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">מאפיינים</span>
+          ל-fragment יש <strong>מחזור חיים משלו</strong> (מושפע מזה של ה-Activity), <strong>back-stack נפרד</strong>, ואפשר כמה fragments באותו Activity — יחד או מחליפים זה את זה. (רעיון מוכר? זה ממש כמו <strong>components</strong> ב-React — חלקי UI לשימוש חוזר.)
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainFragment.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainFragment extends Fragment {
+    @Nullable @Override
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.main_fragment, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        TextView message = view.findViewById(R.id.message);
+        message.setText("Foobar");
+    }
+}</code></pre>
+      </div>
+      <p>מציבים fragment ב-Activity דינמית, דרך ה-<code>FragmentManager</code> (transaction):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · החלפת fragment בקוד</span><button class="copy-btn">העתק</button></div>
+        <pre><code>if (savedInstanceState == null) {
+    getSupportFragmentManager().beginTransaction()
+        .replace(R.id.container, MainFragment.newInstance())
+        .commit();
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">העברת ארגומנטים ל-fragment</span>
+          בדומה ל-Intent של Activity, ל-fragment מעבירים נתונים דרך <code>Bundle</code> ב-<code>setArguments</code>/<code>getArguments</code> (בדרך כלל במתודת factory בשם <code>newInstance</code>). שוב — אותו רעיון של props/extras בניב אחר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="receivers">
+      <h3><span class="num">12.</span> Broadcast Receivers ו-Notifications</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Broadcast Receiver</strong> מאזין ל"שידורים" של אירועי מערכת (סיום אתחול, שינוי חיבור רשת...) ומגיב להם — גם כשהאפליקציה לא פתוחה.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · BroadcastReceiver</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class Foo extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        Toast.makeText(context, "Boot completed!", Toast.LENGTH_LONG).show();
+    }
+}</code></pre>
+      </div>
+      <p>רושמים אותו ב-Manifest עם intent-filter (כאן: לאירוע סיום אתחול):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · רישום ב-Manifest</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;receiver android:name=".Foo" android:exported="true"&gt;
+    &lt;intent-filter&gt;
+        &lt;action android:name="android.intent.action.BOOT_COMPLETED" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/receiver&gt;</code></pre>
+      </div>
+
+      <p><strong>Notifications</strong> — בונים התראה עם <code>NotificationCompat.Builder</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · בניית התראה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Intent intent = new Intent(this, MainActivity.class);
+PendingIntent pendingIntent = PendingIntent.getActivity(
+    this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
+
+NotificationCompat.Builder builder =
+    new NotificationCompat.Builder(this, CHANNEL_ID)
+        .setSmallIcon(R.drawable.notification_icon)
+        .setContentTitle("My notification")
+        .setContentText("Hello World!")
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(pendingIntent)
+        .setAutoCancel(true);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">PendingIntent ו-Channels</span>
+          <code>PendingIntent</code> — "Intent דחוי" שהמערכת תפעיל מאוחר יותר בשמכם (למשל כשהמשתמש לוחץ על ההתראה). מ-Android 8+ חובה גם <strong>NotificationChannel</strong> — "ערוץ" שמקבץ התראות דומות ומאפשר למשתמש לשלוט בהן. ה-<code>.setXxx(...)</code> בשרשרת הוא <strong>Builder pattern</strong> — בונים אובייקט מורכב שלב-שלב.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="services">
+      <h3><span class="num">13.</span> Services</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בעוד Activity מבצע לוגיקה <em>לפי UI</em>, <strong>Service</strong> מבצע לוגיקה <strong>ברקע</strong> — בלי UI, ולא קשור ל-Activity מסוים (למשל הורדת קובץ, ניגון מוזיקה). שימו לב: כברירת מחדל הוא רץ על ה-thread הראשי — לעבודה כבדה צריך thread נפרד.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MyService</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MyService extends Service {
+    @Override
+    public IBinder onBind(Intent intent) { return null; }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        // ... לוגיקת רקע
+        return START_STICKY;   // ה-OS יפעיל מחדש את ה-service אם נהרג
+    }
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · הפעלת service מ-Activity</span><button class="copy-btn">העתק</button></div>
+        <pre><code>button.setOnClickListener(view -&gt; {
+    Intent intent = new Intent(this, MyService.class);
+    startForegroundService(intent);
+});</code></pre>
+      </div>
+    </section>
+
+    <!-- 14 -->
+    <section id="room">
+      <h3><span class="num">14.</span> Room — מסד נתונים מקומי</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>Room</strong> היא ספריית persistence שבנויה מעל <strong>SQLite</strong> (מסד רלציוני מוטמע במכשיר). זה בעצם <strong>ORM</strong> — בדיוק מה שלמדנו בהרצאה 9! (Hibernate היה ל-Java שרת; Room הוא ה-ORM של Android.) שלושה חלקים: <code>@Entity</code> (טבלה), <code>@Dao</code> (פעולות), <code>@Database</code> (ניהול).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · Entity</span><button class="copy-btn">העתק</button></div>
+        <pre><code>@Entity
+public class Post {
+    @PrimaryKey(autoGenerate = true)
+    private int id;
+    private String content;
+
+    public Post(String content) { this.content = content; }
+    public int getId() { return id; }
+    public String getContent() { return content; }
+    public void setId(int id) { this.id = id; }
+    public void setContent(String content) { this.content = content; }
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · DAO ו-Database</span><button class="copy-btn">העתק</button></div>
+        <pre><code>@Dao
+public interface PostDao {
+    @Query("SELECT * FROM post")            List&lt;Post&gt; index();
+    @Query("SELECT * FROM post WHERE id = :id") Post get(int id);
+    @Insert  void insert(Post... posts);
+    @Update  void update(Post... posts);
+    @Delete  void delete(Post... posts);
+}
+
+@Database(entities = {Post.class}, version = 1)
+public abstract class AppDB extends RoomDatabase {
+    public abstract PostDao postDao();
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Annotations של Room</span>
+          <ul style="margin:0">
+            <li><code>@Entity</code> + <code>@PrimaryKey(autoGenerate=true)</code> — מחלקה→טבלה, ומפתח ראשי שמתמלא אוטומטית (בדיוק <code>@Entity</code>/<code>@Id</code> של Hibernate מהרצאה 9!).</li>
+            <li><code>@Dao</code> — Data Access Object: ממשק עם פעולות. <code>@Query</code> מאפשר לכתוב SQL ידני; <code>@Insert</code>/<code>@Update</code>/<code>@Delete</code> נוצרים אוטומטית (CRUD).</li>
+            <li><code>@Database</code> — מחלקה אבסטרקטית שמרכזת את כל ה-DAOs ומגדירה גרסה.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · שימוש</span><button class="copy-btn">העתק</button></div>
+        <pre><code>AppDB db = Room.databaseBuilder(getApplicationContext(), AppDB.class, "FooDB")
+    .allowMainThreadQueries().build();
+PostDao postDao = db.postDao();
+
+postDao.insert(new Post("Hello"));   // Create
+List&lt;Post&gt; all = postDao.index();    // Read</code></pre>
+      </div>
+    </section>
+
+    <!-- 15 -->
+    <section id="threads">
+      <h3><span class="num">15.</span> Threads ו-AsyncTask</h3>
+      <div class="callout warn">
+        <span class="ic">🧵</span>
+        <div class="body">
+          <span class="title">הבעיה — ה-UI Thread</span>
+          כברירת מחדל האפליקציה רצה על ה-<strong>thread הראשי (UI thread)</strong>. אם מריצים עליו קוד ארוך (רשת, מסד), ה-<strong>UI נתקע</strong> — כי ה-thread עסוק ולא יכול לטפל בציור ובמגע. הכלל: <strong>דוחים משימות ארוכות ל-thread אחר</strong>. אבל — <em>אסור לגעת ב-UI מ-thread שאינו ה-UI thread</em> (צריך לחזור אליו, למשל עם <code>runOnUiThread</code>).
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">AsyncTask — הפתרון הקלאסי</span>
+          <strong>AsyncTask</strong> מפריד את העבודה: <code>doInBackground</code> רץ על thread נפרד, ו-<code>onPostExecute</code> רץ על ה-UI thread (אז בטוח לעדכן בו את המסך).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · AsyncTask בסיסי</span><button class="copy-btn">העתק</button></div>
+        <pre><code>private class FooTask extends AsyncTask&lt;String, Void, String&gt; {
+    protected String doInBackground(String... s) {
+        // עבודה כבדה — רץ על thread נפרד
+        return result;
+    }
+    protected void onPostExecute(String result) {
+        // עדכון UI — רץ על ה-UI thread (בטוח)
+    }
+}
+
+new FooTask().execute("Hello", "world");</code></pre>
+      </div>
+      <p>דוגמה מעשית — בקשת HTTP ברקע (צריך הרשאת אינטרנט ב-Manifest):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · HTTP request דרך AsyncTask</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!-- ב-Manifest: --&gt;
+&lt;uses-permission android:name="android.permission.INTERNET" /&gt;
+
+class FooTask extends AsyncTask&lt;URL, String, String&gt; {
+    @Override
+    protected String doInBackground(URL... urls) {
+        try {
+            HttpURLConnection connection = (HttpURLConnection) urls[0].openConnection();
+            if (connection.getResponseCode() == HttpsURLConnection.HTTP_OK) {
+                // קריאת ה-response מה-connection
+            }
+        } catch (IOException e) { }
+        return responseString;
+    }
+
+    @Override
+    protected void onPostExecute(String response) {
+        // עדכון ה-UI עם התשובה
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">\u200EAsyncTask&lt;Params, Progress, Result&gt;\u200E</span>
+          שלושת הטיפוסים הגנריים: סוג הקלט ל-<code>execute</code>, סוג עדכון ההתקדמות (<code>onProgressUpdate</code> + <code>publishProgress</code>), וסוג התוצאה שעוברת ל-<code>onPostExecute</code>. (הערה: AsyncTask הוקצה כ-deprecated בגרסאות חדשות לטובת פתרונות מודרניים, אבל הוא ממחיש מצוין את עקרון ה-threading.)
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">התמונה המלאה</span>
+          <ul style="margin:0">
+            <li><strong>Activity</strong> = מסך, עם <strong>מחזור חיים</strong> (onCreate→onStart→onResume→onPause→onStop→onDestroy) — קריטי כי ה-OS שולט.</li>
+            <li><strong>Views/Layouts</strong> — עץ רכיבים ב-XML; <code>findViewById</code> + <code>setOnClickListener</code> מחברים ללוגיקה (Listener pattern). <strong>Resources</strong> דרך <code>R</code>.</li>
+            <li><strong>Intent</strong> — מעבר בין Activities (explicit/implicit), העברת נתונים ב-<code>putExtra</code>. <strong>Manifest</strong> מצהיר הכל; ניווט = <strong>back stack</strong>.</li>
+            <li><strong>רשימות</strong> — תבנית <strong>Adapter</strong>: ListView+ArrayAdapter, Adapter מותאם עם <strong>ViewHolder</strong> (מיחזור Views), ו-<strong>RecyclerView</strong> המודרני (onCreate/onBindViewHolder).</li>
+            <li><strong>Fragments</strong> — UI מודולרי לשימוש חוזר (≈ components). <strong>Services</strong> — לוגיקת רקע. <strong>Broadcast Receivers</strong> + <strong>Notifications</strong>.</li>
+            <li><strong>Room</strong> — ORM מעל SQLite (@Entity/@Dao/@Database) — בדיוק ה-ORM מהרצאה 9, על המכשיר.</li>
+            <li><strong>Threads</strong> — לא חוסמים את ה-UI thread; <strong>AsyncTask</strong> (doInBackground/onPostExecute) לעבודה ברקע.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">חיבורים</span>
+          <strong>native מול cross-platform</strong> (הרצאה 8): כאן הגרסה ה-native — יותר כוח, יותר קוד, מול React Native (הרצאה 10) הקצר יותר. ה-<strong>Listener pattern</strong> (הרצאה 8) בכל מקום. ה-<strong>back stack</strong> = ה-Stack של Expo Router. <strong>RecyclerView</strong> = FlatList. <strong>Room</strong> = ORM מהרצאה 9. ה-XML layouts וה-string resources ראינו כבר בהרצאה 8.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">➡️</span>
+        <div class="body">
+          <span class="title">בהרצאה 12</span>
+          נסדר את כל החתיכות לארכיטקטורה נכונה: <strong>ViewModel</strong>, <strong>LiveData</strong> ו-<strong>Repository</strong> ("single source of truth"), ונחבר את אפליקציית האנדרואיד לשרת אמיתי עם <strong>Retrofit</strong> — סוגרים את המעגל עם ה-API מהרצאה 9.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-10.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 10 · React Native</span>
+      </a>
+      <a class="next" href="lecture-12.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">הרצאה 12 · Android — ארכיטקטורה</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

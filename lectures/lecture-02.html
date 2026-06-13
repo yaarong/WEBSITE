@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 2 · כתיבת קוד טוב יותר והנדסת תוכנה</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 2 · קוד טוב יותר + הנדסת תוכנה</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 2</div>
+      <h1>כתיבת קוד טוב יותר &amp; הנדסת תוכנה</h1>
+      <p>איך הופכים קוד "שעובד" לקוד <strong>טוב</strong> — refactoring, code smells, עקרונות DRY/KISS/SOLID, תבניות עיצוב ובדיקות. ואז התמונה הגדולה: איך מנהלים פרויקט תוכנה שלם — מ-Waterfall ועד Agile.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🗺️</span>
+      <div class="body">
+        <span class="title">מבנה ההרצאה — שני חלקים</span>
+        ההרצאה מורכבת משתי מצגות. <strong>חלק א'</strong> צולל פנימה אל הקוד עצמו (איך כותבים מודול אחד טוב). <strong>חלק ב'</strong> מתרחק החוצה אל ניהול הפרויקט כולו (איך מנהלים את כל תהליך הפיתוח). שניהם חולקים רעיון מרכזי אחד: <em>קוד והפרויקט מתפתחים בהדרגה, ואנחנו צריכים כלים כדי לנהל את ההתפתחות הזו בצורה איכותית.</em>
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — כתיבת קוד טוב יותר</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#news-app">אפליקציית News — הפרויקט לדוגמה</a></li>
+            <li><a class="link" href="#refactoring">Refactoring — מהו</a></li>
+            <li><a class="link" href="#principles">עקרונות עיצוב: DRY, YAGNI, KISS</a></li>
+            <li><a class="link" href="#dry">DRY בפועל</a></li>
+            <li><a class="link" href="#comments">הערות (Comments) — בחוסר, מיותרות ומשמעותיות</a></li>
+            <li><a class="link" href="#smells">Code Smells — "ריחות רעים" בקוד</a></li>
+            <li><a class="link" href="#long-methods">פיצול מתודות ארוכות</a></li>
+            <li><a class="link" href="#solid">עקרונות SOLID</a></li>
+            <li><a class="link" href="#srp">Single Responsibility</a></li>
+            <li><a class="link" href="#ocp-command">Open/Closed + תבנית Command</a></li>
+            <li><a class="link" href="#lsp">Liskov Substitution</a></li>
+            <li><a class="link" href="#isp">Interface Segregation</a></li>
+            <li><a class="link" href="#dip">Dependency Inversion + Injection</a></li>
+            <li><a class="link" href="#tests">בדיקות (Tests) וסוגיהן</a></li>
+            <li><a class="link" href="#tdd">TDD — Red, Green, Refactor</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — הנדסת תוכנה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#crisis">משבר התוכנה</a></li>
+            <li><a class="link" href="#what-is-se">מהי הנדסת תוכנה</a></li>
+            <li><a class="link" href="#stages">שלבי פרויקט תוכנה</a></li>
+            <li><a class="link" href="#waterfall">מודל המפל (Waterfall)</a></li>
+            <li><a class="link" href="#vmodel">מודל V</a></li>
+            <li><a class="link" href="#iterative">מודלים איטרטיביים ואינקרמנטליים</a></li>
+            <li><a class="link" href="#prototype">מודל הפרוטוטייפ</a></li>
+            <li><a class="link" href="#agile">Agile — המניפסט והעקרונות</a></li>
+            <li><a class="link" href="#scrum">Scrum</a></li>
+            <li><a class="link" href="#xp">Extreme Programming (XP)</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART A -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · כתיבת קוד טוב יותר</h2>
+
+    <!-- 1. News App -->
+    <section id="news-app">
+      <h3><span class="num">1.</span> אפליקציית News — הפרויקט לדוגמה</h3>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — למה מתחילים מדוגמה?</span>
+          כל החלק הזה נבנה סביב פרויקט אחד שמלווה אותנו: <strong>אפליקציית חדשות</strong>. נתחיל מקוד "שעובד" אבל מכוער, ולאורך ההרצאה נשפר אותו צעד-צעד. הרעיון: ללמוד עקרונות לא בהפשטה, אלא תוך כדי תיקון קוד אמיתי.
+        </div>
+      </div>
+
+      <p><strong>מטרות הפרויקט (Goals):</strong></p>
+      <ul>
+        <li>לפתח אפליקציית חדשות (News app).</li>
+        <li>בהמשך יהיו לנו <strong>כמה ממשקי משתמש (UIs)</strong> שונים.</li>
+        <li>נתנסה בהרבה טכנולוגיות.</li>
+        <li>המטרה: לכתוב <strong>קוד טוב, ביעילות</strong> — ולא רק קוד שעובד.</li>
+      </ul>
+
+      <p><strong>דרישות (Requirements):</strong> לאפליקציה יש תפריט שמאפשר: (1) להציג את כל הכתבות, (2) להוסיף כתבה חדשה. בעת הפעלה — מוצגות כל הכתבות הקיימות. הריצה נראית כך בטרמינל:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">console · demo</span><button class="copy-btn">העתק</button></div>
+        <pre><code>What would you like to do next?
+1. Show all articles
+2. Add article
+2
+Hello world
+What would you like to do next?
+1. Show all articles
+2. Add article</code></pre>
+      </div>
+
+      <h4 style="margin-top:1.5rem">הקוד הראשוני — הכל בתוך <code>main</code> אחד</h4>
+      <p>זהו הקוד שאיתו מתחילים. הוא <strong>עובד</strong>, אבל כפי שנראה מיד — הוא מלא בעיות:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · main.cpp (הגרסה הראשונית)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;fstream&gt;
+using namespace std;
+
+int main() {
+    // הצגת כל הכתבות בהפעלה
+    ifstream file("articles.txt");
+    string line;
+    while (getline(file, line)) {
+        cout &lt;&lt; line &lt;&lt; endl;
+    }
+    file.close();
+
+    int task;
+    cout &lt;&lt; "What would you like to do next?" &lt;&lt; endl;
+    cout &lt;&lt; "1. Show all articles" &lt;&lt; endl;
+    cout &lt;&lt; "2. Add article" &lt;&lt; endl;
+    cin &gt;&gt; task;
+
+    while (true) {
+        switch (task) {
+            case 1: {
+                ifstream file("articles.txt");
+                string line;
+                while (getline(file, line)) {
+                    cout &lt;&lt; line &lt;&lt; endl;
+                }
+                file.close();
+                break;
+            }
+            case 2: {
+                string article;
+                getline(cin, article);   // "בולע" את ה-\n שנשאר מ-cin &gt;&gt; task
+                getline(cin, article);   // קורא את הכתבה בפועל
+
+                ofstream file("articles.txt", ios_base::app);
+                file &lt;&lt; article &lt;&lt; endl;
+                file.close();
+                break;
+            }
+            default: {
+                cout &lt;&lt; "Sorry, no can do" &lt;&lt; endl;
+                break;
+            }
+        }
+
+        cout &lt;&lt; "What would you like to do next?" &lt;&lt; endl;
+        cout &lt;&lt; "1. Show all articles" &lt;&lt; endl;
+        cout &lt;&lt; "2. Add article" &lt;&lt; endl;
+        cin &gt;&gt; task;
+    }
+}</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס C++ שכדאי להכיר כאן</span>
+          <code>ifstream</code> = <em>input file stream</em> — קריאה מקובץ. <code>ofstream</code> = <em>output</em> — כתיבה לקובץ. <code>ios_base::app</code> = פתיחה במצב <em>append</em> (הוספה לסוף הקובץ במקום דריסה). <code>getline(file, line)</code> קורא שורה שלמה. <code>cin &gt;&gt; task</code> קורא מספר אבל <strong>משאיר את ה-<code>\n</code></strong> בבאפר — ולכן צריך <code>getline</code> "מבזבז" כדי לנקות אותו (זה כבר ריח של קוד...).
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">הקוד הזה מלא בעיות</span>
+          קוד הצגת הכתבות מופיע <strong>פעמיים</strong> (כפילות), קוד התפריט מופיע פעמיים, ה-<code>main</code> עושה הכל (קריאת קובץ + לוגיקה + UI), ואי אפשר לבדוק אותו. נשפר אותו <strong>צעד אחר צעד</strong> — תהליך שנקרא <strong>refactoring</strong>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Refactoring -->
+    <section id="refactoring">
+      <h3><span class="num">2.</span> Refactoring — מהו</h3>
+      <div class="callout warn">
+        <span class="ic">🔧</span>
+        <div class="body">
+          <span class="title">הגדרה</span>
+          <strong>Refactoring</strong> = שיפור המבנה הפנימי של הקוד <em>בלי לשנות את ההתנהגות החיצונית שלו</em>. הקוד ימשיך לעשות בדיוק את אותו דבר — אבל יהיה קריא, נקי וקל יותר לתחזוקה. עושים זאת בצעדים קטנים, אחד בכל פעם.
+        </div>
+      </div>
+      <p>לאורך החלק הזה נשתמש בשתי גישות משלימות לזיהוי <em>מה</em> לשפר: (1) <strong>עקרונות עיצוב</strong> (DRY, KISS, SOLID...) שאומרים מה לשאוף אליו, ו-(2) <strong>code smells</strong> ("ריחות רעים") שמסמנים מה כנראה דורש תיקון.</p>
+    </section>
+
+    <!-- 3. Principles -->
+    <section id="principles">
+      <h3><span class="num">3.</span> עקרונות עיצוב: DRY, YAGNI, KISS</h3>
+      <table>
+        <thead><tr><th>עיקרון</th><th>פירוש</th><th>המשמעות</th></tr></thead>
+        <tbody>
+          <tr><td><strong>DRY</strong></td><td>Don't Repeat Yourself</td><td>אל תחזור על עצמך — כל ידע/לוגיקה צריך להופיע במקום <em>אחד</em>. כפילות = מקור לבאגים.</td></tr>
+          <tr><td><strong>YAGNI</strong></td><td>You Ain't Gonna Need It</td><td>אל תכתוב קוד "ליתר ביטחון" לפיצ'רים שאולי תצטרך. תבנה מה שצריך עכשיו.</td></tr>
+          <tr><td><strong>KISS</strong></td><td>Keep It Simple, Silly</td><td>שמור על הפשטות. הפתרון הפשוט ביותר שעובד הוא בדרך כלל הטוב ביותר.</td></tr>
+        </tbody>
+      </table>
+      <p>ויש עוד רבים. נתחיל מ-DRY כי הוא הכי בולט בקוד שלנו.</p>
+    </section>
+
+    <!-- 4. DRY -->
+    <section id="dry">
+      <h3><span class="num">4.</span> DRY בפועל</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          בקוד הראשוני, גוש "הדפסת התפריט" מופיע פעם בהתחלה ופעם בסוף הלולאה, וגוש "הצגת כתבות" מופיע ב-<code>case 1</code> וגם לפני הלולאה. נסיר את הכפילות.
+        </div>
+      </div>
+      <p>הטריק היפה: אם נאתחל <code>int task = 1;</code> ונשים את הדפסת התפריט <strong>רק בסוף הלולאה</strong>, אז האיטרציה הראשונה תבצע אוטומטית את <code>case 1</code> (הצגת הכתבות) — ובכך נחסך גם הגוש הכפול שלפני הלולאה <em>וגם</em> הגוש הכפול של התפריט:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · DRY fixed</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int main() {
+    int task = 1;          // מאותחל ל-1 → האיטרציה הראשונה מציגה את הכתבות
+
+    while (true) {
+        switch (task) {
+            case 1: { /* ... הצגת כתבות ... */ break; }
+            case 2: { /* ... הוספת כתבה   ... */ break; }
+            default: {
+                cout &lt;&lt; "Sorry, no can do" &lt;&lt; endl;
+                break;
+            }
+        }
+
+        // התפריט מופיע פעם אחת בלבד
+        cout &lt;&lt; "What would you like to do next?" &lt;&lt; endl;
+        cout &lt;&lt; "1. Show all articles" &lt;&lt; endl;
+        cout &lt;&lt; "2. Add article" &lt;&lt; endl;
+        cin &gt;&gt; task;
+    }
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">למה זה משנה (משלי)</span>
+          תחשבו שמחר רוצים לשנות את נוסח התפריט. בקוד הכפול — צריך לזכור לשנות בשני מקומות, ואם שוכחים אחד מהם נוצר באג. עם DRY — משנים במקום אחד, וזהו. <em>כל</em> כפילות היא חוב עתידי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Comments -->
+    <section id="comments">
+      <h3><span class="num">5.</span> הערות (Comments)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          חוסר הערות הוא code smell — אבל גם הערות מיותרות הן! נראה את שני הקצוות ואז את הדרך הנכונה.
+        </div>
+      </div>
+
+      <h4>הערות מיותרות (Pointless) — ❌</h4>
+      <p>הערה שרק חוזרת על מה שהקוד כבר אומר בבירור היא רעש מיותר:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · הערות מיותרות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// init task
+int task = 1;
+
+// loop forever
+while (true) {
+    // branch task
+    switch (task) {
+        case 1: {
+            // handle file
+            ifstream file("articles.txt");</code></pre>
+      </div>
+      <p>הערות כמו <code>// loop forever</code> ליד <code>while(true)</code> לא מוסיפות שום מידע — הקוד כבר אומר את זה.</p>
+
+      <h4>הערות משמעותיות (Meaningful) — ✅</h4>
+      <p>הערה טובה מסבירה את ה-<strong>"למה"</strong> ואת הכוונה, לא את ה-"מה":</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · הערות משמעותיות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// loop forever, because the app never closes
+while (true) {
+    // perform a task based on user input
+    switch (task) {
+        // option 1: print all articles
+        case 1: {
+            // open the file that contains all articles
+            ifstream file("articles.txt");
+
+            // read all articles from the file and print to screen
+            string line;
+            while (getline(file, line)) {
+                cout &lt;&lt; line &lt;&lt; endl;
+            }
+
+            // close file, because we no longer need it
+            file.close();
+            break;
+        }</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">כלל אצבע (משלי)</span>
+          הקוד אומר <strong>מה</strong> קורה; ההערה צריכה להסביר <strong>למה</strong>. אם אתם נאלצים להוסיף הערה כדי שהקוד יהיה מובן — לפעמים עדיף לשנות את הקוד עצמו (שם משתנה טוב, פונקציה עם שם ברור) במקום להוסיף הערה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Code smells -->
+    <section id="smells">
+      <h3><span class="num">6.</span> Code Smells — "ריחות רעים" בקוד</h3>
+      <div class="callout warn">
+        <span class="ic">👃</span>
+        <div class="body">
+          <span class="title">מהו Code Smell</span>
+          <strong>Code smell</strong> הוא סימן בקוד שמרמז (אבל לא מבטיח) שיש בעיית עיצוב עמוקה יותר. כמו ריח רע במקרר — לא בהכרח משהו רקוב, אבל שווה לבדוק. הנה הרשימה מההרצאה:
+        </div>
+      </div>
+      <ul>
+        <li><strong>Duplicated code</strong> — קוד כפול (כמו שראינו ב-DRY).</li>
+        <li><strong>Too similar sub-classes</strong> — תתי-מחלקות דומות מדי.</li>
+        <li><strong>Lack of comments</strong> — חוסר הערות.</li>
+        <li><strong>Pointless comments</strong> — הערות מיותרות.</li>
+        <li><strong>Long methods</strong> — מתודות ארוכות מדי.</li>
+        <li><strong>Many parameters</strong> / יותר מדי מתודות לא-ציבוריות.</li>
+        <li><strong>A class with too many variables</strong> — מחלקה עם יותר מדי משתנים.</li>
+        <li><strong>Long/short identifiers</strong> — שמות ארוכים מדי או קצרים מדי.</li>
+        <li><strong>Excessive return of data</strong> — החזרת יותר מידע מהנדרש.</li>
+        <li><strong>Same name, different meaning</strong> / שמות לא עקביים.</li>
+        <li><strong>Trivial modules / middleman</strong> — שכבות מתווכות מיותרות.</li>
+        <li><strong>Downcasting</strong> — שובר את ההפשטה (abstraction).</li>
+        <li><strong>Multiple inheritance</strong> — "יהלום הארור" (dreaded diamond).</li>
+        <li><strong>Unnecessary complexity</strong> — למשל כפיית design pattern במקום שלא צריך.</li>
+        <li><strong>The GOD class/function</strong> — עושה יותר מדי.</li>
+        <li><strong>Freeloader</strong> — עושה מעט מדי.</li>
+        <li><strong>Conditional complexity</strong> — יותר מדי הסתעפויות (if/switch).</li>
+        <li><strong>Tight coupling with implementation</strong> — צימוד הדוק למימוש קונקרטי.</li>
+      </ul>
+      <div class="callout tip">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">הקוד שלנו "מסריח" (משלי)</span>
+          ה-<code>main</code> שלנו הוא <strong>GOD function</strong> קלאסי (עושה הכל), עם <strong>conditional complexity</strong> (switch גדול) ו-<strong>tight coupling</strong> לקבצים ול-UI. בהמשך נתקוף בדיוק את הריחות האלה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Long methods -->
+    <section id="long-methods">
+      <h3><span class="num">7.</span> פיצול מתודות ארוכות</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ה-<code>main</code> שלנו ארוך ועושה הרבה דברים שונים. הפתרון: לחלץ כל "משימה" לפונקציה נפרדת עם שם ברור. זה הופך את ה-<code>main</code> לקריא כמו תוכן עניינים.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · main קריא אחרי חילוץ פונקציות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int main() {
+    int task = 1;          // איזו פעולה המשתמש רוצה לבצע
+
+    while (true) {
+        switch (task) {
+            case 1:
+                print_articles();   // option 1: print all articles
+                break;
+            case 2:
+                add_article();      // option 2: add a new article
+                break;
+            default:
+                cout &lt;&lt; "Sorry, no can do" &lt;&lt; endl;
+                break;
+        }
+        print_menu();
+        cin &gt;&gt; task;
+    }
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">היתרון</span>
+          עכשiו אפשר לקרוא את ה-<code>main</code> ולהבין את הזרימה ב-3 שניות, בלי לצלול לפרטים. כל פונקציה אחראית על דבר אחד — וזה בדיוק מוביל אותנו לעיקרון הבא.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. SOLID -->
+    <section id="solid">
+      <h3><span class="num">8.</span> עקרונות SOLID</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <strong>SOLID</strong> הוא ראשי תיבות של חמישה עקרונות עיצוב מונחה-עצמים, שמטרתם קוד גמיש, ניתן לתחזוקה והרחבה. נעבור עליהם אחד-אחד עם דוגמאות מהפרויקט.
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>אות</th><th>עיקרון</th><th>בקצרה</th></tr></thead>
+        <tbody>
+          <tr><td><strong>S</strong></td><td>Single Responsibility</td><td>אחריות אחת לכל מחלקה/פונקציה.</td></tr>
+          <tr><td><strong>O</strong></td><td>Open / Closed</td><td>פתוח להרחבה, סגור לשינוי.</td></tr>
+          <tr><td><strong>L</strong></td><td>Liskov Substitution</td><td>תת-מחלקה חייבת להחליף את מחלקת-העל בלי לשבור.</td></tr>
+          <tr><td><strong>I</strong></td><td>Interface Segregation</td><td>ממשקים קטנים וממוקדים במקום אחד גדול.</td></tr>
+          <tr><td><strong>D</strong></td><td>Dependency Inversion</td><td>תלות בהפשטות (interfaces), לא במימושים.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 9. SRP -->
+    <section id="srp">
+      <h3><span class="num">9.</span> Single Responsibility Principle (S)</h3>
+      <div class="callout warn">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">העיקרון</span>
+          לכל מחלקה/פונקציה צריכה להיות <strong>אחריות אחת בלבד</strong> — סיבה אחת להשתנות. היתרון: פחות באגים, קל יותר לבדוק, להבין ולתחזק. אם לפונקציה יש כמה אחריויות, שינוי באחת עלול לשבור את השנייה.
+        </div>
+      </div>
+      <p>הפונקציה <code>add_article()</code> שלנו עושה שני דברים: <strong>קוראת קלט מהמשתמש</strong> וגם <strong>כותבת לקובץ</strong>. נפצל אותה לשתי פונקציות, כל אחת עם אחריות אחת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · פיצול לפי אחריות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// option 2: add a new article
+case 2: {
+    string article = get_article_from_user();   // אחריות 1: קלט
+    add_article(article);                         // אחריות 2: שמירה
+    break;
+}
+
+// אחריות אחת: לקרוא כתבה מהמשתמש ולהחזיר אותה
+string get_article_from_user() {
+    string article;
+    getline(cin, article);   // מנקה את ה-\n שנותר. TODO: refactor
+    getline(cin, article);
+    return article;
+}
+
+// אחריות אחת: לשמור כתבה לקובץ
+void add_article(string article) {
+    ofstream file("articles.txt", ios_base::app);
+    file &lt;&lt; article &lt;&lt; endl;
+    file.close();
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">למה זה חזק (משלי)</span>
+          עכשיו אם נרצה לקרוא כתבה ממקור אחר (קובץ, רשת, ממשק גרפי) — נשנה רק את <code>get_article_from_user</code>. ואם נרצה לשמור ל-DB במקום לקובץ — נשנה רק את <code>add_article</code>. כל שינוי מבודד לאחריות שלו.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10. OCP + Command -->
+    <section id="ocp-command">
+      <h3><span class="num">10.</span> Open/Closed + תבנית Command</h3>
+      <div class="callout warn">
+        <span class="ic">🚪</span>
+        <div class="body">
+          <span class="title">Open/Closed Principle (O)</span>
+          קוד צריך להיות <strong>פתוח להרחבה אך סגור לשינוי</strong>. כלומר: כשרוצים להוסיף יכולת חדשה, נשאף שאפשר יהיה <em>להרחיב</em> (למשל ע"י ירושה/מימוש interface) <strong>בלי לשנות</strong> את הקוד הקיים (שכבר נבדק ועובד — ואולי בכלל לא נגיש לנו).
+        </div>
+      </div>
+      <p>הבעיה ב-<code>switch (task)</code> שלנו: כל פעם שנרצה להוסיף פעולה חדשה, נצטרך <em>לשנות</em> את ה-switch ולהוסיף <code>case</code>. זה מפר את Open/Closed. הפתרון הקלאסי הוא <strong>תבנית Command</strong>.</p>
+
+      <div class="callout info">
+        <span class="ic">📐</span>
+        <div class="body">
+          <span class="title">תבנית Command (Behavioral Pattern)</span>
+          תבנית התנהגותית ש<strong>מנתקת (decouples)</strong> את <em>הצורך להפעיל פעולה</em> מ-<em>הפעולה הקונקרטית עצמה</em>. כל פעולה הופכת לאובייקט נפרד שמממש ממשק אחיד. התוצאה: גמישות והרחבה.
+        </div>
+      </div>
+
+      <p><strong>שלב 1:</strong> ממשק משותף לכל הפקודות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · ICommand</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class ICommand {
+public:
+    virtual void execute() = 0;   // מתודה טהורה וירטואלית = ממשק
+};
+// הערה: למען הפשטות, מתעלמים כאן מ-virtual destructor</code></pre>
+      </div>
+
+      <p><strong>שלב 2:</strong> כל פעולה היא מחלקה שמממשת את הממשק:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · פקודות קונקרטיות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class DisplayArticlesCommand : public ICommand {
+public:
+    void execute() {
+        ifstream file("articles.txt");
+        string line;
+        // ...
+    }
+};
+
+class AddArticleCommand : public ICommand {
+public:
+    void execute() {
+        string title, content;
+        cout &lt;&lt; "Enter article title: ";
+        // ...
+        // BTW: להוסיף כתבה לאן? לקובץ? ל-DB? (נחזור לזה ב-DIP)
+    }
+};</code></pre>
+      </div>
+
+      <p><strong>שלב 3:</strong> רושמים את הפקודות ב-<code>map</code> וקושרים אותן למפתחות התפריט:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · רישום הפקודות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>map&lt;string, ICommand*&gt; commands;
+
+ICommand* displayArticles = new DisplayArticlesCommand();
+commands["1"] = displayArticles;
+
+ICommand* addArticle = new AddArticleCommand();
+commands["2"] = addArticle;
+
+App app(commands);
+app.run();
+
+// TODO: לאפשר יציאה מסודרת (graceful exit)
+delete displayArticles;
+delete addArticle;</code></pre>
+      </div>
+
+      <p><strong>שלב 4:</strong> הלולאה הראשית הופכת לנקייה — אין יותר <code>switch</code>! פשוט מפעילים את הפקודה המתאימה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · run() ללא switch</span><button class="copy-btn">העתק</button></div>
+        <pre><code>void run() {
+    int task;
+    while (true) {
+        cout &lt;&lt; "What would you like to do next?" &lt;&lt; endl;
+        cout &lt;&lt; "1. Show all articles" &lt;&lt; endl;
+        cout &lt;&lt; "2. Add article" &lt;&lt; endl;
+        cin &gt;&gt; task;
+
+        try {
+            commands[task]-&gt;execute();
+        }
+        catch (...) {
+            cout &lt;&lt; "Sorry, no can do" &lt;&lt; endl;
+        }
+    }
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">השגנו Open/Closed</span>
+          עכשיו כדי להוסיף פעולה חדשה — פשוט יוצרים מחלקת <code>ICommand</code> חדשה ומוסיפים אותה ל-<code>map</code>. <strong>לא נוגעים</strong> בקוד של <code>run()</code> בכלל. הקוד פתוח להרחבה, סגור לשינוי. (שימו לב גם איך ה-<code>try/catch</code> החליף את ה-<code>default</code>.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. LSP -->
+    <section id="lsp">
+      <h3><span class="num">11.</span> Liskov Substitution Principle (L)</h3>
+      <div class="callout warn">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">העיקרון (Robert C. Martin)</span>
+          "פונקציות שמשתמשות במצביעים/הפניות למחלקת-בסיס חייבות להיות מסוגלות להשתמש באובייקטים של מחלקות-נגזרות <strong>בלי לדעת זאת</strong>." במילים פשוטות: אם <code>B</code> יורש מ-<code>A</code>, אז בכל מקום שמצפה ל-<code>A</code> צריך להיות אפשר לשים <code>B</code> בלי לשבור כלום.
+        </div>
+      </div>
+      <p>הדוגמה הקלאסית: <strong>ריבוע הוא מלבן?</strong> מבחינה לוגית "כן" (ריבוע is-a מלבן) — אבל זה לא בהכרח עיצוב טוב:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · הבעיה של square/rectangle</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// r מטיפוס Rectangle (אבל בפועל אולי Square שיורש ממנו)
+r.setWidth(2);
+r.setHeight(4);
+
+if (r.area() == 8) { ... }   // עבור Rectangle נכון; עבור Square?!</code></pre>
+      </div>
+      <p>אם <code>Square</code> יורש מ-<code>Rectangle</code>, וכדי לשמור על ריבועיות הוא דואג שכשמשנים רוחב גם הגובה משתנה — אז קוד שבדק <code>area() == 8</code> (כי הוא חשב שיש מלבן 2×4) <strong>ייכשל</strong>, כי בריבוע הרוחב והגובה השתנו יחד ל-4×4=16. ה-<code>Square</code> "הפתיע" את מי שציפה ל-<code>Rectangle</code> ⟵ הפרה של Liskov.</p>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">המסר</span>
+          "מה שנשמע הגיוני" (ריבוע is-a מלבן) הוא לא תמיד עיצוב טוב. ירושה צריכה לשמר את ה<em>התנהגות</em> שמצפים לה ממחלקת-העל, לא רק את היחס הלוגי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. ISP -->
+    <section id="isp">
+      <h3><span class="num">12.</span> Interface Segregation Principle (I)</h3>
+      <div class="callout warn">
+        <span class="ic">✂️</span>
+        <div class="body">
+          <span class="title">העיקרון</span>
+          במקום ממשק אחד גדול — לפצל אותו לכמה ממשקים קטנים וממוקדים. כך מונעים ממחלקות מממשות להיאלץ לממש מתודות שאין להן צורך בהן (ולכתוב מימוש ריק/שגוי רק כדי "לספק" את הממשק).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">דוגמה (משלי)</span>
+          ממשק ענק <code>IMachine</code> עם <code>print()</code>, <code>scan()</code>, <code>fax()</code> מכריח מדפסת פשוטה לממש גם <code>scan</code> ו-<code>fax</code> שאין לה. עדיף לפצל ל-<code>IPrinter</code>, <code>IScanner</code>, <code>IFax</code> — וכל מכשיר מממש רק את מה שרלוונטי לו.
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. DIP -->
+    <section id="dip">
+      <h3><span class="num">13.</span> Dependency Inversion + Dependency Injection (D)</h3>
+      <div class="callout warn">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">Dependency Inversion Principle</span>
+          להעדיף <strong>צימוד רופף (loose coupling)</strong> על פני צימוד הדוק. במקום שמחלקה תתלה במימוש קונקרטי — היא תתלה ב<strong>ממשק (interface)</strong>, וכל מימוש שתואם לממשק יוכל להיכנס במקומו.
+        </div>
+      </div>
+      <p>דוגמת המכונית מההרצאה:</p>
+      <ul>
+        <li>מכונית חייבת מנגנון <strong>הצתה (ignition)</strong>.</li>
+        <li>מכונית נאיבית תחזיק <em>מפתח-הצתה (key-ignition)</em> קונקרטי ותקרא עליו <code>start()</code>.</li>
+        <li>אבל אם נרצה הצתה ללא מפתח (keyless)? נצטרך <strong>לשנות את המכונית</strong> — רע!</li>
+        <li>הפתרון: ליצור <strong>ממשק <code>Ignition</code></strong>, ושגם key-ignition וגם keyless-ignition יממשו אותו. המכונית מחזיקה איבר מטיפוס <code>Ignition</code> — ויכולה לקבל כל מימוש.</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="ic">💉</span>
+        <div class="body">
+          <span class="title">Dependency Injection — איך מיישמים את זה</span>
+          <strong>Dependency Injection (DI)</strong> = לא המחלקה יוצרת את התלויות שלה, אלא <em>מקבלת אותן מבחוץ</em> (בדרך כלל דרך ה-constructor). כך אפשר "להזריק" כל מימוש — כולל mock-ים לצורך בדיקות.
+        </div>
+      </div>
+
+      <p>נחיל את זה על ה-<code>App</code> שלנו: במקום שתהיה תלויה ב-UI קונקרטי (טרמינל), היא תקבל ממשק <code>IMenu</code> ואת מפת הפקודות מבחוץ:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · App עם Dependency Injection</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class App {
+private:
+    IMenu* menu;                          // ממשק, לא UI קונקרטי
+    map&lt;string, ICommand*&gt; commands;
+public:
+    // התלויות מוזרקות מבחוץ דרך ה-constructor
+    App(IMenu* menu, map&lt;string, ICommand*&gt; commands)
+        : menu(menu), commands(commands) {}
+
+    void run() {
+        while (true) {
+            int task = menu-&gt;nextCommand();      // הממשק מספק את הקלט
+            try {
+                commands[task]-&gt;execute();
+            }
+            catch (...) {
+                menu-&gt;displayError("Sorry, no can do");
+            }
+        }
+    }
+};</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">מה הרווחנו</span>
+          ה-<code>App</code> כבר <strong>לא יודעת</strong> אם ה-UI הוא טרמינל, חלון גרפי או ווב — היא מדברת רק מול <code>IMenu</code> (עם <code>ConsoleMenu</code> כמימוש אחד אפשרי). זוכרים את המטרה "יהיו כמה UIs"? עכשיו זה אפשרי <em>בלי לגעת</em> ב-<code>App</code>. וזה גם מה שיהפוך את הקוד ל<strong>ניתן לבדיקה</strong> — הנושא הבא.
+        </div>
+      </div>
+    </section>
+
+    <!-- 14. Tests -->
+    <section id="tests">
+      <h3><span class="num">14.</span> בדיקות (Tests) וסוגיהן</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — הבעיה היסודית</span>
+          הקוד המקורי היה <strong>main אחד גדול</strong> — לא ניתן לבדיקה, ולא נכתבו לו בדיקות בכלל. איך בכלל בודקים קוד שצמוד למקלדת ולמסך? אחרי כל ה-refactoring (פיצול לפונקציות/מחלקות + DI), הקוד <em>סוף-סוף</em> ניתן לבדיקה. עכשיו נבין סוגי בדיקות.
+        </div>
+      </div>
+
+      <h4>בדיקות לפי היקף</h4>
+      <table>
+        <thead><tr><th>סוג</th><th>מה בודק</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Unit tests</strong></td><td>יחידה בודדת (פונקציה/מחלקה) במנותק.</td></tr>
+          <tr><td><strong>Integration tests</strong></td><td>השילוב בין כמה יחידות.</td></tr>
+          <tr><td><strong>End-to-end tests</strong></td><td>זרימה מלאה דרך כל המערכת, מקצה לקצה.</td></tr>
+          <tr><td><strong>Acceptance tests</strong></td><td>האם המערכת עומדת בדרישות הלקוח.</td></tr>
+        </tbody>
+      </table>
+
+      <h4>בדיקות לפי סוג התרחיש</h4>
+      <table>
+        <thead><tr><th>סוג</th><th>דוגמה</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Sanity</strong> (שפיות)</td><td><code>1+1 == 2</code> — המקרה הבסיסי עובד.</td></tr>
+          <tr><td><strong>Negative</strong> (שלילי)</td><td><code>1+1 != 3</code> — שגיאה אכן נכשלת/נזרקת כמצופה.</td></tr>
+          <tr><td><strong>Boundary</strong> (גבול)</td><td>מה קורה ב-<code>1 + max</code>? (קצוות הטווח החוקי).</td></tr>
+          <tr><td><strong>Edge cases</strong> (קצה)</td><td><code>1/0</code> — מקרים חריגים/בעייתיים.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 15. TDD -->
+    <section id="tdd">
+      <h3><span class="num">15.</span> TDD — Test Driven Development</h3>
+      <div class="callout warn">
+        <span class="ic">🚦</span>
+        <div class="body">
+          <span class="title">מהו TDD</span>
+          מתודולוגיית פיתוח שבה <strong>כותבים את הבדיקה לפני הקוד</strong>. הבדיקות "מובילות" (drive) את פיתוח הפתרון. המחזור נקרא <strong>Red → Green → Refactor</strong>.
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code>   1. כותבים בדיקה
+        └─ אין עדיין קוד → הבדיקה נכשלת  ──▶  🔴 RED
+
+   2. כותבים קוד פשוט שיגרום לבדיקה לעבור
+        └─ הבדיקה עוברת                  ──▶  🟢 GREEN
+
+   3. Refactor (משפרים את הקוד) ──▶ חוזרים לשלב 1
+        ↺</code></pre>
+
+      <h4>דוגמה מלאה עם gtest (Google Test)</h4>
+      <p>נפתח במחלקת <code>Article</code>. <strong>שלב Red</strong> — קודם הבדיקה, לפני שהמחלקה קיימת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Sanity test (RED)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;gtest/gtest.h&gt;
+#include "Article.h"
+
+TEST(ArticleTest, Getters) {
+    Article article(1, "Test Title", "Test Content");
+    EXPECT_EQ(article.getId(), 1);
+    EXPECT_EQ(article.getTitle(), "Test Title");
+    EXPECT_EQ(article.getContent(), "Test Content");
+}</code></pre>
+      </div>
+      <p>זה לא יתקמפל בכלל (<code>unknown type name 'Article'</code>) — זה ה-RED. <strong>שלב Green</strong> — כותבים את המחלקה המינימלית שתעבור:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Article.h (GREEN)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;string&gt;
+using namespace std;
+
+class Article {
+private:
+    int id;
+    string title;
+    string content;
+public:
+    Article(int id, const string&amp; title, const string&amp; content);
+    int getId() const;
+    const string&amp; getTitle() const;
+    const string&amp; getContent() const;
+};</code></pre>
+      </div>
+
+      <h4>Negative test — בדיקה ששגיאה אכן נזרקת</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Negative test</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// כותרת ריקה - אמורה לזרוק חריגה
+TEST(ArticleTest, EmptyTitleArticle) {
+    EXPECT_THROW(Article(2, "", "Empty Title Content"),
+                 std::invalid_argument);
+}</code></pre>
+      </div>
+      <p>הבדיקה נכשלת (הקוד "throws nothing"), אז מוסיפים את הבדיקה ל-constructor — וזה הופך ל-GREEN:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · המימוש שמספק את הבדיקה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Article::Article(int id, const string&amp; title, const string&amp; content)
+    : id(id), title(title), content(content)
+{
+    if (title == "")
+        throw invalid_argument("Title cannot be empty");
+}</code></pre>
+      </div>
+
+      <h4>Boundary test — בדיקת גבול</h4>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · Boundary test</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// אורך כותרת מקסימלי (נניח 50). 51 תווים = חריגה
+TEST(ArticleTest, MaxTitleLengthArticle) {
+    const std::string maxTitle(51, 'A');  // מחרוזת של 51 פעמים 'A'
+    EXPECT_THROW(Article(1, maxTitle, "Content"),
+                 std::invalid_argument);
+}</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">📊</span>
+        <div class="body">
+          <span class="title">דיאגרמת UML של Article</span>
+          <code>- id: int</code>, <code>- title: string</code>, <code>- content: string</code> (פרטיים, מסומנים <code>-</code>) | <code>+ Article(...)</code>, <code>+ getId()</code>, <code>+ getTitle()</code>, <code>+ getContent()</code> (ציבוריים, מסומנים <code>+</code>). ב-UML: <code>-</code> = private, <code>+</code> = public.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">למה TDD ו-refactoring הולכים יד ביד (משלי)</span>
+          הבדיקות הן "רשת ביטחון": ברגע שיש לכם בדיקות שעוברות (GREEN), אתם יכולים לבצע refactoring בביטחון — אם שברתם משהו, בדיקה תיכשל מיד ותדע. בלי בדיקות, כל refactoring הוא הימור.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- PART B -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3.5rem">חלק ב' · הנדסת תוכנה</h2>
+
+    <!-- 16. Software crisis -->
+    <section id="crisis">
+      <h3><span class="num">16.</span> משבר התוכנה (The Software Crisis)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          חלק א' עסק ב<em>איך</em> לכתוב מודול קוד טוב. חלק ב' מתרחק ושואל: איך מנהלים <strong>פרויקט תוכנה שלם</strong> מההתחלה ועד הסוף? כדי להבין למה צריך בכלל "הנדסה" כאן, נתחיל מהבעיה ההיסטורית שהולידה את התחום.</div>
+      </div>
+      <p><strong>משבר התוכנה</strong> = חוסר היכולת לכתוב את התוכנה בזמן הצפוי. התסמינים:</p>
+      <ul>
+        <li>הלקוחות לא מרוצים.</li>
+        <li>תוכנה גרועה שלא עומדת בדרישות.</li>
+        <li>כתוצאה מכך, פרויקטים: <strong>חורגים מתקציב/זמן</strong>, <strong>קשים לתחזוקה</strong>, או פשוט <strong>נכשלים</strong>.</li>
+      </ul>
+      <div class="callout info">
+        <span class="ic">💬</span>
+        <div class="body">
+          <span class="title">ציטוט — Edsger W. Dijkstra (1972)</span>
+          <em>"הסיבה המרכזית היא שהמכונות נעשו חזקות בכמה סדרי גודל! בלי מכונות, תכנות לא היה בעיה כלל; כשהיו לנו מחשבים חלשים, תכנות נהיה בעיה קטנה; ועכשיו שיש לנו מחשבים ענקיים — תכנות נהיה בעיה ענקית באותה מידה."</em> (מתוך "The Humble Programmer", הרצאת פרס טיורינג).
+        </div>
+      </div>
+    </section>
+
+    <!-- 17. What is SE -->
+    <section id="what-is-se">
+      <h3><span class="num">17.</span> מהי הנדסת תוכנה</h3>
+      <div class="callout warn">
+        <span class="ic">🏗️</span>
+        <div class="body">
+          <span class="title">הגדרה (Wikipedia)</span>
+          <em>"הנדסת תוכנה היא היישום השיטתי של גישות הנדסיות לפיתוח תוכנה."</em> כלומר — לא "סתם לכתוב קוד", אלא תהליך מסודר ושיטתי, בדיוק כמו שמהנדס בונה גשר לפי תכנון ולא מאלתר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 18. Stages -->
+    <section id="stages">
+      <h3><span class="num">18.</span> שלבי פרויקט תוכנה</h3>
+      <p>הניהול של פרויקט תוכנה מורכב מרצף שלבים:</p>
+      <pre class="ascii-diagram"><code> Requirements ─▶ Solution ─▶ Implementation ─▶ Testing ─▶ Delivery/  ─▶ Maintenance
+   analysis        design                                  deployment</code></pre>
+      <table>
+        <thead><tr><th>שלב</th><th>מה קורה בו</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Requirements analysis</strong><br>(ניתוח דרישות)</td><td>לתקשר עם הלקוח, להבין את הבעיה, ולהגדיר מהו הפתרון הרצוי. <strong>אי-הבנות כאן גוררות תוצאות רעות</strong> בהמשך.</td></tr>
+          <tr><td><strong>Solution design</strong><br>(תכנון הפתרון)</td><td>הצעד הראשון לעבר הפתרון: לתכנן פתרון שיעמוד בדרישות. משתמשים בדיאגרמות, טבלאות וכו'.</td></tr>
+          <tr><td><strong>Implementation</strong><br>(מימוש)</td><td>צוותי הפיתוח כותבים את הקוד — לפי התכנון.</td></tr>
+          <tr><td><strong>Testing</strong><br>(בדיקות)</td><td>בודקים את הקוד כדי לוודא שהוא עומד בדרישות.</td></tr>
+          <tr><td><strong>Delivery / deployment</strong><br>(אספקה/פריסה)</td><td>הקוד נפרס/נמסר ללקוח.</td></tr>
+          <tr><td><strong>Maintenance</strong><br>(תחזוקה)</td><td>טיפול בבאגים, בעיות חומרה ושינויים לאורך זמן.</td></tr>
+        </tbody>
+      </table>
+      <p>השאלה הגדולה היא: <strong>באיזה סדר ובאיזה קצב</strong> עוברים בין השלבים? כל "מודל פיתוח" עונה על זה אחרת.</p>
+    </section>
+
+    <!-- 19. Waterfall -->
+    <section id="waterfall">
+      <h3><span class="num">19.</span> מודל המפל (Waterfall)</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          המודל הראשון והפשוט ביותר (Dr. Winston W. Royce, 1970). הרעיון: לרדת במדרגות, שלב אחרי שלב, כמו מפל מים — בכיוון אחד בלבד.
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code> Requirements
+      ↓
+   Solution design
+        ↓
+     Implementation
+          ↓
+        Testing
+            ↓
+         Delivery/deployment
+              ↓
+           Maintenance</code></pre>
+      <ul>
+        <li>נעים <strong>בכיוון אחד</strong>, ועוברים לשלב הבא <strong>רק כשהנוכחי הושלם</strong>.</li>
+        <li>ומה אם מתגלים פגמי תכנון או שדרישות משתנות? <span style="color:var(--danger)"><strong>חוזרים אחורה, מתקנים, ומתקדמים שוב למטה.</strong></span></li>
+      </ul>
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">חסרונות (Discussion)</span>
+          • כל שלב <strong>אורך יותר מדי זמן</strong> — עד שהפתרון מוכן, הרבה כבר השתנה, והושקע מאמץ בתכנון שכבר לא רלוונטי.<br>
+          • <strong>הלקוח מעורב רק בסוף</strong> — וכשהוא סוף-סוף רואה את התוצר, פידבק קריטי כבר חסר תועלת (מאוחר מדי לשנות).
+        </div>
+      </div>
+    </section>
+
+    <!-- 20. V model -->
+    <section id="vmodel">
+      <h3><span class="num">20.</span> מודל V</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מודל V נבנה <strong>על גבי</strong> מודל המפל, אבל מוסיף דגש חזק על בדיקות — צורת ה-V מציגה ירידה (פיתוח) ועלייה (בדיקות).
+        </div>
+      </div>
+      <pre class="ascii-diagram"><code>  Requirements                              System &amp; acceptance
+    analysis                                     testing
+        ↓                                           ↑
+     Solution                                  Integration
+      design                                     testing
+          ↓                                       ↑
+       Implementation ───▶ Unit testing ─────────┘</code></pre>
+      <ul>
+        <li>בונה על מודל המפל, עם <strong>דגש על בדיקות</strong>.</li>
+        <li>כל בדיקה מאמתת את השלב המקביל לה (הצד השמאלי).</li>
+        <li>הבדיקות <strong>מוגדרות בצד שמאל</strong> (בזמן הפיתוח) אבל <strong>מורצות בצד ימין</strong>.</li>
+        <li>התוצאה: מוצרים טובים יותר, פחות בעיות במעבר לשלב הבא.</li>
+      </ul>
+    </section>
+
+    <!-- 21. Iterative -->
+    <section id="iterative">
+      <h3><span class="num">21.</span> מודלים איטרטיביים ואינקרמנטליים</h3>
+      <ul>
+        <li>הפרויקט מתקדם <strong>בהדרגה (incrementally)</strong> — מוסיפים פונקציונליות מעט-מעט.</li>
+        <li>כל איטרציה היא כמו <strong>"מפל קטן"</strong> בפני עצמו.</li>
+        <li>בכל איטרציה מתקרבים יותר לפתרון הרצוי.</li>
+        <li><strong>קל לשתף את ההתקדמות עם הלקוח</strong> → לקבל פידבק יקר-ערך → ולממש את השינויים הנדרשים.</li>
+      </ul>
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">חסרונות</span>
+          • קשה יותר "לסגור" ולסיים את הפרויקט (תמיד יש עוד איטרציה). <strong>מי משלם על העלויות?</strong><br>
+          • לפעמים מגלים בעיות (גדולות מדי) מאוחר מדי בדרך.
+        </div>
+      </div>
+    </section>
+
+    <!-- 22. Prototype -->
+    <section id="prototype">
+      <h3><span class="num">22.</span> מודל הפרוטוטייפ (Prototype)</h3>
+      <div class="callout warn">
+        <span class="ic">🧪</span>
+        <div class="body">
+          <span class="title">הרעיון המרכזי</span>
+          להגיע ל<strong>פרוטוטייפ עובד מהר ככל האפשר</strong>. ברגע שללקוח יש משהו מוחשי לראות — הוא מבין את הצרכים שלו טוב יותר, וכתוצאה מכך <strong>מתאר את הדרישות טוב יותר</strong>.
+        </div>
+      </div>
+      <p>יש שתי גישות מה לעשות עם הפרוטוטייפ:</p>
+      <ul>
+        <li><strong>Evolutionary (אבולוציוני)</strong> — משפרים את הפרוטוטייפ שוב ושוב עד שהוא הופך למוצר.</li>
+        <li><strong>Throwaway (חד-פעמי)</strong> — אחרי שהבנו את הדרישות, <em>זורקים</em> את הפרוטוטייפ וממשיכים במודל "רגיל" (למשל Waterfall).</li>
+      </ul>
+      <div class="callout info">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">דיון — יתרונות וחסרונות</span>
+          <strong>יתרון:</strong> תוצאות טובות יותר — הדרישות וציפיות הלקוח נענות טוב יותר.<br>
+          <strong>חסרונות:</strong> משקיעים הרבה זמן בפרוטוטייפ "חסר תועלת"; מפתחים מתאהבים בפרוטוטייפ (קל "לנצל" אותו); והלקוח (בטעות) מתייחס לפרוטוטייפ כאל המוצר הסופי.
+        </div>
+      </div>
+    </section>
+
+    <!-- 23. Agile -->
+    <section id="agile">
+      <h3><span class="num">23.</span> Agile — המניפסט והעקרונות</h3>
+      <div class="callout warn">
+        <span class="ic">🏃</span>
+        <div class="body">
+          <span class="title">מניפסט ה-Agile</span>
+          התנועה שמעריכה (מבלי לפסול את הצד הימני):<br>
+          • <strong>אנשים ואינטראקציות</strong> &gt; תהליכים וכלים<br>
+          • <strong>תוכנה עובדת</strong> &gt; תיעוד מקיף<br>
+          • <strong>שיתוף פעולה עם הלקוח</strong> &gt; משא-ומתן חוזי<br>
+          • <strong>תגובה לשינוי</strong> &gt; היצמדות לתוכנית
+        </div>
+      </div>
+      <p>מאחורי המניפסט עומדים <strong>12 עקרונות</strong>:</p>
+      <ol>
+        <li>העדיפות העליונה היא לספק את הלקוח באמצעות אספקה מוקדמת ורציפה של תוכנה בעלת ערך.</li>
+        <li>לקבל בברכה שינויי דרישות, גם בשלב מאוחר — Agile רותם את השינוי ליתרון תחרותי של הלקוח.</li>
+        <li>לספק תוכנה עובדת בתדירות גבוהה (משבועות עד חודשים, עדיף הקצר).</li>
+        <li>אנשי עסקים ומפתחים חייבים לעבוד יחד יום-יומי לאורך הפרויקט.</li>
+        <li>לבנות פרויקטים סביב אנשים מוטיבציוניים — לתת להם סביבה ותמיכה, ולתת בהם אמון.</li>
+        <li>הדרך היעילה ביותר להעביר מידע היא <strong>שיחה פנים-אל-פנים</strong>.</li>
+        <li><strong>תוכנה עובדת</strong> היא המדד העיקרי להתקדמות.</li>
+        <li>תהליכי Agile מקדמים פיתוח בר-קיימא — קצב קבוע שאפשר לשמר לאורך זמן.</li>
+        <li>תשומת לב מתמדת למצוינות טכנית ולעיצוב טוב משפרת את הזריזות.</li>
+        <li>פשטות — אומנות מקסום כמות העבודה שלא נעשתה — היא חיונית.</li>
+        <li>הארכיטקטורות, הדרישות והעיצובים הטובים ביותר צומחים מצוותים שמארגנים את עצמם.</li>
+        <li>במרווחים קבועים, הצוות מהרהר איך להשתפר ומכוונן את התנהגותו בהתאם.</li>
+      </ol>
+      <div class="callout info">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">מהו Agile בפועל</span>
+          לחלק את הפרויקט ל<strong>בנייות אינקרמנטליות קטנות</strong>, ב<strong>איטרציות קצרות</strong>, שכל אחת כוללת: תכנון → מימוש → אספקה ופידבק. (שימו לב — זה בדיוק "המודל האיטרטיבי" מהפרק הקודם, מורם לרמת פילוסופיה.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 24. Scrum -->
+    <section id="scrum">
+      <h3><span class="num">24.</span> Scrum</h3>
+      <p><strong>Scrum</strong> הוא framework (מסגרת עבודה) של Agile. מושגי המפתח שלו:</p>
+      <table>
+        <thead><tr><th>קטגוריה</th><th>פריטים</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Roles</strong> (תפקידים)</td><td>Product Owner, Scrum Master, Development Team.</td></tr>
+          <tr><td><strong>Events</strong> (אירועים)</td><td>Sprint, Sprint Planning, Daily Scrum (ה"stand-up" היומי), Sprint Review.</td></tr>
+          <tr><td><strong>Artifacts</strong> (תוצרים)</td><td>Product Backlog, Sprint Backlog.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">בקצרה (משלי)</span>
+          העבודה מחולקת ל-<strong>Sprints</strong> (איטרציות של ~שבועיים). ה-<em>Product Backlog</em> הוא רשימת כל המשימות; בתחילת כל ספרינט בוחרים מתוכה ל-<em>Sprint Backlog</em>. בכל בוקר יש stand-up קצר לסנכרון, ובסוף הספרינט — Review להצגת מה שנעשה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 25. XP -->
+    <section id="xp">
+      <h3><span class="num">25.</span> Extreme Programming (XP)</h3>
+      <p><strong>XP</strong> היא מתודולוגיית פיתוח Agile, המתמקדת בפרקטיקות הנדסיות. הפרקטיקות המרכזיות:</p>
+      <ul>
+        <li><strong>Pair Programming</strong> — תכנות בזוגות.</li>
+        <li><strong>Test-Driven Development (TDD)</strong> — שראינו בחלק א'!</li>
+        <li><strong>Continuous Integration</strong> — אינטגרציה רציפה.</li>
+        <li><strong>Small Releases</strong> — שחרורים קטנים ותכופים.</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="ic">👥</span>
+        <div class="body">
+          <span class="title">Pair Programming — תכנות בזוגות</span>
+          שני מתכנתים עובדים יחד מול מחשב אחד: אחד <strong>כותב קוד (Driver)</strong>, השני <strong>סוקר ומציע הצעות (Observer)</strong>. מתחלפים בתפקידים בתדירות גבוהה. התוצאה: <strong>שיפור באיכות הקוד ובשיתוף ידע</strong> בין חברי הצוות.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">הכל מתחבר</span>
+          שימו לב שחלק ב' חוזר אל חלק א': <strong>TDD</strong> שבנינו בו את מחלקת <code>Article</code> הוא בעצם פרקטיקה מרכזית של XP. ו-<em>refactoring</em> שעשינו לאורך כל חלק א' הוא בדיוק מה שעיקרון Agile מס' 9 ("מצוינות טכנית ועיצוב טוב") מבקש. כתיבת קוד טוב (חלק א') ותהליך פיתוח טוב (חלק ב') הם שני צדדים של אותו מטבע.
+        </div>
+      </div>
+    </section>
+
+    <!-- 26. Summary -->
+    <section id="summary">
+      <h3><span class="num">📌</span> סיכום ההרצאה</h3>
+      <div class="callout info">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">בקצרה</span>
+          <strong>חלק א':</strong> קוד שעובד ≠ קוד טוב. משפרים אותו ב-<em>refactoring</em>, מונחים ע"י עקרונות (DRY/KISS/<strong>SOLID</strong>) וזיהוי <em>code smells</em>, נעזרים בתבניות עיצוב (Command), ב-Dependency Injection, וב-<strong>בדיקות</strong> ו-<strong>TDD</strong> כרשת ביטחון.<br>
+          <strong>חלק ב':</strong> פרויקט תוכנה מנוהל לפי <em>מודל פיתוח</em>. עברנו מ-<strong>Waterfall</strong> הנוקשה (לקוח רק בסוף), דרך <strong>V</strong> (דגש בדיקות), <strong>איטרטיבי</strong> ו-<strong>פרוטוטייפ</strong>, ועד <strong>Agile</strong> (Scrum, XP) — שמעמיד במרכז תוכנה עובדת, פידבק תכוף מהלקוח, ותגובה לשינוי.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="lecture-01.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">הרצאה 1 · Git ו-VCS</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-02.html">
+        <span class="dir">תרגול 2 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

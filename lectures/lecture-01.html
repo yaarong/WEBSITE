@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>הרצאה 1 · Version Control Systems & Git</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎓 הרצאה 1 · בקרת גרסאות ו-Git</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">הרצאה 1</div>
+      <h1>בקרת גרסאות (VCS) ו-Git</h1>
+      <p>איך מנהלים גרסאות של קוד, מה זה Git, ואיך הוא עובד באמת — מהפקודות הבסיסיות (<code>init, add, commit, push, pull</code>) ועד הצצה למבנה הפנימי של Git.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#vcs">מה זו מערכת בקרת גרסאות (VCS) ולמה צריך אותה</a></li>
+        <li><a class="link" href="#versions">גרסאות לאורך זמן</a></li>
+        <li><a class="link" href="#client-server">מודל Client–Server (לקוח–שרת)</a></li>
+        <li><a class="link" href="#git-vcs">Git — מערכת בקרת גרסאות מבוזרת</a></li>
+        <li><a class="link" href="#init-local">יצירת מאגר מקומי — <code>git init</code></a></li>
+        <li><a class="link" href="#remote">מאגר מרוחק (Remote) — GitHub/GitLab/BitBucket</a></li>
+        <li><a class="link" href="#clone">שכפול מאגר — <code>git clone</code></a></li>
+        <li><a class="link" href="#file-states">מצבי קבצים: Untracked, Modified, Ignored</a></li>
+        <li><a class="link" href="#add-commit">Staging ו-Commit — <code>git add</code> + <code>git commit</code></a></li>
+        <li><a class="link" href="#push">דחיפה למאגר המרוחק — <code>git push</code></a></li>
+        <li><a class="link" href="#model">המודל המלא: ארבעת האזורים של Git</a></li>
+        <li><a class="link" href="#teamwork">עבודת צוות: clone, push, pull</a></li>
+        <li><a class="link" href="#branches">ענפים (Branches), HEAD ופוינטרים</a></li>
+        <li><a class="link" href="#ff-merge">מיזוג Fast-forward</a></li>
+        <li><a class="link" href="#feature-branch">עבודה לפי פיצ'ר (Topic branches)</a></li>
+        <li><a class="link" href="#three-way">מיזוג Three-way</a></li>
+        <li><a class="link" href="#pull-request">Pull Requests</a></li>
+        <li><a class="link" href="#conflicts">קונפליקטים (Merge conflicts) ופתרונם</a></li>
+        <li><a class="link" href="#internals">Git Internals — איך Git שומר הכל</a></li>
+        <li><a class="link" href="#cheatsheet">נספח: דף פקודות מהיר (Cheat-sheet)</a></li>
+      </ol>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 1. VCS -->
+    <!-- ============================================================ -->
+    <section id="vcs">
+      <h2><span class="num">1.</span> מה זו מערכת בקרת גרסאות (VCS) ולמה צריך אותה</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מה אנחנו לומדים כאן</span>
+          לפני שנגיע ל-Git עצמו, צריך להבין <strong>איזו בעיה</strong> הוא בא לפתור. הנושא הזה מסביר מהי מערכת בקרת גרסאות (Version Control System) — סוג של תוכנה שמלווה אותנו כמתכנתים לכל אורך הקריירה, ובלעדיה עבודת צוות על קוד היתה כמעט בלתי אפשרית.
+        </div>
+      </div>
+
+      <p>כשאנחנו מפתחים תוכנה, <strong>הקוד שלנו מתפתח כל הזמן</strong>: מוסיפים פיצ'רים, מתקנים באגים, משנים קבצים, מוחקים קוד ישן. אחרי כמה שבועות הפרויקט נראה אחרת לגמרי ממה שהיה בהתחלה. השאלה היא: איך עוקבים אחרי כל השינויים האלה בצורה מסודרת?</p>
+
+      <p>מערכת בקרת גרסאות (VCS) היא כלי <strong>שעוקב אחרי הגרסאות של הקוד שלנו ומנהל אותן</strong>. היא נותנת לנו כמה יכולות קריטיות:</p>
+
+      <ul>
+        <li><strong>היסטוריה ו-Rollback</strong> — לראות בדיוק מה השתנה, מתי, ועל ידי מי; ובמקרה הצורך <em>לחזור</em> לגרסה ישנה שעבדה. שברתם משהו? אפשר פשוט לחזור אחורה.</li>
+        <li><strong>השוואות (Comparisons)</strong> — להשוות בין שתי גרסאות ולראות בדיוק אילו שורות נוספו, נמחקו או שונו.</li>
+        <li><strong>גיבויים (Backups)</strong> — הקוד שמור גם במקום מרוחק. אם המחשב נשרף — הפרויקט לא הולך לאיבוד.</li>
+        <li><strong>עבודת צוות — ובמיוחד סנכרון</strong> — כמה מפתחים יכולים לעבוד על אותו פרויקט במקביל, וה-VCS דואג למזג את העבודה של כולם בלי שאחד ידרוס את השני.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">דוגמה מהחיים (משלי)</span>
+          תחשבו על Google Docs: אתם וחבר עורכים את אותו מסמך, ויש "היסטוריית גרסאות" שמאפשרת לחזור לכל נקודה בזמן. VCS עושה בדיוק את זה — אבל לקוד, ובצורה הרבה יותר חזקה ומדויקת (ברמת השורה הבודדת).
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 2. Versions -->
+    <!-- ============================================================ -->
+    <section id="versions">
+      <h2><span class="num">2.</span> גרסאות לאורך זמן</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          הרעיון המרכזי של VCS הוא שמירת <strong>נקודות ציון (snapshots)</strong> של הפרויקט לאורך ציר הזמן. נבין את המודל המנטלי הזה לפני שנדבר על איך Git מממש אותו.
+        </div>
+      </div>
+
+      <p>נדמיין ציר זמן. בכל פעם שאנחנו מסיימים שלב משמעותי בעבודה, אנחנו "מצלמים" את מצב הפרויקט ושומרים אותו כגרסה:</p>
+
+      <pre class="ascii-diagram"><code>   V1 ───────▶ V2 ───────▶ V3 ───────▶ ...
+   │           │           │
+ גרסה        גרסה        גרסה
+ ראשונה      שנייה       שלישית
+                                          ⟶ Time (זמן)</code></pre>
+
+      <p>כל נקודה (V1, V2, V3...) היא <strong>גרסה שמורה</strong> של כל הפרויקט באותו רגע. בעולם של Git נקרא לנקודות האלה <strong>commits</strong>. היתרון: בכל רגע אפשר "לקפוץ" חזרה לכל נקודה ולראות איך הפרויקט נראה אז.</p>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">נקודה חשובה</span>
+          הגרסאות לא "מוחקות" אחת את השנייה — הן נשמרות <strong>בנוסף</strong>. ההיסטוריה כולה נשמרת, וזה בדיוק מה שמאפשר rollback והשוואות.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 3. Client-Server -->
+    <!-- ============================================================ -->
+    <section id="client-server">
+      <h2><span class="num">3.</span> מודל Client–Server (לקוח–שרת)</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — למה זה כאן?</span>
+          כדי להבין איך Git מסנכרן קוד בין כמה מפתחים, צריך קודם להבין את מודל <strong>לקוח–שרת</strong> — אחד המודלים הבסיסיים ביותר במדעי המחשב. הוא יחזור שוב ושוב בקורס הזה (ובכל מערכת מבוזרת).
+        </div>
+      </div>
+
+      <p>נניח ש-Alice רוצה לשלוח הודעה "Hi" ל-Bob. שני המחשבים שלהם הם <strong>לקוחות (clients)</strong>. אבל איך ההודעה עוברת ביניהם? היא לא עוברת ישירות — היא עוברת דרך <strong>שרת (server)</strong> מרכזי באמצע:</p>
+
+      <pre class="ascii-diagram"><code>   Alice's client              Server               Bob's client
+   ┌──────────────┐         ┌──────────┐         ┌──────────────┐
+   │ Send to Bob: │  ─────▶ │  SERVER  │  ─────▶ │ From Alice:  │
+   │   "Hi"       │         │          │         │   "Hi"       │
+   └──────────────┘         └──────────┘         └──────────────┘
+     "From Alice to Bob: Hi"        "For Bob from Alice: Hi"</code></pre>
+
+      <p>הרעיון המרכזי, שמסומן במצגת במסגרת אדומה:</p>
+
+      <div class="callout warn">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">השרת משרת את הלקוחות (Server <em>serves</em> clients)</span>
+          השרת הוא נקודה מרכזית שכל הלקוחות מתחברים אליה. הלקוח <strong>מבקש</strong> משהו, והשרת <strong>מספק</strong> אותו (serve = להגיש/לשרת). מכאן השם "server".
+        </div>
+      </div>
+
+      <h3>קוד צד-לקוח מול קוד צד-שרת</h3>
+      <p>חלוקת התפקידים יוצרת שני סוגי קוד:</p>
+      <ul>
+        <li><strong>Client-side code</strong> — הקוד שרץ אצל המשתמש (אצל Alice ואצל Bob): קליטת ההודעה שהוקלדה, הצגת ההודעה שהתקבלה.</li>
+        <li><strong>Server-side code</strong> — הקוד שרץ על השרת המרכזי: קבלת ההודעה מ-Alice, וניתובה ל-Bob.</li>
+      </ul>
+
+      <h3 id="browser">דוגמה: דפדפן ושרת אינטרנט</h3>
+      <p>המודל הזה הוא בדיוק מה שקורה כשאתם גולשים באינטרנט:</p>
+
+      <div class="callout warn">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">הדפדפן הוא תוכנת לקוח</span>
+          <strong>דפדפן (browser) הוא תוכנת לקוח (client program) שמתקשרת עם תוכנת שרת (server program).</strong> כשאתם מקלידים <code>https://www.google.com</code> ולוחצים Enter — הדפדפן (הלקוח) שולח בקשה לשרת של Google, והשרת מחזיר בתגובה את דף האינטרנט.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הרחבה (משלי)</span>
+          אותו דבר קורה בכל אפליקציה כמעט: WhatsApp, אינסטגרם, Gmail — בכולן יש לקוח (האפליקציה במכשיר שלכם) ושרת מרכזי באמצע. ב-Git, כפי שנראה מיד, ה"שרת" הוא GitHub/GitLab, וה"לקוח" הוא המחשב שלכם.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 4. Git as VCS -->
+    <!-- ============================================================ -->
+    <section id="git-vcs">
+      <h2><span class="num">4.</span> Git — מערכת בקרת גרסאות מבוזרת</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עכשיו, אחרי שהבנו מהי VCS ומהו מודל לקוח–שרת, נכיר את <strong>Git</strong> — מערכת בקרת הגרסאות הנפוצה ביותר בעולם, ואת זו שנשתמש בה לאורך כל הקורס.
+        </div>
+      </div>
+
+      <ul>
+        <li><strong>Git היא VCS מבוזרת (distributed)</strong> — לכל מפתח יש עותק <em>מלא</em> של כל המאגר, כולל כל ההיסטוריה, אצלו במחשב. זה שונה ממערכות "מרוכזות" שבהן ההיסטוריה קיימת רק בשרת.</li>
+        <li>Git <strong>עוזרת לנהל ולעקוב אחרי שינויים בקוד המקור</strong> במהלך פיתוח התוכנה.</li>
+        <li>צריך <strong>להתקין</strong> את Git על המחשב כדי להשתמש בה (היא תוכנה שרצה אצלכם, לא שירות אינטרנט).</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="ic">🔑</span>
+        <div class="body">
+          <span class="title">"מבוזר" — למה זה כל כך חשוב (משלי)</span>
+          כי לכל מפתח יש עותק מלא, אפשר לעבוד גם <strong>בלי חיבור לאינטרנט</strong> — לבצע commits, לראות היסטוריה, ליצור ענפים. רק כשרוצים לסנכרן עם אחרים (push/pull) צריך רשת. זה גם אומר שאם השרת המרכזי נופל — אף אחד לא איבד את הקוד, כי לכולם יש עותק.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">הבחנה חשובה: Git לעומת GitHub</span>
+          <strong>Git</strong> = התוכנה שרצה אצלכם במחשב ומנהלת גרסאות.<br>
+          <strong>GitHub / GitLab / BitBucket</strong> = שירותי <em>אירוח</em> (שרתים) שמאחסנים מאגרי Git ברשת ומאפשרים שיתוף פעולה. הם ה"שרת" במודל לקוח–שרת. Git יכולה לעבוד גם בלעדיהם, לגמרי מקומית.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 5. git init local -->
+    <!-- ============================================================ -->
+    <section id="init-local">
+      <h2><span class="num">5.</span> יצירת מאגר מקומי — <code>git init</code></h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מכאן מתחיל ה"זרימה" המעשית של עבודה עם Git. הצעד הראשון בכל פרויקט חדש הוא להפוך תיקייה רגילה ל<strong>מאגר (repository)</strong> ש-Git עוקב אחריו. זה מה שעושים עם הפקודה <code>git init</code>.
+        </div>
+      </div>
+
+      <p><strong>Repository (מאגר, בקיצור "repo")</strong> הוא פשוט הפרויקט שלנו ביחד עם כל היסטוריית הגרסאות שלו. כדי ליצור מאגר מקומי חדש על המחשב, נריץ את רצף הפקודות הבא בטרמינל:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>% mkdir hello_world
+% cd hello_world
+% ls
+% git init
+Initialized empty Git repository in /hello_world/.git/
+% ls</code></pre>
+      </div>
+
+      <h3>הסבר על הפקודות (סינטקס)</h3>
+      <ul>
+        <li><code>mkdir hello_world</code> — <em>make directory</em>: יוצר תיקייה חדשה בשם <code>hello_world</code>.</li>
+        <li><code>cd hello_world</code> — <em>change directory</em>: נכנס לתוך התיקייה.</li>
+        <li><code>ls</code> — <em>list</em>: מציג את תוכן התיקייה (כרגע ריקה).</li>
+        <li><code>git init</code> — ⭐ <strong>הפקודה המרכזית</strong>: מאתחל מאגר Git חדש בתיקייה הנוכחית. הפלט <code>Initialized empty Git repository</code> מאשר שזה הצליח.</li>
+      </ul>
+
+      <p>הקסם של <code>git init</code> מסתתר בתיקייה נסתרת אחת. אם נריץ <code>ls -a</code> (שמציג גם קבצים נסתרים) נראה אותה:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>% ls -a
+.    ..    .git</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">📁</span>
+        <div class="body">
+          <span class="title">התיקייה <code>.git</code> — הלב של המאגר</span>
+          <code>git init</code> יוצר תיקייה נסתרת בשם <code>.git</code> (הנקודה בהתחלה הופכת אותה לנסתרת). <strong>כל</strong> ההיסטוריה, ההגדרות והאובייקטים של Git שמורים בתוכה. אם תמחקו את <code>.git</code> — התיקייה תחזור להיות תיקייה רגילה, ותאבדו את כל היסטוריית הגרסאות. בהמשך ההרצאה (בפרק Internals) נציץ פנימה ונראה מה יש שם.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 6. Remote repository -->
+    <!-- ============================================================ -->
+    <section id="remote">
+      <h2><span class="num">6.</span> מאגר מרוחק (Remote) — GitHub / GitLab / BitBucket</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          מאגר מקומי טוב לעבודה אישית, אבל בשביל גיבוי ושיתוף עם אחרים צריך מאגר <strong>מרוחק</strong> — כזה שיושב על שרת ברשת. כאן נכנסים שירותים כמו GitHub. זהו ה"שרת" מהמודל שראינו קודם.
+        </div>
+      </div>
+
+      <p>גם מאגר מרוחק "מאותחל" (init), אבל הפעם דרך ממשק הווב של השירות (GitHub וכו') ולא דרך הטרמינל. בעת יצירת מאגר חדש ב-GitHub ממלאים טופס:</p>
+
+      <ul>
+        <li><strong>Owner / Repository name</strong> — מי הבעלים ומה שם המאגר.</li>
+        <li><strong>Public / Private</strong> — האם כל אחד באינטרנט יכול לראות את המאגר (Public), או רק אנשים שאתם מאשרים (Private).</li>
+        <li><strong>Add a README file</strong> — מוסיף קובץ <code>README.md</code> ראשוני שמתאר את הפרויקט.</li>
+        <li><strong>Add .gitignore</strong> — תבנית קבצים שלא נרצה ש-Git יעקוב אחריהם (נרחיב בהמשך).</li>
+        <li><strong>Choose a license</strong> — רישיון שימוש בקוד.</li>
+        <li>זה גם יקבע את <code>main</code> כשם ענף ברירת המחדל.</li>
+      </ul>
+
+      <p>אחרי היצירה, יש לנו מאגר מרוחק עם קובץ <code>README.md</code> ו-commit ראשון ("Initial commit"). קובץ README נכתב בפורמט <strong>Markdown</strong> (סיומת <code>.md</code>). לדוגמה:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">markdown · README.md</span><button class="copy-btn">העתק</button></div>
+        <pre><code># MyDemo
+This is my demo repository</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">קצת על Markdown (משלי)</span>
+          Markdown היא שפת סימון פשוטה לעיצוב טקסט. <code># כותרת</code> = כותרת גדולה, <code>## כותרת</code> = כותרת קטנה יותר, <code>**מודגש**</code> = טקסט מודגש, <code>- פריט</code> = רשימה. GitHub מציג קבצי <code>.md</code> מעוצבים יפה אוטומטית — לכן ה-README הוא "כרטיס הביקור" של כל פרויקט.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 7. clone -->
+    <!-- ============================================================ -->
+    <section id="clone">
+      <h2><span class="num">7.</span> שכפול מאגר — <code>git clone</code></h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — תרחיש Alice</span>
+          יש מאגר מרוחק על השרת. עכשיו Alice רוצה לעבוד עליו במחשב שלה. היא צריכה להוריד עותק מקומי מלא — זה מה ש-<code>git clone</code> עושה.
+        </div>
+      </div>
+
+      <p><code>git clone</code> מוריד את המאגר המרוחק <strong>במלואו</strong> (כל הקבצים + כל ההיסטוריה) ויוצר ממנו עותק מקומי על המחשב. אחרי ה-clone, ל-Alice יש "עותק מקומי משלה של המאגר" (Alice's local copy of the repository):</p>
+
+      <pre class="ascii-diagram"><code>   Server (remote)                     Alice's computer (client)
+   ┌────────────────┐                  ┌────────────────┐
+   │ Project / Repo │   git clone      │ Project / Repo │
+   │  README.md     │  ───────────▶    │  README.md     │
+   └────────────────┘   (עותק מקומי)   └────────────────┘</code></pre>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>git clone https://github.com/username/MyDemo.git</code></pre>
+      </div>
+
+      <p>ב-VS Code אפשר לעשות את אותו דבר גרפית: בפאנל <strong>Source Control</strong> לוחצים על <strong>Clone Repository</strong> ומדביקים את כתובת ה-URL של המאגר. אחרי ה-clone, התיקייה <code>MYDEMO</code> נפתחת ובתוכה הקובץ <code>README.md</code>.</p>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">init מול clone (משלי)</span>
+          <strong><code>git init</code></strong> = מתחילים פרויקט חדש מאפס (מאגר ריק).<br>
+          <strong><code>git clone</code></strong> = מורידים פרויקט קיים שכבר נמצא בשרת.<br>
+          ברוב המקרים בעבודת צוות תשתמשו ב-<code>clone</code> כדי להצטרף לפרויקט שכבר קיים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 8. File states -->
+    <!-- ============================================================ -->
+    <section id="file-states">
+      <h2><span class="num">8.</span> מצבי קבצים: Untracked, Modified, Ignored</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — אחד הנושאים הכי חשובים בהרצאה</span>
+          Git לא מתייחס לכל הקבצים אותו דבר. לכל קובץ יש <strong>מצב (state)</strong>, ו-Git מציג אותו (ב-VS Code, באות צבעונית ליד שם הקובץ). הבנת המצבים האלה היא הבסיס להבנת כל מה שבא אחר כך — staging, commit ו-push.
+        </div>
+      </div>
+
+      <h3>שינוי קובץ קיים → "Modified" (M)</h3>
+      <p>Alice משנה את <code>README.md</code> (למשל מוסיפה "2" בסוף השורה). ברגע ששינתה קובץ ש-Git כבר עוקב אחריו, הקובץ מסומן כ-<strong>Modified</strong> (האות <code>M</code> ב-VS Code):</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">markdown · README.md (שונה)</span><button class="copy-btn">העתק</button></div>
+        <pre><code># MyDemo
+This is my demo repository2</code></pre>
+      </div>
+
+      <h3>קובץ חדש → "Untracked" (U)</h3>
+      <p>Alice יוצרת קובץ חדש לגמרי, <code>hello.txt</code>. Git <strong>עדיין לא עוקב</strong> אחרי הקובץ הזה — הוא <strong>Untracked</strong> (האות <code>U</code>):</p>
+
+      <div class="callout warn">
+        <span class="ic">❗</span>
+        <div class="body">
+          <span class="title">Untracked = "אני לא יודע מי אתה"</span>
+          כשיוצרים קובץ חדש, Git רואה שהוא קיים אבל <strong>לא</strong> מנהל את הגרסאות שלו עדיין. הוא ממתין שנגיד לו במפורש "תתחיל לעקוב אחרי הקובץ הזה" (זה מה ש-<code>git add</code> עושה, נראה מיד).
+        </div>
+      </div>
+
+      <h3>קובץ שלא רוצים לעקוב אחריו → ".gitignore" → "Ignored"</h3>
+      <p>לפעמים יש קבצים שאנחנו <strong>בכוונה לא</strong> רוצים ש-Git יעקוב אחריהם. Alice יוצרת קובץ <code>hello2.txt</code>, ומוסיפה את שמו לקובץ מיוחד בשם <code>.gitignore</code>. מעכשיו הקובץ נחשב <strong>Ignored</strong> (מתעלמים ממנו):</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">.gitignore</span><button class="copy-btn">העתק</button></div>
+        <pre><code>hello2.txt</code></pre>
+      </div>
+
+      <p>הקובץ <code>.gitignore</code> מכיל רשימה של קבצים ותבניות ש-Git יתעלם מהם לחלוטין — הם לא יופיעו כ-Untracked ולא ייכנסו לעולם ל-commits.</p>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">למה צריך .gitignore? (משלי + דוגמאות נפוצות)</span>
+          יש קבצים שאסור או שאין טעם לשמור ב-Git: סיסמאות וקבצי הגדרות רגישים, קבצים שנוצרים אוטומטית (תוצרי קומפילציה), תיקיות ענק של ספריות חיצוניות. דוגמאות לתבניות נפוצות ב-<code>.gitignore</code>:
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">.gitignore · דוגמה מורחבת</span><button class="copy-btn">העתק</button></div>
+        <pre><code># קבצי תלויות (לא שומרים ב-Git — מתקינים מחדש)
+node_modules/
+
+# תוצרי בנייה / קומפילציה
+build/
+dist/
+*.class
+*.exe
+
+# קבצי סביבה רגישים (סיסמאות, מפתחות API)
+.env
+
+# קבצים זמניים של מערכת ההפעלה / העורך
+.DS_Store
+*.log
+
+# התעלמות מכל קובץ עם סיומת מסוימת
+*.tmp</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס של .gitignore</span>
+          <code>name.txt</code> — קובץ ספציפי. &nbsp;|&nbsp;
+          <code>folder/</code> — תיקייה שלמה. &nbsp;|&nbsp;
+          <code>*.log</code> — כל הקבצים עם הסיומת <code>.log</code> (הכוכבית = "כל דבר"). &nbsp;|&nbsp;
+          <code># הערה</code> — שורה שמתחילה ב-<code>#</code> היא הערה ומתעלמים ממנה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 9. add + commit -->
+    <!-- ============================================================ -->
+    <section id="add-commit">
+      <h2><span class="num">9.</span> Staging ו-Commit — <code>git add</code> + <code>git commit</code></h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — איך שומרים גרסה?</span>
+          ראינו שקבצים יכולים להיות Modified או Untracked. עכשיו נלמד איך "מקבעים" אותם לגרסה שמורה. התהליך הוא בן שני שלבים: קודם <strong>staging</strong> (בחירת מה ייכנס לגרסה), ואז <strong>commit</strong> (שמירת הגרסה בפועל). שימו לב — זה אחד הדברים שמבלבלים מתחילים, אז נסביר לאט.
+        </div>
+      </div>
+
+      <h3>שלב 1: <code>git add</code> — העברת קבצים ל-Staging</h3>
+      <p><code>git add</code> מסמן קבצים כ"מועמדים להיכנס ל-commit הבא". בעגה של Git זה נקרא <strong>staging</strong> (ב-VS Code זה הכפתור <strong>+</strong> = "Stage Changes", והקובץ עובר ממצב <code>U</code>/<code>M</code> למצב <strong>Staged</strong>, האות <code>A</code> = Added):</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code># להוסיף קובץ ספציפי ל-staging
+git add hello4.txt
+
+# להוסיף את כל השינויים בבת אחת
+git add .</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">למה בכלל צריך staging? (הרעיון המרכזי)</span>
+          ה-staging area נותן לנו <strong>שליטה מדויקת</strong> על מה ייכנס ל-commit. דוגמה מהמצגת: Alice יצרה גם <code>hello3.txt</code> וגם <code>hello4.txt</code>, אבל החליטה לבצע <code>git add</code> רק ל-<code>hello4.txt</code>. כך ה-commit הבא יכיל את <code>hello4.txt</code> בלבד — ואילו <code>hello3.txt</code> יישאר Untracked. זה מאפשר לקבץ שינויים קשורים ל-commit אחד הגיוני, במקום "לזרוק הכל ביחד".
+        </div>
+      </div>
+
+      <h3>שלב 2: <code>git commit</code> — קיבוע הגרסה</h3>
+      <p>אחרי ש-staging מוכן, <code>git commit</code> שומר את כל מה שב-staging כ<strong>גרסה חדשה ומקובעת</strong> בהיסטוריה המקומית. לכל commit יש <strong>הודעה (message)</strong> שמתארת מה השתנה:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code># commit עם הודעה
+git commit -m "My first commit"</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס</span>
+          <code>-m</code> = <em>message</em>. הטקסט בגרשיים אחריו הוא הודעת ה-commit. הודעה טובה מתארת בקצרה <em>מה</em> השינוי עושה (למשל "Add login button" ולא "fix"). אחרי commit, הקבצים חוזרים למצב נקי — <strong>Unmodified</strong> (אין יותר אות צבעונית לידם).
+        </div>
+      </div>
+
+      <p>ב-VS Code אפשר פשוט לכתוב הודעה בתיבת הטקסט וללחוץ על <strong>✓ Commit</strong>. אם לוחצים Commit כשהשינויים עדיין לא ב-staging, VS Code יבצע עבורכם גם <code>add</code> וגם <code>commit</code> ביחד.</p>
+
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">קריטי: commit הוא מקומי בלבד!</span>
+          <strong>commit שומר את הגרסה רק על המחשב שלכם (במאגר המקומי).</strong> השרת המרוחק (GitHub) <em>לא</em> יודע עליו כלום עדיין! אם תיכנסו ל-GitHub אחרי commit, לא תראו שום שינוי. כדי שהשינוי יגיע לשרת — צריך <code>push</code> (הנושא הבא).
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 10. push -->
+    <!-- ============================================================ -->
+    <section id="push">
+      <h2><span class="num">10.</span> דחיפה למאגר המרוחק — <code>git push</code></h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עשינו commits מקומיים. עכשיו נרצה להעלות אותם לשרת — כדי לגבות אותם וכדי שחברי צוות יוכלו לראות. זה התפקיד של <code>git push</code>.
+        </div>
+      </div>
+
+      <p><code>git push</code> <strong>דוחף (שולח) את ה-commits המקומיים אל המאגר המרוחק</strong>. רק אחרי push, השינויים מופיעים בשרת:</p>
+
+      <pre class="ascii-diagram"><code>   Alice's computer (client)              Server (remote)
+   ┌────────────────┐     git push       ┌────────────────┐
+   │ local commits  │  ──────────────▶   │  remote repo   │
+   └────────────────┘                    └────────────────┘</code></pre>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>git push</code></pre>
+      </div>
+
+      <p>ב-VS Code: בתפריט <strong>···</strong> של Source Control בוחרים <strong>Push</strong>.</p>
+
+      <div class="callout warn">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">שימו לב לדוגמה מהמצגת</span>
+          Alice עשתה commit שכלל את <code>hello4.txt</code> בלבד (לא את <code>hello3.txt</code>). אחרי ה-push, בשרת מופיעים <code>README.md</code>, <code>hello.txt</code>, <code>.gitignore</code> ו-<code>hello4.txt</code> — אבל <code>hello3.txt</code> <strong>עדיין נשאר Untracked</strong> ולא הגיע לשרת, כי הוא מעולם לא נכנס ל-commit. זה בדיוק הכוח של staging: שליטה מדויקת על מה מתפרסם.
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">📜</span>
+        <div class="body">
+          <span class="title">היסטוריית ה-Commits</span>
+          ב-GitHub (וגם מקומית עם <code>git log</code>) אפשר לראות את כל ה-commits לפי סדר כרונולוגי — מי עשה אותם, מתי, ועם איזו הודעה. למשל: "Initial commit" → "My first commit" → "My second commit". זו ה"היסטוריה" שדיברנו עליה בהתחלה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 11. The model -->
+    <!-- ============================================================ -->
+    <section id="model">
+      <h2><span class="num">11.</span> המודל המלא: ארבעת האזורים של Git</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — התמונה הגדולה</span>
+          זו אולי השקופית החשובה ביותר בהרצאה. עד עכשיו ראינו את הפקודות אחת-אחת. עכשיו נחבר הכל למודל אחד שמראה <strong>איפה כל קובץ נמצא בכל רגע</strong>. שווה לחזור למודל הזה בכל פעם שאתם מתבלבלים.
+        </div>
+      </div>
+
+      <p>Git מחלק את העולם ל<strong>ארבעה אזורים</strong>, ולקובץ יש <strong>מצב</strong> בכל אחד מהם:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>אזור</th>
+            <th>מצבי הקובץ באזור</th>
+            <th>מה זה אומר</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Working directory</strong><br>(תיקיית העבודה)</td>
+            <td>Untracked / Unmodified / Modified</td>
+            <td>הקבצים שאתם רואים ועורכים בפועל על הדיסק.</td>
+          </tr>
+          <tr>
+            <td><strong>Staging area</strong><br>(אזור הבמה)</td>
+            <td>Staged</td>
+            <td>קבצים שסומנו עם <code>git add</code> ומחכים להיכנס ל-commit הבא.</td>
+          </tr>
+          <tr>
+            <td><strong>Local repository</strong><br>(מאגר מקומי)</td>
+            <td>Committed</td>
+            <td>גרסאות מקובעות שנשמרו עם <code>git commit</code> — על המחשב שלכם.</td>
+          </tr>
+          <tr>
+            <td><strong>Remote repository</strong><br>(מאגר מרוחק)</td>
+            <td>Committed</td>
+            <td>אותן גרסאות, אבל על השרת — אחרי <code>git push</code>.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>מסע של קובץ דרך כל האזורים</h3>
+      <p>נעקוב אחרי קובץ <code>foo.txt</code> לאורך כל החיים שלו, בדיוק כפי שמופיע בדיאגרמת הזרימה במצגת:</p>
+
+      <pre class="ascii-diagram"><code> Working directory          │ Staging │ Local   │ Remote
+ Untracked Unmodified Modified│ Staged  │Committed│Committed
+ ────────────────────────────────────────────────────────────
+ (1) foo.txt נוצר ........... Untracked
+ (2) git add ............................ Staged
+ (3) git commit ................................. Committed
+ (4) חוזר ל-Unmodified ◀── "working copy is unmodified again"
+ (5) עורכים שוב ............ Modified
+ (6) git add ............................ Staged
+ (7) git commit ................................. Committed
+ (8) git push ............................................... Committed (remote)</code></pre>
+
+      <p>שלב אחר שלב:</p>
+      <ol>
+        <li>נוצר קובץ חדש <code>foo.txt</code> → המצב הוא <strong>Untracked</strong>.</li>
+        <li><code>git add</code> → הקובץ עובר להיות <strong>Staged</strong> (ב-VS Code: סימן <code>+</code>, האות <code>A</code>).</li>
+        <li><code>git commit</code> → השינוי נשמר במאגר המקומי כ-<strong>Committed</strong>.</li>
+        <li>אחרי ה-commit, עותק העבודה חוזר להיות <strong>Unmodified</strong> ("נקי").</li>
+        <li>עורכים את הקובץ שוב → הוא הופך ל-<strong>Modified</strong>.</li>
+        <li><code>git add</code> שוב → <strong>Staged</strong> (מוכן ל-commit).</li>
+        <li><code>git commit</code> שוב → <strong>Committed</strong>, וחוזר חלילה.</li>
+        <li>לבסוף <code>git push</code> → השינויים מגיעים ל-<strong>מאגר המרוחק</strong>.</li>
+      </ol>
+
+      <div class="callout tip">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">קיצור דרך (מהמצגת)</span>
+          <strong>אפשר לבצע commit ישירות לקבצים Modified, ו-Git יעשה את ה-"add to staging" עבורכם.</strong> כלומר לקבצים שכבר במעקב (tracked) אפשר לדלג על <code>git add</code> ולהשתמש ב-<code>git commit -a -m "..."</code>. שימו לב: זה עובד רק לקבצים tracked — קבצים Untracked חייבים <code>git add</code> מפורש.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · קיצור add+commit</span><button class="copy-btn">העתק</button></div>
+        <pre><code># -a עושה add אוטומטי לכל הקבצים ה-tracked שהשתנו, ואז commit
+git commit -a -m "Update foo.txt"</code></pre>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 12. Teamwork -->
+    <!-- ============================================================ -->
+    <section id="teamwork">
+      <h2><span class="num">12.</span> עבודת צוות: clone, push, pull</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — נכנס שחקן שני</span>
+          עד עכשיו רק Alice עבדה. עכשיו <strong>Bob</strong> רוצה להצטרף לפרויקט. נראה את המחזור המלא של שיתוף פעולה — וכאן נכיר את הפקודה האחרונה בחבילת הבסיס: <code>git pull</code>.
+        </div>
+      </div>
+
+      <h3>Bob מצטרף — <code>git clone</code></h3>
+      <p>Bob רוצה לעבוד על הפרויקט מקומית, אז הוא מבצע <code>git clone</code> מהשרת. עכשיו יש <strong>שני עותקים מקומיים</strong> נפרדים: של Alice ושל Bob. שימו לב: Bob מקבל רק את מה שיש <em>בשרת</em> (למשל בלי <code>hello3.txt</code> ו-<code>hello2.txt</code> שמעולם לא עלו).</p>
+
+      <h3>Bob עובד — <code>git add</code> + <code>commit</code> + <code>push</code></h3>
+      <p>Bob משנה קובץ (למשל <code>hello.txt</code>), מבצע <code>add</code> + <code>commit</code> מקומית, ואז <code>git push</code> כדי להעלות לשרת. עכשיו השרת מעודכן עם השינוי של Bob.</p>
+
+      <h3>Alice מסתנכרנת — <code>git pull</code></h3>
+      <p>הבעיה: אצל Alice עדיין יש את הגרסה הישנה — היא לא יודעת על השינוי של Bob! כדי <strong>למשוך את השינויים מהשרת אל המאגר המקומי שלה</strong>, Alice מבצעת <code>git pull</code>:</p>
+
+      <pre class="ascii-diagram"><code>   Server (remote)                        Alice's computer
+   ┌────────────────┐      git pull        ┌────────────────┐
+   │  remote repo   │  ──────────────▶     │  local repo    │
+   │ (Bob's change) │   (מושך עדכונים)     │ (now updated)  │
+   └────────────────┘                      └────────────────┘</code></pre>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>git pull</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">push מול pull — לזכור את הכיוון</span>
+          <strong><code>push</code></strong> = שולח את השינויים שלי <em>מהמחשב לשרת</em> (↑ למעלה).<br>
+          <strong><code>pull</code></strong> = מושך שינויים של אחרים <em>מהשרת למחשב שלי</em> (↓ למטה).<br>
+          מחזור עבודה טיפוסי: <code>pull</code> (לקבל את העדכונים האחרונים) → לעבוד → <code>add</code> → <code>commit</code> → <code>push</code> (לשתף).
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 13. Branches -->
+    <!-- ============================================================ -->
+    <section id="branches">
+      <h2><span class="num">13.</span> ענפים (Branches), HEAD ופוינטרים</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — אחד הכלים החזקים ביותר ב-Git</span>
+          עד עכשיו דיברנו על קו זמן אחד של commits. אבל מה אם רוצים לפתח פיצ'ר חדש <strong>בלי לסכן</strong> את הקוד היציב? מה אם כמה אנשים עובדים על דברים שונים במקביל? התשובה היא <strong>ענפים (branches)</strong>. זה הנושא שהופך את Git ממערכת גיבוי לכלי עבודה אמיתי.
+        </div>
+      </div>
+
+      <h3>איך commits באמת מקושרים</h3>
+      <p>בתוך Git, ה-commits מקושרים בשרשרת: כל commit "מצביע" אחורה ל-commit שלפניו (ה-parent שלו). זה יוצר קו רציף:</p>
+
+      <pre class="ascii-diagram"><code>  Commit ◀── Commit ◀── Commit ◀── Commit
+                                      ▲
+                                      │
+                              main branch pointer</code></pre>
+
+      <h3>מהו ענף (branch)?</h3>
+      <div class="callout warn">
+        <span class="ic">📌</span>
+        <div class="body">
+          <span class="title">ענף הוא בסך הכל מצביע (pointer) ל-commit</span>
+          זו אחת התובנות החשובות בהרצאה: <strong>ענף הוא רק מצביע (pointer) שמצביע על commit מסוים.</strong> הוא לא "עותק" של הקוד. ענף ברירת המחדל נקרא <code>master</code> או <code>main</code>, וה-pointer שלו מצביע תמיד על ה-commit האחרון בענף.
+        </div>
+      </div>
+
+      <h3>HEAD — איפה אני נמצא עכשיו</h3>
+      <p>כשיוצרים ענף חדש (למשל <code>Foo</code>), נוצר מצביע נוסף. אבל איך Git יודע על איזה ענף אנחנו עובדים כרגע? בעזרת מצביע מיוחד בשם <strong>HEAD</strong>:</p>
+
+      <div class="callout warn">
+        <span class="ic">👉</span>
+        <div class="body">
+          <span class="title">HEAD = "על איזה ענף אני נמצא ברגע זה"</span>
+          <code>HEAD</code> הוא מצביע שמצביע על <strong>הענף הפעיל הנוכחי</strong>. אם <code>HEAD</code> מצביע על <code>Foo</code> — אתם "על" ענף Foo, וכל commit חדש יקדם את המצביע של Foo. אם תעברו ל-<code>main</code>, ה-HEAD יצביע על main.
+        </div>
+      </div>
+
+      <h3>עבודה על כמה ענפים</h3>
+      <p>כשנמצאים על ענף <code>Foo</code> ועושים commits, רק המצביע של Foo מתקדם — בעוד <code>main</code> נשאר במקום. כך נוצרת "התפצלות": שני קווי פיתוח מקבילים שיוצאים מאותה נקודה. כל ענף מתקדם בנפרד מבלי להפריע לשני.</p>
+
+      <pre class="ascii-diagram"><code>                             Foo ──▶ Commit ◀── Commit   ◀── HEAD
+                                                  │
+  Commit ◀── Commit ◀── Commit ◀───────────────────┘
+                          ▲
+                         main</code></pre>
+
+      <h3>יצירת ענף בפועל</h3>
+      <p>ב-VS Code: תפריט <strong>···</strong> → <strong>Branch</strong> → <strong>Create Branch...</strong>. מאחורי הקלעים Git מריץ:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code># יצירת ענף חדש בשם MyBranch ומעבר אליו (-b = create + switch)
+git checkout -b MyBranch
+
+# (הפקודה המודרנית והמומלצת יותר, עושה אותו דבר):
+git switch -c MyBranch</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס</span>
+          <code>git checkout</code> = מעבר בין ענפים/גרסאות. הדגל <code>-b</code> = <em>branch</em>, כלומר "צור ענף חדש <em>וגם</em> עבור אליו". במצגת מופיעה הצורה המלאה שה-GUI מריץ: <code>git checkout -q -b MyBranch --no-track HEAD</code> (<code>-q</code> = quiet, שקט).
+        </div>
+      </div>
+
+      <h3>commit ו-push לענף החדש</h3>
+      <p>עושים commit בענף <code>MyBranch</code>, ואז דוחפים אותו לשרת. בפעם הראשונה צריך לציין לאן לדחוף את הענף החדש:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code># push ראשון של ענף חדש — קושר אותו לענף מרוחק תואם
+git push -u origin MyBranch</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס</span>
+          <code>origin</code> = השם המוסכם של המאגר המרוחק (השרת). <code>-u</code> (או <code>--set-upstream</code>) = "קשור את הענף המקומי לענף המרוחק התואם", כך שבפעמים הבאות אפשר פשוט <code>git push</code> בלי לפרט. אחרי זה יהיו לנו <strong>שני ענפים</strong> בשרת: <code>main</code> ו-<code>MyBranch</code>, ו-GitHub יציין ש-MyBranch הוא "1 commit ahead of main".
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 14. Fast-forward merge -->
+    <!-- ============================================================ -->
+    <section id="ff-merge">
+      <h2><span class="num">14.</span> מיזוג Fast-forward</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          סיימנו לפתח בענף הצדדי — עכשיו נרצה להחזיר את השינויים ל-<code>main</code>. הפעולה הזו נקראת <strong>מיזוג (merge)</strong>. נתחיל מהמקרה הפשוט ביותר: <strong>fast-forward</strong>.
+        </div>
+      </div>
+
+      <p><strong>Fast-forward merge</strong> קורה במקרה הפשוט: ה-<code>main</code> <strong>לא השתנה</strong> מאז שיצרנו את הענף. במצב כזה אין שום סתירה — Git פשוט "מזיז את המצביע של main קדימה" עד שהוא משיג את הענף. זהו, מוזג.</p>
+
+      <pre class="ascii-diagram"><code>  לפני המיזוג:
+                          MyBranch ──▶ Commit (חדש)   ◀── HEAD
+                                          │
+  Commit ◀── Commit ◀── Commit ◀───────────┘
+                          ▲
+                         main (נשאר מאחור)
+
+  אחרי fast-forward — main פשוט "קופץ קדימה":
+  Commit ◀── Commit ◀── Commit ◀── Commit
+                                      ▲
+                                  main = MyBranch</code></pre>
+
+      <p>השלבים בפועל (כפי שבמצגת):</p>
+      <ol>
+        <li><strong>Checking out the main branch</strong> — קודם עוברים חזרה לענף <code>main</code> (תפריט ··· → Checkout to... → main).</li>
+        <li><strong>Merging 'MyBranch' into main</strong> — ··· → Branch → Merge Branch... ובוחרים את MyBranch.</li>
+        <li>התוצאה: <strong>success</strong> — main עכשיו מכיל את כל ה-commits של MyBranch.</li>
+        <li>אפשר עכשיו <strong>למחוק את MyBranch</strong> (Delete MyBranch) — וההיסטוריה שלו <strong>נשארת</strong> ב-main (כי ה-commits כבר חלק מ-main).</li>
+      </ol>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · terminal</span><button class="copy-btn">העתק</button></div>
+        <pre><code>git checkout main          # לעבור ל-main
+git merge MyBranch         # למזג את MyBranch לתוך main
+git branch -d MyBranch     # למחוק את הענף שמוזג (-d = delete)</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">למה אפשר למחוק את הענף בלי לאבד כלום (משלי)</span>
+          זכרו — ענף הוא <em>רק מצביע</em>. אחרי מיזוג ל-main, ה-commits עצמם כבר חלק מההיסטוריה של main. מחיקת הענף מוחקת רק את המצביע, לא את ה-commits. ההיסטוריה של main אכן מכילה את כל ה-commits מהענף שנמחק.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 15. Feature branch workflow -->
+    <!-- ============================================================ -->
+    <section id="feature-branch">
+      <h2><span class="num">15.</span> עבודה לפי פיצ'ר (Topic / Feature branches)</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          זהו ה<strong>דפוס עבודה (workflow)</strong> הסטנדרטי בתעשייה: כל פיצ'ר חדש מקבל ענף משלו. נושא קצר אבל חשוב מאוד — זה בדיוק איך עובדים בצוותים אמיתיים.
+        </div>
+      </div>
+
+      <p>השיטה נקראת <strong>"Branch by feature"</strong> — לכל פיצ'ר ענף נפרד. הזרימה המלאה:</p>
+
+      <ol>
+        <li><strong>יצירת ענף חדש ומעבר אליו</strong> (ענף לכל פיצ'ר).</li>
+        <li><strong>מימוש השינויים</strong> שהפיצ'ר דורש:
+          <ul><li>commit + push לענף הפיצ'ר לפי הצורך (כמה פעמים שרוצים).</li></ul>
+        </li>
+        <li><strong>כשמסיימים</strong>:
+          <ul>
+            <li>עוברים לענף <code>main</code>.</li>
+            <li>ממזגים את שינויי ענף הפיצ'ר לתוך <code>main</code>.</li>
+            <li>מוחקים את ענף הפיצ'ר.</li>
+            <li>דוחפים את השינויים (push).</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="callout tip">
+        <span class="ic">🛡️</span>
+        <div class="body">
+          <span class="title">למה זה כל כך טוב (משלי)</span>
+          ענף <code>main</code> נשאר תמיד <strong>יציב ועובד</strong>, כי כל הניסויים והפיתוחים קורים בענפים נפרדים. אם פיצ'ר נכשל — פשוט מוחקים את הענף שלו, ו-main לא נפגע. בנוסף, כמה מפתחים יכולים לעבוד במקביל, כל אחד על ענף משלו, בלי לדרוך אחד לשני.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 16. Three-way merge -->
+    <!-- ============================================================ -->
+    <section id="three-way">
+      <h2><span class="num">16.</span> מיזוג Three-way</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          ב-fast-forward הנחנו ש-main לא השתנה. אבל בעבודת צוות אמיתית, בזמן שעבדנו על הענף שלנו — <strong>מישהו אחר כבר שינה את main</strong>. במצב כזה Git לא יכול פשוט "לקפוץ קדימה". כאן נכנס <strong>three-way merge</strong>.
+        </div>
+      </div>
+
+      <p>המצב: גם <code>main</code> התקדם (commit חדש, מסומן בכתום בדיאגרמה) וגם הענף <code>Foo</code> התקדם — <strong>בשני כיוונים נפרדים</strong> מאותה נקודת מוצא. Git לא יכול פשוט להזיז מצביע; הוא צריך <strong>לאחד</strong> את שני קווי הפיתוח.</p>
+
+      <pre class="ascii-diagram"><code>                        Foo ──▶ Commit ◀── Commit
+                                             │
+  Commit ◀── Commit ◀── Commit ◀── Commit(כתום) ◀── HEAD/main
+                          ▲
+                          └── נקודת מוצא משותפת</code></pre>
+
+      <div class="callout warn">
+        <span class="ic">🔀</span>
+        <div class="body">
+          <span class="title">למה "three-way"?</span>
+          Git מסתכל על <strong>שלוש</strong> נקודות כדי למזג: (1) נקודת המוצא המשותפת (ה-commit האחרון ששני הענפים חלקו), (2) הקצה של הענף שלי, (3) הקצה של main. מתוך השלוש הוא מחשב את התוצאה הממוזגת. במצגת מופיעה הערה חשובה: <strong>"main לא בהכרח ייראה כך אחרי המיזוג"</strong> — Git יוצר commit מיזוג מיוחד שמחבר את שני הקווים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 17. Pull requests -->
+    <!-- ============================================================ -->
+    <section id="pull-request">
+      <h2><span class="num">17.</span> Pull Requests</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          עד עכשיו מיזגנו ענפים בעצמנו. אבל בפרויקטים אמיתיים, לרוב <strong>לא</strong> ממזגים ישירות ל-main. במקום זה משתמשים ב-<strong>Pull Request</strong> (בקיצור PR) — מנגנון שמארגן ומבקר מיזוגים. זהו לב ליבה של שיתוף פעולה ב-GitHub.
+        </div>
+      </div>
+
+      <p>למה לא פשוט למזג ישירות? המצגת נותנת שתי סיבות:</p>
+      <ul>
+        <li><strong>לפעמים אי אפשר</strong> למזג "סתם ככה" — יש <strong>ענפים מוגנים (protected branches)</strong> שרק אנשים מורשים יכולים למזג אליהם.</li>
+        <li><strong>לפעמים אפשר, אבל לא רוצים</strong> — כי אנחנו רוצים ש<strong>אנשים אחרים יבדקו את הקוד שלנו</strong> (code review) לפני שהוא נכנס.</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">מהו Pull Request</span>
+          <strong>על ידי יצירת pull request, אנחנו מארגנים את מיזוגי הקוד.</strong> PR הוא בקשה רשמית: "אני רוצה למזג את הענף שלי לתוך main — בואו נבדוק ונאשר ביחד". הוא מאפשר דיון, תגובות, בדיקות אוטומטיות (CI), ואישור — לפני שהקוד נכנס ל-main.
+        </div>
+      </div>
+
+      <h3>הזרימה של Pull Request (מהמצגת)</h3>
+      <ol>
+        <li>Alice עושה commit ו-push לענף פיצ'ר (למשל <code>Foo-feature-branch</code>).</li>
+        <li>GitHub מציע כפתור <strong>"Compare &amp; pull request"</strong>. Alice יוצרת PR.</li>
+        <li>ב-PR בוחרים: <code>base: main</code> (לאן ממזגים) ו-<code>compare: Foo-feature-branch</code> (מה ממזגים).</li>
+        <li>אם אפשר למזג אוטומטית — GitHub מציג <strong>"Able to merge"</strong> בירוק. אם לא — "Can't automatically merge".</li>
+        <li>אחרים מגיבים, מבקשים שינויים, ובסוף לוחצים <strong>"Merge pull request"</strong>.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 18. Conflicts -->
+    <!-- ============================================================ -->
+    <section id="conflicts">
+      <h2><span class="num">18.</span> קונפליקטים (Merge Conflicts) ופתרונם</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מה כל מתחיל מפחד ממנו</span>
+          קונפליקט קורה כשמנסים למזג, ו<strong>שני אנשים שינו את אותה שורה באותו קובץ</strong> בצורה שונה. Git לא יכול להחליט לבד איזו גרסה נכונה — אז הוא <strong>עוצר ומבקש מאיתנו להכריע</strong>. זה נשמע מפחיד, אבל זה לגמרי שגרתי ופתיר. נבין בדיוק איך זה נראה ואיך פותרים.
+        </div>
+      </div>
+
+      <h3>איך נוצר קונפליקט</h3>
+      <p>דוגמה מהמצגת: שני מפתחים שינו את <code>hello3.txt</code> מקומית. המפתח השמאלי מיזג את שינוייו ל-main (שם כתוב עכשיו <code>FooBar</code>), בעוד המפתח הימני, על הענף שלו, כתב <code>Foo</code> / <code>Bar</code> / <code>Foobar</code>. כשהמפתח הימני עושה <code>git pull</code> מ-main — Git מגלה ש<strong>אותה שורה</strong> שונתה בשני מקומות בצורה שונה ⟵ <strong>קונפליקט</strong>.</p>
+
+      <div class="callout danger">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">ההודעה שתראו</span>
+          "There are merge conflicts. Resolve them before committing." — יש קונפליקטים שצריך לפתור <strong>לפני</strong> שאפשר לבצע commit.
+        </div>
+      </div>
+
+      <h3>איך נראה קובץ עם קונפליקט</h3>
+      <p>Git מסמן את אזור הקונפליקט בקובץ עצמו, עם "סמני קונפליקט" מיוחדים:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">hello3.txt · קובץ עם קונפליקט</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD
+Foo
+Bar
+Foobar
+=======
+FooBar
+&gt;&gt;&gt;&gt;&gt;&gt;&gt; 76ffa775f1bc2399a6f688864844fc1a</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">קריאת סמני הקונפליקט</span>
+          <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> — מכאן מתחילה <strong>הגרסה שלי</strong> (הענף הנוכחי).<br>
+          <code>=======</code> — קו ההפרדה בין שתי הגרסאות.<br>
+          <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; &lt;hash&gt;</code> — עד כאן <strong>הגרסה השנייה</strong> (זו שמושכים/ממזגים, מזוהה לפי ה-hash).<br>
+          <strong>לפתור</strong> = למחוק את הסמנים ולהשאיר את הטקסט הסופי הנכון (אולי לשלב את שתי הגרסאות).
+        </div>
+      </div>
+
+      <h3>פתרון הקונפליקט</h3>
+      <p>ב-VS Code יש עורך מיזוג נוח: בצד שמאל "Theirs" (origin/main), בצד ימין "Yours" (הענף שלי), ולמטה "Result" — התוצאה הסופית. בוחרים שורות מכל צד או כותבים ידנית (למשל <code>FooBar</code> + <code>Foobar2</code>), עד שכתוב <strong>"0 Conflicts Remaining"</strong>. אז לוחצים <strong>Mark as resolved</strong> / <strong>Commit merge</strong>.</p>
+
+      <div class="callout tip">
+        <span class="ic">✅</span>
+        <div class="body">
+          <span class="title">הזרימה השלמה של PR עם קונפליקט (מהמצגת)</span>
+          1. נוצר PR אבל "main branch changed ⟹ conflicts exist".<br>
+          2. לוחצים <strong>Resolve conflicts</strong> ופותרים.<br>
+          3. אחרי הפתרון: <strong>"This branch has no conflicts with the base branch"</strong> — אפשר למזג.<br>
+          4. ב-PR אפשר גם <strong>להמשיך להגיב ולבקש שינויים</strong> (למשל "No reason for two Foobars, please choose one") — וניתן להוסיף עוד commits לענף; ה-PR מתעדכן אוטומטית.<br>
+          5. בסוף — <strong>Merge pull request</strong>, וההיסטוריה של main כוללת את כל ה-commits ואת commit המיזוג.
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 19. Git internals -->
+    <!-- ============================================================ -->
+    <section id="internals">
+      <h2><span class="num">19.</span> Git Internals — איך Git שומר הכל</h2>
+
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט — מציצים מתחת למכסה המנוע</span>
+          עד עכשיו השתמשנו ב-Git כ"קופסה שחורה". בחלק הזה נראה <strong>איך הוא באמת עובד בפנים</strong> — מה נמצא בתיקיית <code>.git</code> וכיצד Git מאחסן קבצים, גרסאות ו-commits. זה הופך את כל הקסם להגיוני, ועוזר להבין למה דברים מתנהגים כמו שהם מתנהגים.
+        </div>
+      </div>
+
+      <h3>הצצה לתיקיית <code>.git</code></h3>
+      <p>ניצור תיקייה, קובץ <code>foo.txt</code>, ונריץ <code>git init</code>. נפתח את התיקייה הנסתרת <code>.git</code> ונראה את המבנה הפנימי:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">.git/ · מבנה התיקייה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>.git/
+├── hooks/         # סקריפטים שרצים אוטומטית באירועים (לפני commit וכו')
+├── info/
+├── objects/       # ⭐ כאן נשמרים כל האובייקטים: blobs, trees, commits
+│   ├── info/
+│   └── pack/
+├── refs/          # מצביעים
+│   ├── heads/     # ⭐ הענפים המקומיים (main, mybranch...)
+│   └── tags/
+├── config         # הגדרות המאגר
+├── description
+├── FETCH_HEAD
+└── HEAD           # ⭐ מצביע לענף הפעיל הנוכחי</code></pre>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">VS Code מסתיר את .git</span>
+          כברירת מחדל VS Code מסתיר את תיקיית <code>.git</code> (דרך ההגדרה <code>files.exclude</code> עם התבנית <code>**/.git</code>). כדי לראות אותה במצגת, שינו את ההגדרה ל-<code>"**/.git": false</code>.
+        </div>
+      </div>
+
+      <h3>שלושת סוגי האובייקטים של Git</h3>
+      <p>Git שומר הכל כ"אובייקטים" בתוך <code>objects/</code>, ולכל אובייקט יש מזהה ייחודי — <strong>hash מסוג SHA-1</strong> (40 תווים הקסדצימליים). יש שלושה סוגים עיקריים:</p>
+
+      <table>
+        <thead>
+          <tr><th>אובייקט</th><th>מה הוא שומר</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>blob</strong> (Binary Large Object)</td><td>את <em>התוכן</em> של קובץ (רק התוכן — לא את שם הקובץ!).</td></tr>
+          <tr><td><strong>tree</strong> (עץ)</td><td>"תיקייה" — רשימת שמות קבצים ותתי-תיקיות, וה-hash של ה-blob/tree של כל אחד.</td></tr>
+          <tr><td><strong>commit</strong></td><td>הצבעה ל-tree (תמונת מצב של כל הפרויקט) + מי המחבר + מתי + הודעה + ה-parent.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>הדגמה: blob</h3>
+      <p>נכתוב <code>bar</code> לתוך <code>foo.txt</code> ונריץ <code>git add foo.txt</code>. מיד נוצר אובייקט חדש ב-<code>objects/</code>, בתיקייה ששמה שני התווים הראשונים של ה-hash (<code>ba</code>) וקובץ ששמו שאר ה-hash:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · בדיקת האובייקט</span><button class="copy-btn">העתק</button></div>
+        <pre><code># -p מדפיס את התוכן (print), -t מדפיס את הסוג (type)
+$ git cat-file -p ba0e16
+bar
+
+$ git cat-file -t ba0e16
+blob</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס</span>
+          <code>git cat-file</code> = פקודת "הצצה" לאובייקט לפי ה-hash שלו (מספיק להעתיק כמה תווים ראשונים). <code>-p</code> = print (תוכן), <code>-t</code> = type (סוג). שימו לב: התוכן הגולמי של האובייקט בדיסק <strong>דחוס</strong> (אם תפתחו אותו ישירות תראו ג'יבריש) — <code>cat-file</code> הוא מה שמפענח אותו.
+        </div>
+      </div>
+
+      <h3>הדגמה: commit יוצר tree + commit</h3>
+      <p>נריץ <code>git commit -m "First commit"</code>. עכשיו נוצרו שני אובייקטים חדשים — אובייקט <strong>tree</strong> ואובייקט <strong>commit</strong>:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · חקירת ה-commit</span><button class="copy-btn">העתק</button></div>
+        <pre><code># האובייקט tree — מקשר שם קובץ ל-blob שלו
+$ git cat-file -p 899c3e
+100644 blob ba0e162e1c47469e3fe4b393a8bf8c569f302116    foo.txt
+
+$ git cat-file -t 899c3e
+tree
+
+# האובייקט commit — מצביע ל-tree, ומכיל מטא-דאטה
+$ git cat-file -p 03d1b9
+tree 899c3ea59c69ba62f93d1c01b9c8d0a11f12beea
+author a &lt;a&gt; 1727467926 +0300
+committer a &lt;a&gt; 1727467926 +0300
+
+First commit
+
+$ git cat-file -t 03d1b9
+commit</code></pre>
+      </div>
+
+      <p>אז ה-commit הראשון יוצר את שרשרת ההפניות הבאה:</p>
+
+      <pre class="ascii-diagram"><code>  ┌─────────────┐
+  │ First commit│  03d1b9942500d28fcd5d3f4ad0be18f926a66fe0
+  └──────┬──────┘
+         ▼
+  Tree: 899c3ea59c69ba62f93d1c01b9c8d0a11f12beea
+         ▼
+  Blob: ba0e162e1c47469e3fe4b393a8bf8c569f302116   ("bar")</code></pre>
+
+      <h3>commit שני — תיקיות מקוננות ו-parent</h3>
+      <p>נוסיף תיקייה <code>mydir</code> עם קבצים, ונעשה commit שני. עכשיו נראה משהו יפה: ל-tree של ה-commit השני יש <strong>tree מקונן</strong> (עבור <code>mydir</code>), ול-commit השני יש שדה <strong>parent</strong> שמצביע על ה-commit הראשון:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · commit שני</span><button class="copy-btn">העתק</button></div>
+        <pre><code>$ git cat-file -p 20babc      # ה-commit השני
+tree 1fc0ad423e328231d2bb8b1f25a8920bbfd38d53
+parent 03d1b9942500d28fcd5d3f4ad0be18f926a66fe0   &lt;-- מצביע ל-commit הראשון!
+author a &lt;a&gt; 1727469188 +0300
+committer a &lt;a&gt; 1727469188 +0300
+
+Second commit
+
+$ git cat-file -p 1fc0ad      # ה-tree הראשי
+100644 blob ba0e162e...    foo.txt
+040000 tree e53225397...   mydir          &lt;-- tree מקונן (תיקייה בתוך תיקייה)</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">התובנה הגדולה: Git הוא גרף של אובייקטים</span>
+          כל commit מצביע ל-<strong>parent</strong> שלו (ה-commit הקודם) — וכך נבנית שרשרת ההיסטוריה. כל commit מצביע גם ל-<strong>tree</strong> (תמונת מצב מלאה של הפרויקט), שמצביע ל-<strong>blobs</strong> (תוכן הקבצים) ול-trees מקוננים (תיקיות). הכל מקושר דרך hashes:
+        </div>
+      </div>
+
+      <pre class="ascii-diagram"><code>  First commit  ◀────parent──── Second commit
+   03d1b9...                      20babc...
+      │                              │
+      ▼                              ▼
+  Tree 899c3e               Tree 1fc0ad ──┐
+      │                       │           │
+      ▼                       ▼           ▼
+  Blob ba0e16 ◀───────────────┘     Tree e53225
+   ("bar")                              │   │
+                                        ▼   ▼
+                              Blob ba0e16   Blob 43837c</code></pre>
+
+      <div class="callout tip">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">למה ה-hash מבוסס תוכן זה גאוני (משלי)</span>
+          ה-hash של אובייקט מחושב <strong>מהתוכן שלו</strong>. לכן: (1) שני קבצים זהים → אותו blob (Git לא משכפל תוכן זהה — חוסך מקום!). (2) אם תוכן משתנה ולו בתו אחד → ה-hash משתנה לגמרי → לא ניתן "לזייף" היסטוריה בלי שיבחינו. זה גם מה שמבטיח את שלמות (integrity) ההיסטוריה כולה.
+        </div>
+      </div>
+
+      <h3>refs ו-HEAD — איך Git יודע איפה כל ענף</h3>
+      <p>אחרי commit, נוצר הקובץ <code>.git/refs/heads/main</code>. מה יש בו? פשוט את ה-hash של ה-commit האחרון בענף:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">.git/refs/heads/main</span><button class="copy-btn">העתק</button></div>
+        <pre><code>e6c93d1d926e927baf63fb662d6454743e59e6d5</code></pre>
+      </div>
+
+      <p>כשיוצרים ענף חדש (<code>git checkout -b mybranch</code>), נוצר קובץ נוסף <code>.git/refs/heads/mybranch</code> — עם <strong>אותו hash</strong> (כי הענף מתחיל מאותה נקודה). וקובץ <code>HEAD</code> מצביע על הענף הפעיל:</p>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">.git/HEAD</span><button class="copy-btn">העתק</button></div>
+        <pre><code>ref: refs/heads/mybranch</code></pre>
+      </div>
+
+      <div class="callout warn">
+        <span class="ic">📌</span>
+        <div class="body">
+          <span class="title">עכשיו זה מתחבר!</span>
+          זוכרים ש"ענף הוא רק מצביע" ו"HEAD מצביע על הענף הפעיל"? עכשיו אנחנו רואים את זה ממש בקבצים: <strong>ענף = קובץ קטן ב-<code>refs/heads/</code> שמכיל hash של commit</strong>. <strong>HEAD = קובץ שמכיל <code>ref:</code> לענף הפעיל.</strong> כשעושים commit חדש, Git פשוט מעדכן את ה-hash בקובץ הענף. כשעוברים ענף, Git משנה את התוכן של <code>HEAD</code>. הכל קבצי טקסט קטנים — אין כאן שום קסם.
+        </div>
+      </div>
+
+      <p>נראה את זה: עושים commit על <code>mybranch</code>. הקובץ <code>refs/heads/mybranch</code> מתעדכן ל-hash החדש (<code>040785b...</code>), בעוד <code>refs/heads/main</code> נשאר עם ה-hash הישן (<code>e6c93d1...</code>). שני הענפים מצביעים עכשיו על commits שונים — בדיוק התמונה התיאורטית שראינו בפרק הענפים, אבל הפעם בקבצים אמיתיים.</p>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 20. Cheat sheet -->
+    <!-- ============================================================ -->
+    <section id="cheatsheet">
+      <h2><span class="num">20.</span> נספח: דף פקודות מהיר (Cheat-sheet)</h2>
+
+      <div class="callout tip">
+        <span class="ic">📋</span>
+        <div class="body">
+          <span class="title">תוספת שלי לסיכום</span>
+          ריכוז של כל הפקודות מההרצאה במקום אחד, לשליפה מהירה.
+        </div>
+      </div>
+
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · Git cheat-sheet</span><button class="copy-btn">העתק</button></div>
+        <pre><code># -- התחלה -------------------------------
+git init                       # מאגר חדש מקומי
+git clone &lt;url&gt;                 # שכפול מאגר קיים מהשרת
+
+# -- מצב נוכחי ---------------------------
+git status                     # אילו קבצים השתנו / staged
+git log                        # היסטוריית commits
+git log --oneline --graph      # היסטוריה קומפקטית עם גרף ענפים
+
+# -- מחזור עבודה בסיסי -------------------
+git add &lt;file&gt;                  # קובץ ספציפי ל-staging
+git add .                      # כל השינויים ל-staging
+git commit -m "message"        # קיבוע גרסה מקומית
+git commit -a -m "message"     # add (ל-tracked) + commit ביחד
+git push                       # העלאה לשרת
+git pull                       # משיכת עדכונים מהשרת
+
+# -- ענפים -------------------------------
+git branch                     # רשימת ענפים
+git checkout -b &lt;name&gt;          # יצירת ענף + מעבר אליו
+git switch &lt;name&gt;               # מעבר לענף קיים (מודרני)
+git merge &lt;name&gt;                # מיזוג ענף לתוך הנוכחי
+git branch -d &lt;name&gt;            # מחיקת ענף שמוזג
+git push -u origin &lt;name&gt;       # push ראשון של ענף חדש
+
+# -- הצצה לפנים (internals) --------------
+git cat-file -p &lt;hash&gt;          # הדפסת תוכן אובייקט
+git cat-file -t &lt;hash&gt;          # הדפסת סוג אובייקט (blob/tree/commit)</code></pre>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">סיכום ההרצאה במשפט</span>
+          Git שומר <strong>גרסאות</strong> של הקוד כשרשרת <strong>commits</strong> (כל אחד הוא תמונת מצב + מצביע ל-parent). אנחנו מקדמים קבצים דרך האזורים <em>working → staging → local → remote</em> בעזרת <code>add → commit → push</code>, מסנכרנים עם אחרים דרך <code>pull/push</code>, ומפתחים במקביל בעזרת <strong>ענפים</strong> שממוזגים חזרה (fast-forward או three-way), לרוב דרך <strong>Pull Requests</strong> — וכל זה בנוי על גרף פשוט של אובייקטים (blob/tree/commit) המזוהים ב-hash.
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="../index.html">
+        <span class="dir">→ עמוד הבית</span>
+        <span class="ttl">כל ההרצאות והתרגולים</span>
+      </a>
+      <a class="next" href="../tutorials/tutorial-01.html">
+        <span class="dir">תרגול 1 ←</span>
+        <span class="ttl">המשך לתרגול</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    /* כפתורי "העתק" לכל בלוק קוד */
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) {
+          btn.textContent = 'שגיאה';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

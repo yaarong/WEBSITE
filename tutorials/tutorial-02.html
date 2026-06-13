@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 2 · OOP ב-C++ — מחלקות, ירושה ופולימורפיזם</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 2 · OOP ב-C++</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 2</div>
+      <h1>תכנות מונחה-עצמים ב-C++ — מחלקות, ירושה ופולימורפיזם</h1>
+      <p>נכיר את מנגנון ה-<strong>מחלקות</strong> ב-C++: הרשאות גישה, ממברים סטטיים, ה-qualifiers על מתודות, ו<strong>ניהול משאבים</strong> (Rule of 5 + RAII). אחר כך — <strong>ירושה</strong>, מתודות וירטואליות, <strong>פולימורפיזם</strong> ו-casting, ולסיום העשרה על <strong>ירושה מרובה</strong> (vtable ובעיית היהלום).</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        אם אתם מכירים OOP מ-Java — הרבה יהיה מוכר, אבל ל-C++ יש מאפיינים ייחודיים: ירושה מרובה (ולכן אין <code>interface</code> מובנה), שליטה ידנית ב-virtual, ירושה פרטית/מוגנת, וניהול משאבים מפורש.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — מחלקות</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#classes">מחלקות והרשאות גישה</a></li>
+            <li><a class="link" href="#static">ממברים סטטיים ו-<code>this</code></a></li>
+            <li><a class="link" href="#qualifiers">Qualifiers על מתודות</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ב' — ניהול משאבים</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#rule5">בנאים, destructor ו-Rule of 5</a></li>
+            <li><a class="link" href="#raii">RAII, =default/=delete, explicit</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ג' — ירושה ופולימורפיזם</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#inheritance">ירושה — תחביר והרשאות</a></li>
+            <li><a class="link" href="#virtual">מתודות וירטואליות</a></li>
+            <li><a class="link" href="#pure">Pure virtual, abstract, interface</a></li>
+            <li><a class="link" href="#poly">פולימורפיזם ו-casting</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.5rem"><strong>חלק ד' — העשרה</strong>
+          <ol style="margin-top:.4rem">
+            <li><a class="link" href="#multiple">vtable וירושה מרובה</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · מחלקות</h2>
+
+    <!-- 1 -->
+    <section id="classes">
+      <h3><span class="num">1.</span> מחלקות והרשאות גישה</h3>
+      <p><strong>מחלקה</strong> = אגד של שדות קשורים + פעולות עליהם. ב-C++ ההרשאות מוגדרות ב<strong>בלוקים</strong> (לא פר-שדה כמו ב-Java):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · class</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class BankAccount {
+public:                       // ממשק — נגיש מכל מקום
+    void deposit(double sum);
+    double balance() const;
+
+private:                      // ברירת המחדל — נגיש רק למתודות המחלקה
+    double m_balance = 0;     // מוסכמה: קידומת m_ לשדות
+};</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>הרשאה</th><th>מי ניגש</th></tr></thead>
+        <tbody>
+          <tr><td><code>public</code></td><td>כל מקום בקוד (בהינתן גישה לאובייקט) — מגדיר את ה<strong>ממשק</strong></td></tr>
+          <tr><td><code>protected</code></td><td>המחלקה עצמה + כל המחלקות היורשות</td></tr>
+          <tr><td><code>private</code></td><td>רק המחלקה עצמה (ו-friends) — <strong>ברירת המחדל</strong></td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>class</code> מול <code>struct</code></span>
+          ב-C++, <code>struct</code> זהה ל-<code>class</code> פרט להבדל אחד: ב-<code>struct</code> ברירת המחדל היא <code>public</code> (לתאימות אחורה עם C), וב-<code>class</code> היא <code>private</code>. שתיהן יכולות להחזיק מתודות, בנאים ו-destructor. <strong>כלל אצבע:</strong> רק מתודות צריכות להיות public; שדות תמיד private.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">אובייקטים כשדות</span>
+          מחלקה יכולה להחזיק שדה שהוא מחלקה אחרת ✅. אבל <em>לא</em> שדה מאותו טיפוס (רקורסיה אינסופית) ❌ — אלא <strong>מצביע</strong> לאותו טיפוס ✅ (מצביע הוא רק כתובת בגודל קבוע).
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="static">
+      <h3><span class="num">2.</span> ממברים סטטיים ו-<code>this</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">סטטי</span>
+          ממבר <strong>סטטי</strong> שייך ל<em>טיפוס</em> ולא למופע — ניגשים אליו ישירות בלי אובייקט (<code>ClassName::member</code>). שדה סטטי ≈ משתנה גלובלי (להשתמש בזהירות, פרט ל-Singleton). פונקציה סטטית ≈ פונקציה גלובלית, אך יכולה לגשת לממברים הפרטיים של המחלקה.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · static + this</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Counter {
+public:
+    static int count;                 // הצהרה
+    static int get() { return count; } // פונקציה סטטית
+
+    void setName(std::string name) {
+        this-&gt;name = name;            // this — מצביע לאובייקט הקורא
+    }
+private:
+    std::string name;
+};
+int Counter::count = 0;               // הגדרה — חייבת בקובץ .cpp</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>this</code></span>
+          מצביע לאובייקט הקורא (כמו בשפות אחרות). בד"כ לא נחוץ, אבל דרוש כשיש התנגשות שמות בין שדה לארגומנט. הערה: שדה סטטי <em>לא-קבוע</em> לא ניתן להגדיר ב-header (רק להצהיר) — מגדירים בקובץ <code>.cpp</code> (או <code>inline static</code> מ-C++17).
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="qualifiers">
+      <h3><span class="num">3.</span> Qualifiers על מתודות</h3>
+      <p>מצמידים מילות מפתח <em>אחרי</em> חתימת המתודה (וניתן לשרשר):</p>
+      <table>
+        <thead><tr><th>Qualifier</th><th>משמעות</th></tr></thead>
+        <tbody>
+          <tr><td><code>const</code></td><td>המתודה לא משנה שדות — ניתן לקרוא לה מאובייקט <code>const</code></td></tr>
+          <tr><td><code>override</code></td><td>המתודה דורסת מתודה של מחלקת אב</td></tr>
+          <tr><td><code>noexcept</code></td><td>המתודה לא זורקת חריגות</td></tr>
+          <tr><td><code>final</code></td><td>לא ניתן לדרוס את המתודה במחלקות יורשות</td></tr>
+          <tr><td><code>&amp;</code> / <code>&amp;&amp;</code></td><td>המתודה נקראת רק מ-lvalue / rvalue</td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · qualifiers</span><button class="copy-btn">העתק</button></div>
+        <pre><code>double balance() const;            // לא משנה שדות
+void process() const noexcept;     // שרשור
+
+const BankAccount acc{};
+acc.balance();   // מתקמפל רק כי balance מסומנת const</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">כלל זהב — <code>const</code></span>
+          ה-qualifier הכי חשוב. <strong>כל מתודה שלא משנה שדות פנימיים חייבת להיות <code>const</code></strong> — כך אפשר לקרוא לה גם מאובייקטים קבועים, וזה מתעד את הכוונה. ל-<code>noexcept</code> יש מתודות שחייבות אותו: destructor, move constructor, move assignment.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · ניהול משאבים</h2>
+
+    <!-- 4 -->
+    <section id="rule5">
+      <h3><span class="num">4.</span> בנאים, destructor ו-Rule of 5</h3>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">חמשת "מנהלי המשאבים" (Resource handlers)</span>
+          <ul style="margin:0">
+            <li><strong>בנאי</strong> (constructor) — מאתחל את האובייקט.</li>
+            <li><strong>בנאי העתקה</strong> (copy constructor) — בונה אובייקט מאובייקט אחר מאותו סוג.</li>
+            <li><strong>בנאי הזזה</strong> (move constructor, C++11) — בונה מאובייקט אחר שזמן חייו תם (move).</li>
+            <li><strong>אופרטור <code>=</code> בהעתקה / בהזזה</strong> — השמה.</li>
+            <li><strong>destructor</strong> — נקרא לפני שהאובייקט נהרס, משחרר משאבים. <code>noexcept</code> כברירת מחדל.</li>
+          </ul>
+          לכל החמישה יש מימוש ברירת-מחדל ב-C++.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">5️⃣</span>
+        <div class="body">
+          <span class="title">Rule of 5</span>
+          אם הגדרת <em>אחת</em> מחמש המתודות (destructor / copy ctor / copy assignment / move ctor / move assignment) — <strong>עליך להגדיר את כולן</strong>. (כי אם הגדרת אחת, סימן שאתה מנהל משאב ידנית, והאחרות צריכות להתאים.)
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · חתימות חמשת המתודות</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Buffer {
+public:
+    Buffer();                                  // בנאי רגיל
+    Buffer(const Buffer&amp; other);               // copy constructor
+    Buffer(Buffer&amp;&amp; other) noexcept;           // move constructor
+    Buffer&amp; operator=(const Buffer&amp; other);    // copy assignment
+    Buffer&amp; operator=(Buffer&amp;&amp; other) noexcept; // move assignment
+    ~Buffer();                                 // destructor
+};</code></pre>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="raii">
+      <h3><span class="num">5.</span> RAII, <code>=default</code>/<code>=delete</code>, <code>explicit</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">RAII — Resource Acquisition Is Initialization</span>
+          גישת תכנות איכותית: <strong>כובלים את אורך חייו של משאב לאורך חייו של אובייקט</strong>. המשאב נתפס בבנאי ומשוחרר ב-destructor — כך אין דליפות. דוגמאות מהספרייה: <code>std::unique_ptr</code> (זיכרון), <code>std::fstream</code> (קובץ), <code>std::vector</code> (מערך).
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>=default</code> ו-<code>=delete</code></span>
+          ברגע שמגדירים אחד ממנהלי המשאבים, ארבעת האחרים מתבטלים אוטומטית. כדי להחזיר מימוש ברירת-מחדל: <code>= default</code>. כדי לאסור פעולה מפורשות (כמו ב-<code>unique_ptr</code> שאוסר העתקה): <code>= delete</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · default / delete / explicit</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class NoCopy {
+public:
+    NoCopy() = default;                       // בנאי ברירת מחדל
+    NoCopy(const NoCopy&amp;) = delete;           // אוסר העתקה
+    NoCopy&amp; operator=(const NoCopy&amp;) = delete;
+
+    explicit NoCopy(int x);   // explicit — מונע המרה אוטומטית מ-int ל-NoCopy
+};</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title"><code>explicit</code></span>
+          בנאי שמקבל פרמטר יחיד מאפשר לקומפיילר להמיר <em>אוטומטית</em> מהטיפוס הזה למחלקה — לרוב התנהגות לא רצויה. הוספת <code>explicit</code> לפני הבנאי מונעת את ההמרה האוטומטית.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · ירושה ופולימורפיזם</h2>
+
+    <!-- 6 -->
+    <section id="inheritance">
+      <h3><span class="num">6.</span> ירושה — תחביר והרשאות</h3>
+      <p><strong>ירושה</strong> = הרחבת מחלקה ע"י מחלקה אחרת. כל המתודות, השדות והמאפיינים הסטטיים של האב נמצאים ביורשת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · syntax</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class B : public A { };   // B יורשת מ-A (ירושה פומבית)
+// אפשר גם:  class B : private A { };   או   protected</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">C++ מול Java</span>
+          <ul style="margin:0">
+            <li>C++ מאפשרת <strong>ירושה מרובה</strong> → אין צורך ב-<code>interface</code> מובנה.</li>
+            <li>ב-C++ <strong>לא</strong> כל מתודה ניתנת לדריסה כברירת מחדל (צריך <code>virtual</code>).</li>
+            <li>C++ תומכת ב<strong>ירושה פרטית ומוגנת</strong> (לא רק פומבית).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">ירושה — טוב ורע</span>
+          <strong>טוב:</strong> שימוש חוזר בקוד, הגדרת ממשק והיררכיה, Liskov substitution. <strong>רע:</strong> בעיית yo-yo, שבירת אנקפסולציה, ירושת מתודות מיותרות, וקוד שקשה יותר להבין. ירושה היא כלי חזק — להשתמש במידה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="virtual">
+      <h3><span class="num">7.</span> מתודות וירטואליות</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">מה זה virtual</span>
+          מתודה <strong>וירטואלית</strong> = מתודה שמותר לדרוס במחלקות יורשות. הקומפיילר לא יודע בזמן קומפילציה איזו לקרוא, ולכן מבצע <strong>dynamic dispatch</strong> — מחליט בזמן ריצה. ה-"virtualness" עוברת בירושה (יורשת לא חייבת לציין שוב <code>virtual</code>). לא ניתן ל-constructor.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · virtual + override</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Animal {
+public:
+    virtual void speak() const { std::cout &lt;&lt; "..."; }
+    virtual ~Animal() = default;     // destructor וירטואלי — חשוב בירושה!
+};
+
+class Dog : public Animal {
+public:
+    void speak() const override { std::cout &lt;&lt; "Woof"; }  // override
+};</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה תמיד <code>override</code></span>
+          ה-keyword <code>override</code> (C++11) מסמן שהמתודה דורסת. היתרון: אם <em>בטעות</em> לא דרסת באמת (שם/חתימה לא תואמים) — הקוד <strong>לא יתקמפל</strong>, ומונע באגים קשים לאיתור. גם קריא יותר. לכן: בכל דריסה — להשתמש ב-<code>override</code>.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🏗️</span>
+        <div class="body">
+          <span class="title">סדר קריאה לבנאים</span>
+          (1) בנאי מחלקת האב, (2) בנאי כל השדות <em>לפי סדר ההצהרה</em>, (3) בנאי המחלקה עצמה. ה-destructor — בסדר הפוך. אם לאב/שדה אין בנאי ברירת-מחדל, חובה לספק ארגומנטים דרך <strong>initialization list</strong>: <code>Dog() : Animal("dog"), m_age(0) { }</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section id="pure">
+      <h3><span class="num">8.</span> Pure virtual, abstract ו-interface</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · pure virtual</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Shape {
+public:
+    virtual double area() const = 0;   // pure virtual — חייב מימוש ביורשת
+    virtual ~Shape() = default;
+};</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">pure virtual ו-abstract</span>
+          <ul style="margin:0">
+            <li><strong>Pure virtual</strong> — מתודה בלי גוף, שחייבים לדרוס. תחביר: <code>= 0</code> אחרי החתימה (כמו מתודת interface ב-Java).</li>
+            <li>מחלקה עם לפחות מתודה pure virtual אחת היא <strong>abstract</strong> — <em>לא ניתן ליצור ממנה מופע</em>, אבל כן להשתמש בה כטיפוס פולימורפי.</li>
+            <li>יורשת של abstract חייבת לדרוס את <em>כל</em> ה-pure virtuals — אחרת היא עצמה הופכת ל-abstract.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">interface ב-C++</span>
+          אין <code>keyword</code> מיוחד. בפועל, interface הוא מחלקה ש: (1) כל המתודות שלה pure virtual, (2) אין לה שדות לא-סטטיים, (3) יש לה <strong>destructor וירטואלי</strong> (כדי שמחיקה דרך מצביע לבסיס תשחרר נכון).
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section id="poly">
+      <h3><span class="num">9.</span> פולימורפיזם ו-casting</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">פולימורפיזם = "רב-צורתיות"</span>
+          היכולת להסתכל על אובייקטים רבים דרך "משקפיים" של טיפוס אחד (האב). ב-C++ משיגים זאת <strong>רק דרך מצביע או רפרנס</strong> ל-base class — לא דרך הטיפוס ה"חשוף". כשטיפוס פולימורפי קורא למתודה וירטואלית, מתבצעת בדיקה בזמן ריצה איזו מתודה להפעיל.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · polymorphism</span><button class="copy-btn">העתק</button></div>
+        <pre><code>Animal* a = new Dog();   // מצביע ל-base, אובייקט מסוג derived
+a-&gt;speak();              // "Woof" — dynamic dispatch
+
+Base* bPtr = new Derived();              // ✅ מתקמפל ועובד
+Derived* dPtr = new Base();              // ❌ לא מתקמפל — Base אינו Derived</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">\u200Estatic_cast\u200E מול \u200Edynamic_cast\u200E</span>
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">cpp</span><button class="copy-btn">העתק</button></div>
+            <pre><code>Base* b1 = new Derived();
+Base* b2 = new Base();
+
+// C-style — מסוכן, undefined behavior אם לא תואם:
+Derived* d = (Derived*)b2;                   // מתקמפל אבל UB!
+
+// dynamic_cast — בטוח, מחזיר nullptr אם ההמרה לא חוקית:
+Derived* d1 = dynamic_cast&lt;Derived*&gt;(b1);    // עובד
+Derived* d2 = dynamic_cast&lt;Derived*&gt;(b2);    // nullptr (בטוח)</code></pre>
+          </div>
+          <code>dynamic_cast</code> עובד רק על מחלקות פולימורפיות (עם לפחות מתודה וירטואלית אחת), ומוגדר היטב. נמנעים מ-C-style cast ומ-UB ככל האפשר.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · העשרה — ירושה מרובה</h2>
+
+    <!-- 10 -->
+    <section id="multiple">
+      <h3><span class="num">10.</span> Virtual table ובעיית היהלום</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">Virtual table (vtable)</span>
+          כל מחלקה <strong>פולימורפית</strong> (עם לפחות מתודה וירטואלית) מקבלת <strong>טבלה וירטואלית</strong> — טבלה (פר-מחלקה) שמפרטת לכל מתודה וירטואלית איפה המימוש שלה. בקריאה למתודה וירטואלית דרך מצביע/רפרנס, ניגשים לטבלה, בודקים איזו מתודה להפעיל, ומפעילים. זה המנגנון מאחורי ה-dynamic dispatch.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · ירושה מרובה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Cartoon { /* ... */ };
+class Bear    { /* ... */ };
+
+class WinnieThePooh : public Cartoon, public Bear { };  // יורש משתיהן</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">💎</span>
+        <div class="body">
+          <span class="title">בעיית היהלום ("deadly diamond of death")</span>
+          אם <code>B</code> ו-<code>C</code> יורשות מ-<code>A</code>, ו-<code>D</code> יורשת משתיהן — אז <code>A</code> מופיעה <strong>פעמיים</strong> בתוך <code>D</code> (עותק דרך B ועותק דרך C). זו הבעיה המרכזית בירושה מרובה (ולכן Java אסרה אותה).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · virtual inheritance — הפתרון</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class B : virtual public A { };   // ירושה וירטואלית
+class C : virtual public A { };
+class D : public B, public C { }; // עכשיו רק עותק אחד של A!</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">virtual inheritance ומושגי העשרה</span>
+          <ul style="margin:0">
+            <li><strong>ירושה וירטואלית</strong> (<code>virtual</code> בהצהרת הירושה) מבטיחה שרק עותק <em>אחד</em> של מחלקת הבסיס יישמר. ("virtual" כאן = כתובת הבסיס לא ידועה בזמן קומפילציה.)</li>
+            <li><strong><code>mutable</code></strong> — qualifier על שדה: ניתן לשנותו גם במתודה <code>const</code>. רק לשדות עזר (cache), אף פעם לא ל-state. (כלל M&amp;M: mutex יכול וצריך להיות mutable.)</li>
+            <li><strong>ירושה פרטית/מוגנת</strong> — לפתרון שכפול קוד בלי הסיכון של פולימורפיזם שגוי; מגבילה הרשאות.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>מחלקות:</strong> הרשאות (public/protected/private בבלוקים), class≈struct, ממברים סטטיים, <code>this</code>.</li>
+            <li><strong>Qualifiers:</strong> <code>const</code> (החשוב!), <code>override</code>, <code>noexcept</code>, <code>final</code>.</li>
+            <li><strong>ניהול משאבים:</strong> חמשת מנהלי המשאבים → <strong>Rule of 5</strong>, <strong>RAII</strong>, <code>=default</code>/<code>=delete</code>, <code>explicit</code>.</li>
+            <li><strong>ירושה:</strong> <code>: public Base</code>, מתודות <code>virtual</code> + <code>override</code>, pure virtual → abstract → interface, סדר בנאים + init list.</li>
+            <li><strong>פולימורפיזם:</strong> רק דרך מצביע/רפרנס; <code>dynamic_cast</code> בטוח מול C-style. <strong>העשרה:</strong> vtable, בעיית היהלום + virtual inheritance.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-01.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 1 · מ-C ל-C++</span>
+      </a>
+      <a class="next" href="tutorial-03.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 3 · אופרטורים, STL ו-Templates</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

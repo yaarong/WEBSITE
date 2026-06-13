@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 7 · HTML ו-JavaScript בדפדפן</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 7 · HTML + JS</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 7</div>
+      <h1>HTML ו-JavaScript בדפדפן — DOM, אירועים וטפסים</h1>
+      <p>מחברים בין HTML ל-JavaScript בצד הלקוח. נלמד דרך דוגמאות אינטראקטיביות: מבנה HTML, <strong>אירועים</strong> (<code>onclick</code>), מניפולציה של ה-<strong>DOM</strong>, JS חיצוני, עבודה עם <strong>טפסים וקלט</strong>, ו-<strong>ולידציה</strong> — ובניית "שעון דפדפן" ו"רשימת קניות".</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        בתרגול 4 למדנו JavaScript "טהור". כאן ה-JS <em>פוגש את הדף</em>: הוא קורא ומשנה אלמנטים ב-HTML דרך ה-<strong>DOM</strong> (Document Object Model) — עץ האובייקטים שמייצג את העמוד.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#html">מבנה HTML בסיסי</a></li>
+        <li><a class="link" href="#events">אירועים ומניפולציית DOM</a></li>
+        <li><a class="link" href="#external">JS חיצוני</a></li>
+        <li><a class="link" href="#dom">getElementById, innerText ו-value</a></li>
+        <li><a class="link" href="#validation">ולידציה של קלט</a></li>
+        <li><a class="link" href="#forms">טפסים, inputs ו-datalist</a></li>
+      </ol>
+    </div>
+
+    <!-- 1 -->
+    <section id="html">
+      <h3><span class="num">1.</span> מבנה HTML בסיסי</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · hello_html.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Hello HTML&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Hello HTML!&lt;/h1&gt;
+    &lt;p&gt;Welcome to your first HTML page.&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">השלד</span>
+          <code>&lt;head&gt;</code> — מטא-מידע (כותרת, CSS). <code>&lt;body&gt;</code> — התוכן הנראה. תגיות נפוצות: <code>&lt;h1&gt;</code> (כותרת), <code>&lt;p&gt;</code> (פסקה), <code>&lt;button&gt;</code>, <code>&lt;input&gt;</code>, <code>&lt;div&gt;</code> (container).
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="events">
+      <h3><span class="num">2.</span> אירועים ומניפולציית DOM</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כדי שדף יהיה <em>אינטראקטיבי</em> צריך להגיב לפעולות המשתמש. הדרך הפשוטה: מאפיין <code>onclick</code> שמפעיל פונקציית JS, שמשנה את ה-DOM.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · button.html — כפתור שמשנה צבע רקע</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;body&gt;
+    &lt;h1&gt;Click the Button&lt;/h1&gt;
+    &lt;button onclick="changeColor()"&gt;Click Me&lt;/button&gt;
+
+    &lt;script&gt;
+        let clicked = false;
+        function changeColor() {
+            if (!clicked) {
+                document.body.style.backgroundColor = "lightblue";
+                clicked = true;
+            } else {
+                document.body.style.backgroundColor = "white";
+                clicked = false;
+            }
+        }
+    &lt;/script&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">DOM ו-onclick</span>
+          <ul style="margin:0">
+            <li><code>onclick="changeColor()"</code> — קורא לפונקציה בלחיצה. (ראינו אירועים בהרצאות — זה ה-Listener pattern.)</li>
+            <li><code>document.body.style.backgroundColor</code> — גישה לאובייקט <code>body</code> ושינוי הסגנון שלו ישירות. <strong>זה ה-DOM</strong>: ה-JS משנה את העמוד בזמן ריצה.</li>
+            <li>ה-<code>&lt;script&gt;</code> בתוך ה-HTML מריץ JS בדף.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="external">
+      <h3><span class="num">3.</span> JS חיצוני</h3>
+      <p>עדיף להפריד את ה-JS לקובץ נפרד (כמו שהפרדנו CSS) ולקשר אליו עם <code>&lt;script src&gt;</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · button_file.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;head&gt;
+    &lt;title&gt;External JS&lt;/title&gt;
+    &lt;script src="button_script.js"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;button onclick="changeColor()"&gt;Click Me&lt;/button&gt;
+&lt;/body&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · button_script.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>let clicked = false;
+function changeColor() {
+    document.body.style.backgroundColor = clicked ? "white" : "lightblue";
+    clicked = !clicked;
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">הפרדת אחריות</span>
+          HTML למבנה, CSS לעיצוב, JS חיצוני להתנהגות. אותו עיקרון שראינו לאורך כל הקורס — קוד מסודר וניתן לשימוש חוזר.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="dom">
+      <h3><span class="num">4.</span> <code>getElementById</code>, <code>innerText</code> ו-<code>value</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          כדי לעבוד עם אלמנט ספציפי, נותנים לו <code>id</code> ומאתרים אותו עם <code>document.getElementById</code>. דוגמה: "שעון דפדפן" שקורא מספר מ-input, מאמת אותו, וסופר לאחור על המסך.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · browser_clock.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;p id="clock"&gt;&lt;/p&gt;
+&lt;input type="text" id="seconds"&gt;
+&lt;button onclick="startClock()"&gt;Start Clock&lt;/button&gt;
+
+&lt;script&gt;
+    function startClock() {
+        let seconds = document.getElementById("seconds").value;   // קריאת קלט
+
+        if (!isPositiveInteger(seconds)) {                        // ולידציה
+            window.alert("Error: Invalid Input!");
+            return;
+        }
+        seconds = parseInt(seconds);
+
+        const oneSecond = 1000;
+        for (let i = 1; i &lt; seconds; i++) {
+            setTimeout(setClock, oneSecond * i, seconds - i);
+        }
+        setTimeout(() =&gt; {
+            document.getElementById("clock").innerText = "Time's Up!";
+        }, oneSecond * seconds);
+    }
+
+    function setClock(s) {
+        document.getElementById("clock").innerText = s;           // שינוי תוכן
+    }
+&lt;/script&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">‎value‎ מול ‎innerText‎</span>
+          <ul style="margin:0">
+            <li><code>element.value</code> — הערך של שדה <strong>קלט</strong> (<code>&lt;input&gt;</code>). תמיד <strong>מחרוזת</strong> — לכן <code>parseInt</code> כדי לקבל מספר.</li>
+            <li><code>element.innerText</code> — ה<strong>טקסט המוצג</strong> בתוך אלמנט (<code>&lt;p&gt;</code>, <code>&lt;div&gt;</code>). שינוי שלו = שינוי מה שרואים.</li>
+            <li><code>window.alert(...)</code> — חלון הודעה קופץ.</li>
+          </ul>
+          (זה אותו count down מתרגול 4 — אבל הפעם <em>על המסך</em> במקום בקונסול.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="validation">
+      <h3><span class="num">5.</span> ולידציה של קלט</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          קלט ממשתמש הוא תמיד מחרוזת ולא תמיד תקין — חייבים <strong>לאמת</strong> אותו לפני שימוש. פונקציית עזר שבודקת אם מחרוזת היא מספר שלם חיובי:
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · validation.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function isPositiveInteger(str) {
+    if (typeof str !== "string") return false;   // מעבדים רק מחרוזות
+
+    const num = Number(str);                      // המרה למספר
+    if (isNaN(num)) return false;                 // ההמרה נכשלה?
+
+    return Number.isInteger(num) &amp;&amp; num &gt; 0;       // שלם וחיובי?
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">כלי הבדיקה</span>
+          <ul style="margin:0">
+            <li><code>typeof x</code> — מחזיר את סוג הטיפוס כמחרוזת (<code>"string"</code>, <code>"number"</code>...).</li>
+            <li><code>Number(str)</code> — ממיר מחרוזת למספר (מחזיר <code>NaN</code> אם נכשל).</li>
+            <li><code>isNaN(x)</code> — האם הערך הוא "Not a Number".</li>
+            <li><code>Number.isInteger(x)</code> — האם מספר שלם.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="forms">
+      <h3><span class="num">6.</span> טפסים, inputs ו-datalist</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          דוגמה מלאה יותר — "רשימת קניות": <code>input</code> עם השלמה אוטומטית (<code>datalist</code>), <code>input</code> מסוג מספר, וכפתור שמוסיף שורה לטבלה דינמית.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · shopping_list.html (הטופס)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;input id="new-item" list="items"&gt;
+&lt;datalist id="items"&gt;                  &lt;!-- אפשרויות השלמה אוטומטית --&gt;
+    &lt;option&gt;T-Shirt&lt;/option&gt;
+    &lt;option&gt;Shoes&lt;/option&gt;
+    &lt;option&gt;Pants&lt;/option&gt;
+&lt;/datalist&gt;
+
+&lt;input id="amount" type="number" min="1" value="1"&gt;
+&lt;button id="add-item-btn" onclick="addItem()"&gt;Add Item&lt;/button&gt;
+&lt;div id="shopping-list-div"&gt;&lt;text&gt;No items yet.&lt;/text&gt;&lt;/div&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">js · addItem (לוגיקה)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const prices = { 'T-Shirt': 90, 'Shoes': 250, 'Pants': 100 };
+
+function addItem() {
+    const item = document.getElementById("new-item").value;
+    let amount = document.getElementById("amount").value;
+
+    if (item === "") { alert("Please choose an item."); return; }
+    if (!isPositiveInteger(amount)) { alert("Amount must be a positive integer."); return; }
+
+    amount = parseInt(amount);
+    const totalPrice = prices[item] * amount;   // חיפוש מחיר במילון
+    // ... הוספת שורה לטבלה ב-DOM
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אלמנטי טופס</span>
+          <ul style="margin:0">
+            <li><code>&lt;input list="items"&gt;</code> + <code>&lt;datalist id="items"&gt;</code> — שדה עם השלמה אוטומטית מתוך אפשרויות.</li>
+            <li><code>&lt;input type="number" min="1"&gt;</code> — שדה מספרי עם בורר וערך מינימלי.</li>
+            <li>שמים <code>id</code> על כל אלמנט שצריך לגשת אליו מ-JS.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎨</span>
+        <div class="body">
+          <span class="title">בונוס — Bootstrap ו-CSS</span>
+          הדוגמאות (רשימת קניות, מחשבון) משתמשות ב-<strong>Bootstrap</strong> — ספריית CSS מוכנה שמקשרים אליה ב-<code>&lt;link&gt;</code> (CDN). היא נותנת מחלקות עיצוב מוכנות (<code>card</code>, <code>btn</code>...). אפשר גם CSS משלנו ב-<code>&lt;style&gt;</code> (כמו במחשבון <code>cool_calculator</code>, עם <code>position</code>, <code>border-radius</code> ועוד).
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>HTML:</strong> שלד <code>head</code>/<code>body</code>, תגיות נפוצות, <code>id</code> לזיהוי אלמנטים.</li>
+            <li><strong>אירועים + DOM:</strong> <code>onclick</code> מפעיל JS, שמשנה את העמוד דרך <code>document</code> (<code>body.style</code>, <code>getElementById</code>).</li>
+            <li><strong>גישה לאלמנטים:</strong> <code>getElementById</code> + <code>.value</code> (קלט, תמיד מחרוזת) / <code>.innerText</code> (טקסט מוצג).</li>
+            <li><strong>ולידציה:</strong> <code>typeof</code>, <code>Number</code>, <code>isNaN</code>, <code>Number.isInteger</code> — תמיד לאמת קלט.</li>
+            <li><strong>טפסים:</strong> <code>input</code>, <code>datalist</code>, <code>type="number"</code>. עיצוב עם Bootstrap או CSS משלנו.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-06.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 6 · Threads</span>
+      </a>
+      <a class="next" href="tutorial-08.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 8 · React</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

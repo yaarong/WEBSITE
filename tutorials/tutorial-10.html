@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>תרגול 10 · Android בפועל — Activity ו-Timer</title>
+  <link rel="stylesheet" href="../assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>" />
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🛠️ תרגול 10 · Android</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header">
+      <div class="kicker">תרגול 10</div>
+      <h1>Android בפועל — Activity, Layout ו-Timer</h1>
+      <p>תרגול מעשי ב-Android (משלים את הרצאות 11–12): נתחיל מ-<strong>Hello World</strong> (Activity + layout XML), ונבנה אפליקציית <strong>טיימר ספירה-לאחור</strong> מלאה — עם חיבור layout ללוגיקה, אירועי לחיצה, <code>CountDownTimer</code>, ועדכון ה-UI.</p>
+    </header>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#hello">Hello World — Activity ו-Layout</a></li>
+        <li><a class="link" href="#layout">ה-layout של הטיימר</a></li>
+        <li><a class="link" href="#wiring">חיבור ל-לוגיקה + אירועים</a></li>
+        <li><a class="link" href="#timer">CountDownTimer</a></li>
+        <li><a class="link" href="#update">עדכון ה-UI</a></li>
+      </ol>
+    </div>
+
+    <!-- 1 -->
+    <section id="hello">
+      <h3><span class="num">1.</span> Hello World — Activity ו-Layout</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · MainActivity.java</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);   // טוען את ה-layout
+    }
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · activity_main.xml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"&gt;
+
+    &lt;TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" /&gt;
+
+&lt;/androidx.constraintlayout.widget.ConstraintLayout&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">תזכורת מהרצאה 11</span>
+          <code>onCreate</code> טוען את ה-layout עם <code>setContentView(R.layout.activity_main)</code>. ב-<code>ConstraintLayout</code>, ארבעת ה-constraint ל-<code>parent</code> "נועלים" את ה-TextView במרכז. <code>match_parent</code> = כל המסך, <code>wrap_content</code> = לפי התוכן.
+        </div>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="layout">
+      <h3><span class="num">2.</span> ה-layout של הטיימר</h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          טיימר עם תצוגת זמן (TextView) ושני כפתורים: start/pause ו-reset. הפעם <code>RelativeLayout</code> (מסדר רכיבים יחסית זה לזה), ולכל רכיב <code>id</code> כדי לגשת אליו מ-Java.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · activity_main.xml (טיימר)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;RelativeLayout ...&gt;
+    &lt;TextView
+        android:id="@+id/countdown_text"
+        android:layout_centerInParent="true"
+        android:textSize="50sp"
+        tools:text="10:00" /&gt;
+
+    &lt;Button
+        android:id="@+id/countdown_button"
+        android:text="start"
+        android:layout_below="@id/countdown_text"
+        android:layout_centerHorizontal="true" /&gt;
+
+    &lt;Button
+        android:id="@+id/reset_button"
+        android:text="reset"
+        android:layout_below="@id/countdown_text"
+        android:layout_toEndOf="@id/countdown_button"
+        android:visibility="invisible" /&gt;   &lt;!-- מוסתר בהתחלה --&gt;
+&lt;/RelativeLayout&gt;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">RelativeLayout ו-visibility</span>
+          <code>layout_below</code>/<code>layout_toEndOf</code> ממקמים רכיב יחסית לרכיב אחר (לפי <code>id</code>). <code>android:visibility="invisible"</code> מסתיר את כפתור ה-reset עד שצריך אותו. (<code>tools:text</code> מוצג רק בעורך, לא בריצה.)
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="wiring">
+      <h3><span class="num">3.</span> חיבור ל-לוגיקה + אירועים</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · onCreate — findViewById + listeners</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends Activity {
+    private static final long TOTAL_TIME = 10_000;   // 10 שניות (ms)
+
+    private TextView countDownText;
+    private Button countDownButton, resetButton;
+    private CountDownTimer timer;
+    private long timeLeftInMilliSeconds;
+    private boolean timerRunning = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // מאתרים את ה-Views לפי ה-id-ים מה-XML:
+        countDownText   = findViewById(R.id.countdown_text);
+        countDownButton = findViewById(R.id.countdown_button);
+        resetButton     = findViewById(R.id.reset_button);
+
+        // רושמים מאזיני לחיצה (Listener pattern):
+        countDownButton.setOnClickListener(view -&gt; startStop());
+        resetButton.setOnClickListener(view -&gt; resetTimer());
+
+        resetTimer();
+    }
+
+    public void startStop() {
+        if (timerRunning) pauseTimer();
+        else              startTimer();
+    }</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">הגשר XML ↔ Java</span>
+          <code>findViewById(R.id.countdown_text)</code> מאתר את ה-View לפי ה-<code>id</code> שהגדרנו ב-XML. <code>setOnClickListener(view -&gt; ...)</code> רושם מאזין לחיצה (בתחביר lambda) — בדיוק ה-Listener pattern מהרצאה 11. שומרים את ה-Views כשדות כדי לגשת אליהם אחר כך.
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="timer">
+      <h3><span class="num">4.</span> <code>CountDownTimer</code></h3>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">קונטקסט</span>
+          <code>CountDownTimer</code> הוא כלי מובנה ב-Android לספירה לאחור. מגדירים אותו עם זמן כולל ותדירות "טיקים", ומממשים שתי מתודות: <code>onTick</code> (בכל טיק) ו-<code>onFinish</code> (בסיום).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · startTimer</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public void startTimer() {
+    timer = new CountDownTimer(timeLeftInMilliSeconds, 100) {  // (זמן כולל, טיק כל 100ms)
+        @Override
+        public void onTick(long l) {
+            timeLeftInMilliSeconds = l;
+            updateTimer();                  // מעדכן את התצוגה בכל טיק
+        }
+        @Override
+        public void onFinish() {
+            timerRunning = false;
+            countDownButton.setVisibility(View.INVISIBLE);
+            resetButton.setVisibility(View.VISIBLE);
+            Toast.makeText(getApplicationContext(), "Time's Up!", Toast.LENGTH_LONG).show();
+        }
+    };
+    timer.start();
+
+    countDownButton.setText("pause");
+    resetButton.setVisibility(View.INVISIBLE);
+    timerRunning = true;
+}
+
+public void pauseTimer() {
+    timer.cancel();
+    countDownButton.setText("start");
+    resetButton.setVisibility(View.VISIBLE);
+    timerRunning = false;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>CountDownTimer</code></span>
+          הבנאי מקבל את הזמן הכולל ואת מרווח הטיקים (ms). <code>onTick(l)</code> נקרא בכל טיק עם הזמן שנותר; <code>onFinish()</code> בסיום. <code>timer.start()</code> מתחיל, <code>timer.cancel()</code> עוצר. <code>Toast</code> = הודעה קופצת קצרה.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="update">
+      <h3><span class="num">5.</span> עדכון ה-UI</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · updateTimer + resetTimer</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public void resetTimer() {
+    timeLeftInMilliSeconds = TOTAL_TIME;
+    updateTimer();
+    resetButton.setVisibility(View.INVISIBLE);
+    countDownButton.setVisibility(View.VISIBLE);
+}
+
+public void updateTimer() {
+    int minutes = (int) timeLeftInMilliSeconds / 60_000;            // דקות
+    int seconds = (int) (timeLeftInMilliSeconds % 60_000) / 1000;   // שניות
+
+    StringBuilder sb = new StringBuilder();
+    sb.append(minutes).append(":");
+    if (seconds &lt; 10) sb.append(0);     // ריפוד אפס: "1:05" במקום "1:5"
+    sb.append(seconds);
+
+    countDownText.setText(sb.toString());   // מעדכן את התצוגה
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">עדכון תצוגה</span>
+          <ul style="margin:0">
+            <li><code>setText(...)</code> — משנה את הטקסט המוצג ב-TextView/Button.</li>
+            <li><code>setVisibility(View.VISIBLE / INVISIBLE)</code> — מציג/מסתיר רכיב.</li>
+            <li>החישוב: <code>/ 60_000</code> = דקות (60,000ms בדקה), <code>% 60_000 / 1000</code> = שניות שנותרו. <code>StringBuilder</code> בונה את מחרוזת התצוגה ("דקות:שניות").</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Summary -->
+    <section id="summary">
+      <h3><span class="num">★</span> סיכום</h3>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>Activity + Layout:</strong> <code>onCreate</code> → <code>setContentView</code>; <code>ConstraintLayout</code> ו-<code>RelativeLayout</code>; <code>id</code> לכל רכיב, <code>visibility</code>.</li>
+            <li><strong>חיבור:</strong> <code>findViewById(R.id...)</code> + <code>setOnClickListener</code> (Listener pattern).</li>
+            <li><strong>CountDownTimer:</strong> <code>onTick</code>/<code>onFinish</code>, <code>start</code>/<code>cancel</code>.</li>
+            <li><strong>עדכון UI:</strong> <code>setText</code>, <code>setVisibility</code>, <code>Toast</code>, ו-<code>StringBuilder</code> לבניית התצוגה.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ניווט -->
+    <nav class="lesson-nav">
+      <a class="prev" href="tutorial-09.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">תרגול 9 · MongoDB</span>
+      </a>
+      <a class="next" href="tutorial-11.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">תרגול 11 · Android — Intent, Lists, HTTP</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>
