@@ -114,6 +114,32 @@ a { color: inherit; text-decoration: none; }
   color: var(--text-faint);
 }
 
+/* באנר קריאה-לפעולה: מדריך המבחן */
+.exam-cta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 600px;
+  margin: 1.8rem auto 0;
+  padding: 1rem 1.3rem;
+  border-radius: var(--radius);
+  background: linear-gradient(120deg, rgba(246,196,83,0.16), rgba(255,107,107,0.10));
+  border: 1px solid rgba(246,196,83,0.30);
+  text-align: right;
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s;
+}
+.exam-cta:hover {
+  transform: translateY(-4px);
+  border-color: rgba(246,196,83,0.55);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+}
+.exam-cta-emoji { font-size: 2rem; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
+.exam-cta-text { flex: 1; display: flex; flex-direction: column; line-height: 1.4; }
+.exam-cta-text strong { color: #fff; font-size: 1.05rem; }
+.exam-cta-text small { color: var(--text-dim); font-size: 0.82rem; font-weight: 300; }
+.exam-cta-arrow { font-size: 1.5rem; color: var(--warn); flex-shrink: 0; transition: transform .25s; }
+.exam-cta:hover .exam-cta-arrow { transform: translateX(-5px); }
+
 /* ============================================================
    CONTAINER + BOARDS
    ============================================================ */

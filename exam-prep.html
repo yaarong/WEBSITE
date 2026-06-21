@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>מדריך מבחן · איך לגשת לכל שאלה</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד המבחן — ענבר/זהב, להבדילו מהרצאות (סגול) ותרגולים (טורקיז) */
+    .lesson-header.exam {
+      background: linear-gradient(135deg, rgba(246,196,83,0.16), rgba(255,107,107,0.08));
+    }
+    .lesson-header.exam .kicker { color: var(--warn); }
+    .exam-accent { color: var(--warn); }
+    .part-banner {
+      margin: 3.5rem 0 1rem;
+      padding: 1.1rem 1.4rem;
+      border-radius: var(--radius);
+      background: linear-gradient(120deg, rgba(246,196,83,0.14), rgba(124,92,255,0.10));
+      border: 1px solid var(--border-strong);
+      font-size: 1.6rem;
+      font-weight: 900;
+      scroll-margin-top: 80px;
+    }
+    .part-banner small { display:block; font-size:.85rem; font-weight:400; color:var(--text-dim); margin-top:.25rem; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🎯 מדריך מבחן · גישה לשאלות</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header exam">
+      <div class="kicker">מדריך מבחן</div>
+      <h1>איך לגשת לכל שאלה במבחן — שלד אחד, כמה "ברגים"</h1>
+      <p>זהו מדריך-העל למבחן של חמי. הרעיון המרכזי: <strong>יש שלד קוד אחד</strong> שחוזר בכל סוגי השאלות, וכמה <strong>"ברגים"</strong> שמתחלפים (ערוץ ה-IO, הפקודות, האחסון). נעבור על שיטת הגישה, ואז על כל סוג שאלה (תרגיל 1–5), על דוקר, טסטים, env, MongoDB ו-React Native — וכן <strong>דוגמאות קוד מלאות</strong> לכל סוג שאלה.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">למה העמוד הזה</span>
+        המצגות וההרצאות מלמדות את החומר נושא-נושא. כאן אנחנו הופכים את זה ל<strong>אסטרטגיית מבחן</strong>: איך לקרוא שאלה, לפרק אותה ל-4 שאלות-טיוטה, ולבנות את הפתרון בסדר קבוע — בלי להיתקע. כל סוג שאלה מקבל "מתכון" ברור + שלד קוד.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#method">חלק 0 — שיטת הגישה לכל שאלה (4 הברגים)</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#ex1">חלק 1 — תרגיל 1: אפליקציית console (Command Pattern)</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#ex2">חלק 2 — תרגיל 2: שרת C++ + לקוח Python (TCP/UDP)</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#ex3">חלק 3 — תרגיל 3: Node.js + Express בארכיטקטורת MVC</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#ex4">חלק 4 — תרגיל 4: React + HTML + CSS (Frontend)</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#extras">חלק 5 — env, Docker, טסטים</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#mongo">חלק 6 — MongoDB (Mongoose)</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#rn">חלק 7 — React Native</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#examples">חלק 8 — דוגמאות קוד מלאות (4 שאלות לדוגמה)</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="method">חלק 0 · שיטת הגישה לכל שאלה
+      <small>שלד אחד, 4 ברגים שמתחלפים — וסדר קבוע שבו ניגשים</small>
+    </div>
+
+    <section>
+      <h3><span class="num">0.1</span> המסקנה הגדולה — שלד אחד + 4 ברגים</h3>
+      <p>חמי לוקח <strong>אותו מבנה</strong> ומשנה כמה צירים. הקבוע מאחורי כל שאלה הוא הזרימה הבאה, בתוך לולאה אינסופית ב-<code>main</code>:</p>
+      <pre class="ascii-diagram"><code>input  →  parser/dispatcher  →  command.execute()  →  storage/engine  →  output</code></pre>
+      <p>מה שמתחלף בין שאלה לשאלה הם ה"ברגים":</p>
+      <table>
+        <thead><tr><th>הבורג</th><th>מה משתנה</th><th>הקבוע מאחוריו</th></tr></thead>
+        <tbody>
+          <tr><td><strong>IO (ערוץ קלט/פלט)</strong></td><td>console (stdin/stdout) · TCP+Python · UDP+C++ · HTTP</td><td>תמיד מאחורי אינטרפייס <code>IInputHandler</code>+<code>IOutputHandler</code>. רק המימוש הקונקרטי מתחלף.</td></tr>
+          <tr><td><strong>רשימת הפקודות + הפלט המדויק</strong></td><td>rev/double/display · add/recommend · POST/PATCH/DELETE/GET</td><td>תמיד מחלקה לכל פקודה (<code>ICommand</code>) + <code>registerCommand</code> בפרסר.</td></tr>
+          <tr><td><strong>הדומיין / האחסון</strong></td><td>קבצי טקסט · map בזיכרון · מנוע המלצות · DB</td><td>תמיד מאחורי אינטרפייס (<code>IDataStorage</code> / <code>I...Engine</code>).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">מה זה נותן לך במבחן</span>
+          אם תזהה את 3 הברגים — כבר יש לך את כל הארכיטקטורה. השאר זה למלא את הפרטים. אל תתחיל לכתוב קוד לפני שזיהית אותם.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">0.2</span> שלב 1 — לקרוא את השאלה ולפרק ל-4 שאלות-טיוטה</h3>
+      <p>לפני שאתה כותב שורה אחת, ענה בצד על דף טיוטה על 4 השאלות האלו:</p>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">4 שאלות הפתיחה</span>
+          <ul style="margin:0">
+            <li><strong>איך עובד ה-IO?</strong> דרך console (stdin/stdout) או client-server עם סוקטים?</li>
+            <li><strong>אילו פקודות יש?</strong> מה השם של כל פקודה, מה הארגומנטים שלה, ומה הפלט המדויק שלה.</li>
+            <li><strong>כיצד שומרים את המידע?</strong> קובץ טקסט? map בזיכרון? מנוע? DB?</li>
+            <li><strong>מה הפלט/קודי הסטטוס המדויקים?</strong> (201, 404, "Created", הטלפון עצמו וכו').</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">0.3</span> שלב 2 — מגדירים את הקבצים</h3>
+      <p>סדר הקבצים הקבוע (גרסת ה-console; ב-client-server מוסיפים את קבוצת הרשת):</p>
+      <table>
+        <thead><tr><th>#</th><th>קובץ</th><th>אחראי על...</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>ICommand.h</code></td><td>האינטרפייס היחיד. מגדיר את החוזה של פקודה: <code>execute(args)</code> + <code>getName()</code>. כל הפקודות יורשות ממנו.</td></tr>
+          <tr><td>2</td><td><code>XCommand.{h,cpp}</code></td><td>הלוגיקה של פקודה בודדת: מאמת ארגומנטים, פונה לאחסון/דומיין, מחזיר את הפלט המדויק. אחד לכל פקודה.</td></tr>
+          <tr><td>3</td><td><code>CommandParser.{h,cpp}</code></td><td>מקבל שורת טקסט, מפצל לטוקנים, מזהה את הפקודה לפי השם, וקורא ל-<code>execute</code>. מחזיק את ה-map של הפקודות.</td></tr>
+          <tr><td>4</td><td><code>FileDataStorage.{h,cpp}</code></td><td>שמירה/טעינה של המידע — קבצים, map בזיכרון וכו'. השכבה היחידה שמכירה איפה המידע יושב.</td></tr>
+          <tr><td>5</td><td><code>main.cpp</code></td><td>ה-composition root: יוצר את כל האובייקטים, רושם פקודות בפרסר, ומריץ את לולאת הקלט.</td></tr>
+        </tbody>
+      </table>
+      <p>רק אם זה <strong>client-server</strong> מוסיפים גם:</p>
+      <table>
+        <thead><tr><th>#</th><th>קובץ</th><th>אחראי על...</th></tr></thead>
+        <tbody>
+          <tr><td>7</td><td><code>TCPServer.{h,cpp}</code></td><td>תשתית הרשת — <code>socket</code>/<code>bind</code>/<code>listen</code>/<code>accept</code>.</td></tr>
+          <tr><td>8</td><td><code>SingleClientHandler.{h,cpp}</code></td><td>מה עושים עם לקוח מחובר: לולאת קריאה→פרסור→תשובה.</td></tr>
+          <tr><td>9</td><td><code>Socket(Input/Output)Handler</code></td><td>קריאה/כתיבה מול ה-socket fd (<code>recv</code>/<code>send</code>).</td></tr>
+          <tr><td>10</td><td><code>client.py</code> / client</td><td>צד הלקוח (תוכנית נפרדת).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <span class="ic">📐</span>
+        <div class="body">
+          <span class="title">מבנה קובץ <code>.h</code> בסיסי</span>
+          <ol style="margin:0">
+            <li><code>#ifndef</code> / <code>#define</code> בראש, <code>#endif</code> בסוף — מונע הכללה כפולה.</li>
+            <li><code>#include</code> של מה שהמחלקה משתמשת בו (האינטרפייס שיורשים ממנו, טיפוסים בחתימות).</li>
+            <li>הצהרת המחלקה — <code>class X { ... };</code> — שים לב ל-<code>;</code> אחרי הסוגר המסולסל.</li>
+            <li>שדות ב-<code>private</code>.</li>
+            <li><strong>חתימות בלבד</strong> — אין גוף פונקציה, רק <code>;</code> בסוף כל הצהרה. הגוף הולך ל-<code>.cpp</code>.</li>
+            <li><code>override</code> על כל מתודה שמגיעה מהאינטרפייס.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="ex1">חלק 1 · תרגיל 1 — אפליקציית console
+      <small>Command Pattern + Dependency Injection · ללא רשת</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        זו השאלה ה"פשוטה" — אפליקציית שורת-פקודה ב-C++ שמקבלת פקודות מהמשתמש, מבצעת ושומרת מידע. כל הרעיונות כאן (פקודות, פרסר, אחסון) <strong>חוזרים</strong> בכל השאלות הבאות, רק נעטפים בעוד שכבות. תשלוט בזה — ושאר התרגילים יהיו וריאציה עליו.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">1.1</span> האינטרפייס <code>ICommand.h</code></h3>
+      <p>ב-C++ אין <code>interface</code> מובנה. כותבים מחלקה רגילה שכל המתודות שלה <code>virtual ... = 0</code> (pure virtual) + destructor וירטואלי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · ICommand.h</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#ifndef ICOMMAND_H
+#define ICOMMAND_H
+#include &lt;string&gt;
+#include &lt;vector&gt;
+
+// אינטרפייס לפקודות CLI. כל פקודה (add, recommend, help) ממומשת
+// כמחלקה נפרדת — מאפשר להוסיף פקודות בלי לשנות קוד קיים.
+class ICommand {
+public:
+    virtual ~ICommand() = default;
+    // מריץ את הפקודה עם הארגומנטים (הטוקנים אחרי שם הפקודה)
+    virtual std::string execute(const std::vector&lt;std::string&gt;&amp; args) = 0;
+    // מחזיר את מילת המפתח של הפקודה (e.g. "add")
+    virtual std::string getName() const = 0;
+};
+#endif</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">1.2</span> פקודה בודדת <code>XCommand.{h,cpp}</code></h3>
+      <p>כל פקודה היא מחלקה שיורשת מ-<code>ICommand</code>, מקבלת את האחסון דרך הבנאי (Dependency Injection) ומחזיקה אותו כ-reference:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · XCommand.h</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#ifndef X_COMMAND_H
+#define X_COMMAND_H
+#include "ICommand.h"
+#include "FileDataStorage.h"   // התלות שהפקודה צריכה
+
+class XCommand : public ICommand {
+private:
+    FileDataStorage&amp; storage;          // reference — הוזרק מבחוץ
+public:
+    XCommand(FileDataStorage&amp; storage);                                  // בנאי
+    std::string execute(const std::vector&lt;std::string&gt;&amp; args) override;  // המתודות מהאינטרפייס
+    std::string getName() const override;
+};
+#endif</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · XCommand.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include "XCommand.h"
+
+// initializer list — מאתחל את ה-reference
+XCommand::XCommand(FileDataStorage&amp; storage) : storage(storage) {}
+
+std::string XCommand::execute(const std::vector&lt;std::string&gt;&amp; args) {
+    // 1. אימות מספר ארגומנטים
+    // 2. אימות תקינות (המרת מספרים וכו')
+    // 3. לוגיקה — פנייה ל-storage
+    // 4. החזרת פלט מדויק
+    return "201 Created\n";
+}
+
+std::string XCommand::getName() const {
+    return "X";
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">✅</span>
+        <div class="body">
+          <span class="title">דפוס ה-<code>execute</code> — תמיד אותו סדר</span>
+          הלוגיקה קצרה אבל <strong>חייבים לבדוק תקינות</strong>: (1) בדוק מספר ארגומנטים → אחרת 400. (2) אמת שהכל תקין (קיים/לא קיים → אולי 404/409). (3) בצע לוגיקה. (4) החזר את הפלט המדויק.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">1.3</span> הפרסר <code>CommandParser.{h,cpp}</code></h3>
+      <p>הפרסר <strong>מנתב בלבד</strong> — הוא לא יודע מה כל פקודה עושה. מחזיק <code>map</code> משם-פקודה לאובייקט הפקודה. מקבל שורה, מפצל לפי רווחים: הטוקן הראשון = שם הפקודה, השאר = ארגומנטים.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · CommandParser.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include "CommandParser.h"
+#include &lt;sstream&gt;
+
+void CommandParser::registerCommand(const std::string&amp; name,
+                                    std::shared_ptr&lt;ICommand&gt; command) {
+    commands[name] = command;
+}
+
+void CommandParser::parse(const std::string&amp; line) {
+    std::istringstream s(line);
+    std::string command;
+    s &gt;&gt; command;                          // טוקן ראשון = שם הפקודה
+
+    if (commands.find(command) == commands.end()) {
+        return;                            // פקודה לא מוכרת — מתעלמים (לפי השאלה)
+    }
+    std::vector&lt;std::string&gt; args;
+    std::string token;
+    while (s &gt;&gt; token) {                    // שאר הטוקנים = ארגומנטים
+        args.push_back(token);
+    }
+    commands[command]-&gt;execute(args);
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>std::istringstream</code></span>
+          עטיפה של מחרוזת ב-<code>istringstream</code> מאפשרת לשאוב ממנו מילה-מילה (לפי רווחים) עם האופרטור <code>&gt;&gt;</code> — בדיוק כמו קריאה מ-<code>cin</code>.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">1.4</span> אחסון <code>FileDataStorage.{h,cpp}</code></h3>
+      <p>שני מקרים: (1) השאלה אומרת "צור קובץ X" → אין מה לאחסן במבנה נתונים. (2) המידע גר בזיכרון התוכנית → שומרים ב-map (וסביר שזה מה שיהיה). מבנה כללי:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · FileDataStorage.h</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;map&gt;
+#include &lt;vector&gt;
+#include &lt;string&gt;
+
+class FileDataStorage {
+private:
+    std::string filePath;                              // מתיב הקובץ
+    std::map&lt;int, std::vector&lt;int&gt;&gt; userProducts;        // המידע בזיכרון
+public:
+    FileDataStorage(const std::string&amp; filePath);      // טוען מהקובץ
+    void addProduct(int userId, int productId);
+    std::vector&lt;int&gt; getProducts(int userId);
+    bool userExists(int userId);
+};</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📋</span>
+        <div class="body">
+          <span class="title"><code>std::map</code> — צ'יט-שיט</span>
+          <table style="margin:.5rem 0 0">
+            <thead><tr><th>פעולה</th><th>סינטקס</th></tr></thead>
+            <tbody>
+              <tr><td>הוספה/גישה</td><td><code>map[key]</code> — אם המפתח לא קיים, נוצר אוטומטית</td></tr>
+              <tr><td>בדיקה אם קיים</td><td><code>map.find(key) != map.end()</code></td></tr>
+              <tr><td>מעבר על הכל</td><td><code>for (auto&amp; pair : map)</code> → <code>pair.first</code> (מפתח), <code>pair.second</code> (ערך)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📋</span>
+        <div class="body">
+          <span class="title"><code>std::vector</code> — צ'יט-שיט</span>
+          <table style="margin:.5rem 0 0">
+            <thead><tr><th>פעולה</th><th>סינטקס</th></tr></thead>
+            <tbody>
+              <tr><td>הוספה לסוף</td><td><code>vec.push_back(x)</code></td></tr>
+              <tr><td>בדיקה אם קיים</td><td><code>std::find(vec.begin(), vec.end(), x) != vec.end()</code></td></tr>
+              <tr><td>מחיקת ערך</td><td><code>vec.erase(std::remove(vec.begin(), vec.end(), x), vec.end())</code></td></tr>
+              <tr><td>מעבר</td><td><code>for (int x : vec)</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🗂️</span>
+        <div class="body">
+          <span class="title">קבצים</span>
+          <table style="margin:.5rem 0 0">
+            <thead><tr><th>פעולה</th><th>סינטקס</th></tr></thead>
+            <tbody>
+              <tr><td>פתיחה לקריאה</td><td><code>std::ifstream file(path);</code></td></tr>
+              <tr><td>פתיחה לכתיבה (דורס הכל)</td><td><code>std::ofstream file(path);</code></td></tr>
+              <tr><td>קריאת שורה</td><td><code>std::getline(file, line)</code></td></tr>
+              <tr><td>כתיבה</td><td><code>file &lt;&lt; x;</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">1.5</span> ה-<code>main</code> — תמיד אותו סדר</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · main.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int main(int argc, char* argv[]) {
+    // 1. יצירת האחסון (אם יש)
+    FileDataStorage storage("data/users.txt");
+
+    // 2. יצירת הפקודות (מזריקים להן את האחסון)
+    auto postCmd = std::make_shared&lt;PostCommand&gt;(storage);
+    auto getCmd  = std::make_shared&lt;GetCommand&gt;(storage);
+
+    // 3. יצירת הפרסר ורישום הפקודות
+    CommandParser parser;
+    parser.registerCommand("POST", postCmd);
+    parser.registerCommand("GET",  getCmd);
+
+    // 4. לולאת הקלט — לא עוצרת לעולם
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        parser.parse(line);
+    }
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">הזרימה המלאה</span>
+          משתמש מקליד → <code>main</code> קורא שורה → <code>parser.parse(line)</code> מפצל ומזהה → <code>command.execute(args)</code> מאמת ומבצע → <code>storage</code> כותב/קורא → מחזירים פלט (<code>cout</code>) → חזרה לאיטרציה הבאה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="ex2">חלק 2 · תרגיל 2 — שרת C++ + לקוח Python
+      <small>עוטפים את ליבת תרגיל 1 בשכבת רשת (TCP/UDP)</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        בשאלות כאלו לוקחים את <strong>רוב מה שהיה בתרגיל 1</strong> (פקודות + פרסר + אחסון), <strong>מסירים את ה-<code>main</code> הישן</strong>, ומוסיפים מעטפת רשת. שינוי חשוב אחד: הפקודות <em>לא מדפיסות למסך</em> — הן <strong>מחזירות string</strong> שהשרת שולח ללקוח.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">2.1</span> TCP מול UDP — קריאות המערכת</h3>
+      <table>
+        <thead><tr><th></th><th>צד</th><th>קריאות לפי סדר</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2"><strong>TCP</strong></td><td>שרת</td><td><code>socket</code> → <code>bind</code> → <code>listen</code> → <code>accept</code> → <code>recv</code>/<code>send</code> → <code>close</code></td></tr>
+          <tr><td>לקוח</td><td><code>socket</code> → <code>connect</code> → <code>send</code>/<code>recv</code> → <code>close</code></td></tr>
+          <tr><td rowspan="2"><strong>UDP</strong></td><td>שרת</td><td><code>socket</code> → <code>bind</code> → <code>recvfrom</code> → <code>sendto</code> (ללא חיבור)</td></tr>
+          <tr><td>לקוח</td><td><code>socket</code> → <code>sendto</code> → <code>recvfrom</code> → <code>close</code></td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>קריאה</th><th>מה היא עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>socket()</code></td><td>יוצר את הסוקט (נקודת תקשורת)</td></tr>
+          <tr><td><code>bind()</code></td><td>"תופס" את הפורט שהשרת יאזין לו</td></tr>
+          <tr><td><code>listen()</code></td><td>מתחיל להאזין לחיבורים נכנסים</td></tr>
+          <tr><td><code>accept()</code></td><td>חוסם וממתין ללקוח; כשמתחבר — מחזיר <code>fd</code> חדש לאותו לקוח</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3><span class="num">2.2</span> הלקוח</h3>
+      <p>השלבים: (1) לקרוא <code>ip</code>+<code>port</code> מ-<code>argv</code>. (2) <code>socket()</code> + <code>connect()</code>. (3) לולאה אינסופית: קלט מהמשתמש → לשלוח לשרת → לקרוא תשובה → להדפיס.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · client.py</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import sys, socket
+
+ip   = sys.argv[1]
+port = int(sys.argv[2])
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   # TCP
+s.connect((ip, port))
+
+while True:
+    line = input()                          # קלט מהמשתמש
+    s.sendall((line + '\n').encode())       # שולח לשרת (עם \n)
+    response = s.recv(4096).decode()        # מקבל תשובה
+    print(response, end='')                 # מדפיס</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · client (אותו רעיון)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const char* ip = argv[1];
+int port = std::stoi(argv[2]);
+
+int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+struct sockaddr_in serverAddr;
+serverAddr.sin_family = AF_INET;
+serverAddr.sin_port = htons(port);
+inet_pton(AF_INET, ip, &amp;serverAddr.sin_addr);
+
+connect(sock, (struct sockaddr*)&amp;serverAddr, sizeof(serverAddr));
+
+std::string line;
+while (std::getline(std::cin, line)) {
+    line += "\n";
+    send(sock, line.c_str(), line.size(), 0);
+    char buffer[4096] = {0};
+    recv(sock, buffer, sizeof(buffer), 0);
+    std::cout &lt;&lt; buffer;
+}
+close(sock);</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">2.3</span> השרת — ה"מראה" של הלקוח</h3>
+      <p>השרת הוא אותה ליבת תרגיל 1, עטופה בלולאת רשת. נחליט שהפקודות מחזירות string (במקום להדפיס), והשרת שולח אותו ללקוח. הזרימה: קורא פורט → יוצר אחסון+פרסר+פקודות (כמו תרגיל 1) → <code>socket</code> → <code>bind</code> → <code>listen</code> → לולאת <code>accept</code> → קורא שורה בייט-בייט עד <code>\n</code> → <code>parse</code> → <code>send</code> תשובה.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · server_main.cpp</span><button class="copy-btn">העתק</button></div>
+        <pre><code>int main(int argc, char* argv[]) {
+    int port = std::stoi(argv[1]);
+
+    // ---- ליבה (זהה ל-console) ----
+    FileDataStorage storage("data/users.txt");
+    CommandParser parser;
+    parser.registerCommand("POST", std::make_shared&lt;PostCommand&gt;(storage));
+    parser.registerCommand("GET",  std::make_shared&lt;GetCommand&gt;(storage));
+
+    // ---- שכבת הרשת ----
+    int serverFd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in addr;
+    memset(&amp;addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+    bind(serverFd, (struct sockaddr*)&amp;addr, sizeof(addr));
+    listen(serverFd, 1);
+
+    // ---- לולאת לקוחות ----
+    while (true) {
+        int clientFd = accept(serverFd, nullptr, nullptr);
+        std::string line;
+        char c;
+        while (recv(clientFd, &amp;c, 1, 0) &gt; 0) {        // קורא בייט-בייט עד '\n'
+            if (c == '\n') {
+                std::string response = parser.parse(line);
+                send(clientFd, response.c_str(), response.size(), 0);
+                line.clear();
+            } else {
+                line += c;
+            }
+        }
+        close(clientFd);
+    }
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">השינוי המהותי מתרגיל 1</span>
+          ב-client-server, <code>parse</code> ו-<code>execute</code> <strong>מחזירים <code>std::string</code></strong> (לא <code>void</code> ולא <code>cout</code>). השרת לוקח את ה-string ושולח אותו ב-<code>send</code>. כל השאר זהה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="ex3">חלק 3 · תרגיל 3 — Node.js + Express בארכיטקטורת MVC
+      <small>שרת אינטרנט אמיתי שחושף REST API · המידע בזיכרון</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        בתרגיל 2 כתבנו שרת ביד — המון עבודה רק לקבל בקשה. <strong>Node.js + Express</strong> עושים את התשתית הזו בשבילנו. <strong>Node.js</strong> מריץ JavaScript על שרת; <strong>Express</strong> ספריה מעליו שמאפשרת לכתוב "כשמגיעה בקשת GET לכתובת X — תעשה ככה". זה בעצם <em>אותם רעיונות</em> מתרגיל 1/2 בשמות אחרים.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">3.1</span> האנלוגיה — אותם רעיונות, שמות חדשים</h3>
+      <table>
+        <thead><tr><th>תרגיל 1/2 (C++)</th><th>תרגיל 3 (Express)</th><th>התפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>CommandParser</code></td><td><strong>Express Router</strong></td><td>מקבל בקשה, מנתב לפונקציה הנכונה</td></tr>
+          <tr><td>שם הפקודה (<code>"POST"</code>)</td><td>שיטת HTTP + כתובת (<code>POST /api/restaurants</code>)</td><td>מזהה איזו פעולה</td></tr>
+          <tr><td><code>command.execute(args)</code></td><td><strong>Controller</strong> <code>(req, res)</code></td><td>הלוגיקה של הפעולה הבודדת</td></tr>
+          <tr><td><code>FileDataStorage</code> (ה-map)</td><td><strong>Model</strong> (רשימה בזיכרון)</td><td>איפה המידע גר</td></tr>
+          <tr><td><code>cin</code>/<code>cout</code> או socket</td><td><code>req</code> (קלט) / <code>res</code> (פלט)</td><td>ערוץ ה-I/O</td></tr>
+          <tr><td><code>"201 Created"</code></td><td><code>res.status(201).json(...)</code></td><td>פלט מדויק: קוד סטטוס + JSON</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🏛️</span>
+        <div class="body">
+          <span class="title">MVC — חלוקת אחריות</span>
+          <ul style="margin:0">
+            <li><strong>Model</strong> — הנתונים והלוגיקה העסקית: מבני הנתונים, האחסון, החוקים. השכבה היחידה שנוגעת בדאטה.</li>
+            <li><strong>View</strong> — התצוגה. בתרגיל 3 מחזירים <strong>JSON</strong>; בתרגיל 4 נחזיר HTML/React.</li>
+            <li><strong>Controller</strong> — המתווך. קורא בקשה ב-<code>req</code>, פונה ל-Model, עונה ב-<code>res</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.2</span> שלב 1 — תכנון (לפני שכותבים קוד)</h3>
+      <div class="callout warn">
+        <span class="ic">📐</span>
+        <div class="body">
+          <span class="title">3 הברגים של תרגיל 3</span>
+          <ol style="margin:0">
+            <li><strong>מהן הישויות (resources)?</strong> כל "שם עצם" בכתובת <code>/api/X</code> הוא ישות. כל ישות → 3 קבצים: <strong>Model + Controller + Routes</strong>.</li>
+            <li><strong>טבלת endpoints</strong> לכל ישות: method + URL + מה מחזיר + סטטוס הצלחה.</li>
+            <li><strong>אילו endpoints דורשים התחברות?</strong> ("פעולה זו דורשת משתמש מחובר") → צריך <strong>middleware</strong>.</li>
+          </ol>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Method</th><th>URL</th><th>פעולה</th><th>סטטוס הצלחה</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td>/api/restaurants</td><td>רשימת כל המסעדות</td><td>200</td></tr>
+          <tr><td>POST</td><td>/api/restaurants</td><td>יצירת מסעדה</td><td>201</td></tr>
+          <tr><td>GET</td><td>/api/restaurants/:id</td><td>מסעדה לפי id</td><td>200</td></tr>
+          <tr><td>PATCH</td><td>/api/restaurants/:id</td><td>עדכון</td><td>204</td></tr>
+          <tr><td>DELETE</td><td>/api/restaurants/:id</td><td>מחיקה</td><td>204</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h3><span class="num">3.3</span> שלב 2 — <code>app.js</code> (ה-main של התרגיל)</h3>
+      <p>תפקידו: להקים Express, לחבר נתיבים, ולהתחיל להאזין.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express');             // 1. מייבא את Express
+const app = express();                          // 2. יוצר את האפליקציה
+
+app.use(express.json());                        // 3. מאפשר לקרוא body מ-JSON
+
+const restaurantRoutes = require('./src/routes/restaurantRoutes');  // 4. מייבא routes
+app.use('/api/restaurants', restaurantRoutes);  // 5. מחבר אותם תחת כתובת
+
+const PORT = 3000;
+app.listen(PORT, () =&gt; console.log(`Server running on port ${PORT}`));  // 6. האזנה</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.4</span> שלב 3 — Model (CRUD גנרי)</h3>
+      <p><strong>CRUD</strong> = הפעולות הבסיסיות על כל דאטה: <strong>C</strong>reate (POST/<code>add</code>), <strong>R</strong>ead (GET/<code>getAll,findById</code>), <strong>U</strong>pdate (PATCH/<code>update</code>), <strong>D</strong>elete (DELETE/<code>delete</code>). כדי שיהיה SOLID — כותבים <code>Model.js</code> גנרי אחד, וכל ישות יוצרת ממנו instance נפרד.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · Model.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Model {
+    #items = [];      // הרשימה בזיכרון (private)
+    #nextId = 1;      // רץ אוטומטי
+
+    getAll() { return [...this.#items]; }                       // R
+
+    findById(id) { return this.#items.find(i =&gt; i.id === id); } // R (undefined אם אין)
+
+    add(data) {                                                // C
+        const item = { id: this.#nextId++, ...data };
+        this.#items.push(item);
+        return item;
+    }
+    update(id, data) {                                         // U
+        const item = this.findById(id);
+        if (!item) return null;
+        Object.assign(item, data);
+        return item;
+    }
+    delete(id) {                                               // D
+        const index = this.#items.findIndex(i =&gt; i.id === id);
+        if (index === -1) return false;
+        this.#items.splice(index, 1);
+        return true;
+    }
+}
+module.exports = Model;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · restaurants.js (instance לכל ישות)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Model = require('./Model');
+module.exports = new Model();   // מאגר נפרד, רשימה ריקה משלו</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📋</span>
+        <div class="body">
+          <span class="title">מתודות מערך ב-JS — צ'יט-שיט</span>
+          <table style="margin:.5rem 0 0">
+            <thead><tr><th>פעולה</th><th>סינטקס</th><th>מחזיר</th></tr></thead>
+            <tbody>
+              <tr><td>חיפוש פריט</td><td><code>arr.find(x =&gt; x.id === id)</code></td><td>הפריט או <code>undefined</code></td></tr>
+              <tr><td>חיפוש אינדקס</td><td><code>arr.findIndex(x =&gt; x.id === id)</code></td><td>אינדקס או <code>-1</code></td></tr>
+              <tr><td>הוספה לסוף</td><td><code>arr.push(item)</code></td><td>—</td></tr>
+              <tr><td>מחיקה לפי אינדקס</td><td><code>arr.splice(index, 1)</code></td><td>—</td></tr>
+              <tr><td>בדיקה אם קיים</td><td><code>arr.some(x =&gt; x.name === name)</code></td><td><code>true/false</code></td></tr>
+              <tr><td>סינון</td><td><code>arr.filter(x =&gt; ...)</code></td><td>מערך חדש</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.5</span> שלב 4 — Routes (מחקה את הפרסר)</h3>
+      <p>לוקח <code>method</code> + <code>URL</code> ומפנה לפונקציית ה-Controller הנכונה. שורה אחת לכל endpoint:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · restaurantRoutes.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express = require('express');
+const router = express.Router();
+const { getAllRestaurants, createRestaurant, getRestaurantById,
+        updateRestaurant, deleteRestaurant } = require('../controllers/restaurantController');
+
+// router.METHOD(path, handler) — path יחסי ל-prefix שהורכב ב-app.js
+router.get('/',        getAllRestaurants);
+router.post('/',       createRestaurant);
+router.get('/:id',     getRestaurantById);
+router.patch('/:id',   updateRestaurant);
+router.delete('/:id',  deleteRestaurant);
+
+module.exports = router;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔐</span>
+        <div class="body">
+          <span class="title">middleware בנתיב</span>
+          אם endpoint דורש התחברות, תוחבים את ה-middleware <em>באמצע</em>: <code>router.post('/:id/products', authMiddleware, productController.createProduct);</code> — רצים משמאל לימין. אם המוודא אישר → ממשיכים; אחרת מחזיר 401 ולא מגיע ל-controller.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.6</span> שלב 5 — Controller (מחקה את <code>execute</code>)</h3>
+      <p>קודי הסטטוס שצריך להכיר:</p>
+      <table>
+        <thead><tr><th>קוד</th><th>שם</th><th>מתי</th><th>גוף התשובה</th></tr></thead>
+        <tbody>
+          <tr><td>200</td><td>OK</td><td>GET שהצליח / פעולה שמחזירה דאטה</td><td>ה-JSON המבוקש</td></tr>
+          <tr><td>201</td><td>Created</td><td>POST שיצר משאב חדש</td><td>המשאב שנוצר</td></tr>
+          <tr><td>204</td><td>No Content</td><td>PATCH/DELETE שהצליחו</td><td>כלום (גוף ריק!)</td></tr>
+          <tr><td>400</td><td>Bad Request</td><td>קלט לא תקין — שדה חובה חסר</td><td><code>{ error: "..." }</code></td></tr>
+          <tr><td>401</td><td>Unauthorized</td><td>אין/לא תקין token התחברות</td><td><code>{ error: "..." }</code></td></tr>
+          <tr><td>404</td><td>Not Found</td><td>המשאב (id:) לא קיים</td><td><code>{ error: "..." }</code></td></tr>
+          <tr><td>409</td><td>Conflict</td><td>התנגשות — יצירת משאב שכבר קיים</td><td><code>{ error: "..." }</code></td></tr>
+        </tbody>
+      </table>
+      <p>קוראים קלט מ-<code>req</code> ועונים ב-<code>res</code>:</p>
+      <table>
+        <thead><tr><th>מאיפה</th><th>סינטקס</th><th>דוגמה</th></tr></thead>
+        <tbody>
+          <tr><td>פרמטר בנתיב</td><td><code>req.params.id</code></td><td><code>/restaurants/42</code> → <code>"42"</code> (מחרוזת! → <code>parseInt</code>)</td></tr>
+          <tr><td>גוף הבקשה</td><td><code>req.body</code></td><td><code>{ name: "aaa", phone: "123" }</code></td></tr>
+          <tr><td>headers</td><td><code>req.headers['authorization']</code></td><td><code>"Bearer xyz..."</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">דפוס התשובה — תמיד <code>res.status(code).json(data)</code></span>
+          <code>res.json(data)</code> = 200 + JSON (ברירת מחדל). <code>res.status(201).json(data)</code> = קוד אחר. <code>res.status(404).json({error:"..."})</code> = שגיאה. <code>res.status(204).send()</code> = בלי גוף. <strong>תמיד עונים פעם אחת בלבד</strong> — לכן משרשרים תנאים עם <code>return</code>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · restaurantController.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Restaurant = require('../models/restaurants');
+
+function getAllRestaurants(req, res) {
+    return res.json(Restaurant.getAll());                 // 200 + מערך (גם [])
+}
+function createRestaurant(req, res) {
+    const data = req.body;
+    if (!data.name) return res.status(400).json({ error: "Name is required" });   // 400
+    const restaurant = Restaurant.add(data);
+    return res.status(201).json(restaurant);              // 201
+}
+function getRestaurantById(req, res) {
+    const id = parseInt(req.params.id);                   // params זה string!
+    const restaurant = Restaurant.findById(id);
+    if (!restaurant) return res.status(404).json({ error: "Not found" });          // 404
+    return res.json(restaurant);                          // 200
+}
+function updateRestaurant(req, res) {
+    const id = parseInt(req.params.id);
+    if (!Restaurant.findById(id)) return res.status(404).json({ error: "Not found" });
+    Restaurant.update(id, req.body);
+    return res.status(204).send();                        // 204, גוף ריק
+}
+function deleteRestaurant(req, res) {
+    const id = parseInt(req.params.id);
+    if (!Restaurant.findById(id)) return res.status(404).json({ error: "Not found" });
+    Restaurant.delete(id);
+    return res.status(204).send();                        // 204
+}
+module.exports = { getAllRestaurants, createRestaurant, getRestaurantById,
+                   updateRestaurant, deleteRestaurant };</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">מי קורא/כותב את <code>req</code>/<code>res</code>? — Express</span>
+          הלקוח שולח HTTP → Express מפענח ובונה <code>req</code> → מסתכל על METHOD+URL ומוצא את הנתיב → קורא לפונקציה שלנו עם <code>(req,res)</code> → הקונטרולר ממלא את <code>res</code> → Express הופך אותו ל-HTTP ושולח ללקוח.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.7</span> שלב 6 — Middleware (לא תמיד)</h3>
+      <p>פונקציה שרצה <em>בין</em> קבלת הבקשה לבין ה-Controller. מקבלת 3 פרמטרים — <code>(req, res, next)</code>. <code>next()</code> = "סיימתי, תעביר הלאה". כל בקשה חייבת להסתיים <strong>או</strong> ב-<code>next()</code> <strong>או</strong> ב-<code>res</code> — לא בשתיהן.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · auth middleware</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function auth(req, res, next) {
+    const userId = req.headers['authorization'];   // קורא את הזהות
+    if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });   // אין? → עצור
+    }
+    req.user = { userId };                          // שם על req ל-controllers
+    next();                                          // המשך
+}
+module.exports = auth;</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">3.8</span> כדאי לדעת על JavaScript</h3>
+      <div class="callout syntax">
+        <span class="ic">⏳</span>
+        <div class="body">
+          <span class="title">async / await / Promise</span>
+          פעולות אסינכרוניות (פנייה לשרת, קריאת קובץ) מחזירות <strong>Promise</strong> — "שובר לתוצאה עתידית" עם 3 מצבים: <em>pending</em> / <em>resolved</em> / <em>rejected</em>. <code>await</code> = "עצור כאן, חכה שה-Promise יסתיים, תן לי את התוצאה". <code>async</code> = תווית חובה על פונקציה כדי שמותר יהיה <code>await</code> בתוכה. <strong>כל פונקציה async מחזירה Promise</strong> — אז גם הקורא צריך <code>await</code>.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">סינטקס שימושי</span>
+          <ul style="margin:0">
+            <li><strong>פונקציות:</strong> רגילה <code>function f(){}</code> · חץ <code>const add = (a,b) =&gt; a+b;</code></li>
+            <li><strong>destructuring:</strong> <code>const { id, name } = r;</code> — שולף שדות למשתנים</li>
+            <li><strong>spread:</strong> <code>{ id: 1, ...data }</code> · <code>[...arr]</code> — מעתיק עם תוספת</li>
+            <li><strong>השוואה:</strong> תמיד <code>===</code> (ערך+טיפוס), לא <code>==</code> (עושה המרות מוזרות)</li>
+            <li><strong>ייצוא/יבוא:</strong> <code>module.exports = X;</code> · <code>const X = require('./X');</code> (חובה בסוף כל קובץ Node!)</li>
+            <li><strong>תבנית מחרוזת:</strong> <code>`/api/restaurants/${id}`</code></li>
+            <li><strong>שדה private:</strong> <code>#field</code></li>
+            <li><strong>var/let/const:</strong> <code>const</code> קבוע · <code>let</code> חי בבלוק · <code>var</code> חי בכל הפונקציה (מורם, להימנע)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="ex4">חלק 4 · תרגיל 4 — React + HTML + CSS
+      <small>צד הלקוח (Frontend) — מסך שמדבר עם שרת תרגיל 3 דרך fetch</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        עד כה בנינו backend. עכשיו ה<strong>Frontend</strong> — מה שהמשתמש רואה בדפדפן. React מדבר עם שרת תרגיל 3 דרך <code>fetch</code>, מקבל דאטה (רשימת מסעדות) ומצייר אותה. למה React ולא HTML רגיל? HTML סטטי; React <strong>דינמי</strong> — מתארים "איך המסך נראה עבור דאטה מסוים", וכשהדאטה משתנה React מצייר מחדש אוטומטית.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">4.1</span> HTML — השלד והתגים</h3>
+      <p>HTML מתארת <strong>תוכן</strong>. הלבנה הבסיסית = <strong>תג (tag)</strong>, רובם בזוג פתיחה+סגירה. <code>&lt;head&gt;</code> = מאחורי הקלעים (קישורי CSS); <code>&lt;body&gt;</code> = מה שנראה.</p>
+      <table>
+        <thead><tr><th>תג</th><th>מה זה</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;div&gt;</code></td><td>קופסה/מיכל — עוטף קבוצת דברים</td></tr>
+          <tr><td><code>&lt;h1&gt;</code>–<code>&lt;h6&gt;</code></td><td>כותרות (h1 הכי גדולה)</td></tr>
+          <tr><td><code>&lt;p&gt;</code> / <code>&lt;span&gt;</code></td><td>פסקה / טקסט קצר בשורה</td></tr>
+          <tr><td><code>&lt;button&gt;</code></td><td>כפתור</td></tr>
+          <tr><td><code>&lt;input&gt;</code></td><td>שדה קלט</td></tr>
+          <tr><td><code>&lt;label&gt;</code></td><td>תווית לשדה</td></tr>
+          <tr><td><code>&lt;img&gt;</code></td><td>תמונה</td></tr>
+          <tr><td><code>&lt;a&gt;</code></td><td>קישור</td></tr>
+          <tr><td><code>&lt;ul&gt;</code>/<code>&lt;li&gt;</code></td><td>רשימה / פריט</td></tr>
+          <tr><td><code>&lt;table&gt;</code>/<code>&lt;tr&gt;</code>/<code>&lt;td&gt;</code></td><td>טבלה / שורה / תא</td></tr>
+        </tbody>
+      </table>
+      <p>תכונות (attributes) שכדאי להכיר: <code>type</code>/<code>placeholder</code>/<code>value</code> (על input), <code>src</code> (img), <code>href</code> (a), <code>className</code> (לעיצוב CSS), <code>id</code>, <code>onClick</code>.</p>
+    </section>
+
+    <section>
+      <h3><span class="num">4.2</span> קומפוננטה ו-Props</h3>
+      <p>קומפוננטה = פונקציית JS שמחזירה משהו שנראה כמו HTML (JSX). משתמשים בה כמו תג: <code>&lt;Name /&gt;</code>. <strong>השם חייב להתחיל באות גדולה!</strong> <strong>Props</strong> = פרמטרים שקומפוננטת-אב מעבירה לקומפוננטת-בן.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · קומפוננטה + props</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// מקבל prop בשם name
+function Welcome({ name }) {
+    return &lt;h1&gt;Hello {name}&lt;/h1&gt;;     // { } בתוך JSX = קוד JS
+}
+
+// האב — מעביר ערכים שונים ל-name
+function App() {
+    return (
+        &lt;div&gt;
+            &lt;Welcome name="Guy" /&gt;
+            &lt;Welcome name="Dana" /&gt;
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">כלל חשוב ב-JSX</span>
+          אם פתחת <code>{ }</code> — בפנים זה <strong>קוד JS</strong>. לכן <code>{name}</code> מזוהה כמשתנה, לא כטקסט.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">4.3</span> useState ואירועים</h3>
+      <p>קומפוננטה היא פונקציה — היא רצה, מחזירה, ושוכחת. <strong>State</strong> הוא הזיכרון שלה, וכל פעם שהוא משתנה React מצייר מחדש אוטומטית.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · useState + event</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Counter() {
+    const [count, setCount] = React.useState(0);   // ערך + פונקציית שינוי
+    return (
+        &lt;div&gt;
+            &lt;p&gt;You clicked {count} times&lt;/p&gt;
+            &lt;button onClick={() =&gt; setCount(count + 1)}&gt;Click me&lt;/button&gt;
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">לעולם לא לשנות state ישירות</span>
+          רק דרך הפונקציה (<code>setCount</code>) — כי היא לא רק מעדכנת את הערך, היא גם <strong>אומרת ל-React לצייר מחדש</strong>. אירועים נפוצים: <code>onClick</code> (לחיצה), <code>onChange={(e) =&gt; setX(e.target.value)}</code> (הקלדה). מעבירים את הפונקציה — לא מפעילים אותה עם <code>()</code>.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">4.4</span> map — רשימה לקומפוננטות</h3>
+      <p>השרת מחזיר מערך (רשימת מסעדות) — לא יודעים מראש כמה. <code>map</code> הופך מערך נתונים למערך קומפוננטות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · map</span><button class="copy-btn">העתק</button></div>
+        <pre><code>{restaurants.map(r =&gt; (
+    &lt;RestaurantCard key={r.id} restaurant={r} /&gt;
+))}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔑</span>
+        <div class="body">
+          <span class="title"><code>key</code></span>
+          לכל פריט ברשימה נותנים <code>key</code> ייחודי (בד"כ ה-id) — React משתמש בו כדי לעקוב מה השתנה.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">4.5</span> fetch + useEffect — מדברים עם השרת</h3>
+      <p><code>fetch</code> = בקשת HTTP מתוך JS (כמו curl), אסינכרונית. שני סוגים: <strong>להביא דאטה</strong> (GET) ו<strong>לשלוח דאטה</strong> (POST).</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · fetch GET</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const res  = await fetch('/api/restaurants');   // שולח בקשה
+const data = await res.json();                  // הופך את התשובה ל-JSON</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · fetch POST</span><button class="copy-btn">העתק</button></div>
+        <pre><code>await fetch('/api/restaurants', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },   // שים לב — JSON
+    body: JSON.stringify({ name, address })            // אובייקט → מחרוזת טקסט
+});</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">למה <code>JSON.stringify</code>?</span>
+          דרך הרשת אי אפשר לשלוח אובייקט JS — רק טקסט. הפעולה הופכת אובייקט למחרוזת. בצד השני (השרת) <code>req.body</code> ממיר חזרה ל-JSON.
+        </div>
+      </div>
+      <p>איפה מציבים את ה-<code>fetch</code>? לא בגוף הקומפוננטה (ירוץ בכל ציור מחדש, אינסוף). משתמשים ב-<strong><code>useEffect</code></strong> כדי שירוץ פעם אחת בטעינה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · Home עם fetch + useEffect</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Home() {
+    const [restaurants, setRestaurants] = React.useState([]);   // 1. state ריק
+
+    React.useEffect(() =&gt; {                                      // 2. בטעינת המסך
+        async function load() {
+            const res  = await fetch('/api/restaurants');       // 3. הבא
+            const data = await res.json();
+            setRestaurants(data);                               // 4. שמור ב-state
+        }
+        load();
+    }, []);                                                     // [] = פעם אחת בלבד
+
+    return (
+        &lt;div&gt;
+            {restaurants.map(r =&gt; (                              // 5. הצג עם map
+                &lt;RestaurantCard key={r.id} restaurant={r} /&gt;
+            ))}
+        &lt;/div&gt;
+    );
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">סדר הריצה</span>
+          (1) גוף הפונקציה רץ. (2) ה-<code>return</code> מצייר JSX. (3) רק <em>אחרי</em> הציור רץ <code>useEffect</code> → <code>fetch</code> → <code>setState</code>. (4) שינוי ה-state → ציור מחדש, אבל הפעם <code>useEffect</code> לא ירוץ (כי <code>[]</code>). אם נכניס <code>[x]</code> — ירוץ בכל פעם ש-<code>x</code> משתנה.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">4.6</span> CSS — עיצוב</h3>
+      <p>CSS מתאר <strong>איך התוכן נראה</strong> (צבעים, גדלים, מרווחים). עובד בכללים: לכל סלקטור — רשימת תכונות. <strong>חמי מדגיש: "עיצוב מינימלי גורר ציון מינימלי"</strong> — אז משקיעים.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">css · main.css</span><button class="copy-btn">העתק</button></div>
+        <pre><code>.restaurant-card {
+    background-color: white;
+    color: #222;
+    padding: 16px;          /* ריווח פנימי */
+    margin: 10px;           /* ריווח חיצוני (בין אלמנטים) */
+    border: 1px solid gray;
+    border-radius: 8px;     /* פינות מעוגלות */
+}
+.btn {
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;        /* יד על כפתור */
+}
+/* פריסה — Flexbox */
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📐</span>
+        <div class="body">
+          <span class="title"><code>padding</code> מול <code>margin</code></span>
+          <strong>padding</strong> = ריווח <em>בתוך</em> הקופסה (דוחף את התוכן פנימה). <strong>margin</strong> = ריווח <em>מסביב</em> לקופסה (בין קופסאות). תכונות נפוצות: <code>color</code>, <code>font-size</code>, <code>font-weight</code>, <code>text-align</code>, <code>background-color</code>, <code>width</code>/<code>height</code>, <code>display:flex</code>.
+        </div>
+      </div>
+      <p>מחברים CSS ל-React ב-3 שלבים: (1) קובץ <code>main.css</code>. (2) ב-<code>index.html</code>: <code>&lt;link rel="stylesheet" href="/styles/main.css"&gt;</code>. (3) בקומפוננטה: <code>&lt;div className="restaurant-card"&gt;</code>. אפשר לשרשר מחלקות: <code>className="btn btn-login"</code> (ההגדרה האחרונה גוברת).</p>
+    </section>
+
+    <section>
+      <h3><span class="num">4.7</span> חיבור הכל — public, index.html, App</h3>
+      <p>על שרת תרגיל 3 מוסיפים תיקיית <code>public</code> שבה: <code>index.html</code> (שער הכניסה), כל הקומפוננטות, ו-<code>main.css</code>. הזרימה: דפדפן → Express מחזיר <code>index.html</code> → טוען React + קומפוננטות + CSS → React מצייר → כשצריך דאטה עושה <code>fetch</code> ל-<code>/api/...</code> → אותו Express עונה JSON.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · public/index.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+  &lt;head&gt;
+    &lt;link rel="stylesheet" href="/styles/main.css"&gt;   &lt;!-- 1. קישור ל-CSS --&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div id="root"&gt;&lt;/div&gt;                              &lt;!-- 2. שורש React --&gt;
+
+    &lt;!-- 3. ספריות React + Babel --&gt;
+    &lt;script src="https://unpkg.com/react@18/umd/react.development.js"&gt;&lt;/script&gt;
+    &lt;script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"&gt;&lt;/script&gt;
+    &lt;script src="https://unpkg.com/@babel/standalone/babel.min.js"&gt;&lt;/script&gt;
+
+    &lt;!-- 4. הקומפוננטות שלנו --&gt;
+    &lt;script type="text/babel" src="/components/Home.jsx"&gt;&lt;/script&gt;
+    &lt;script type="text/babel" src="/components/App.jsx"&gt;&lt;/script&gt;
+
+    &lt;!-- 5. הזרקת האפליקציה ל-root --&gt;
+    &lt;script type="text/babel"&gt;
+      ReactDOM.createRoot(document.getElementById('root')).render(&lt;App /&gt;)
+    &lt;/script&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · שינוי ב-app.js (שרת תרגיל 3)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>app.use(express.static('public'));   // 1. הגש קבצים סטטיים (CSS, קומפוננטות) מ-public
+app.get('*', (req, res) =&gt; res.sendFile('.../index.html'));   // 2. כל כתובת אחרת → React</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.jsx + Router</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function App() {
+    const { BrowserRouter, Switch, Route } = ReactRouterDOM;
+    return (
+        &lt;BrowserRouter&gt;
+            &lt;Switch&gt;
+                &lt;Route exact path="/"        component={Home} /&gt;
+                &lt;Route       path="/login"   component={Login} /&gt;
+                &lt;Route       path="/register" component={Register} /&gt;
+            &lt;/Switch&gt;
+        &lt;/BrowserRouter&gt;
+    );
+}
+// אם לא צריך כמה מסכים — פשוט:  function App() { return &lt;Home /&gt;; }</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="extras">חלק 5 · env, Docker, טסטים
+      <small>נושאי-לוואי שחמי עלול לבקש</small>
+    </div>
+
+    <section>
+      <h3><span class="num">5.1</span> קובץ <code>.env</code></h3>
+      <p>קובץ קטן שמחזיק ערכי הגדרה, <strong>נפרד מהקוד</strong>. במקום ערכים קשיחים (port, כתובת, סיסמה) — שמים אותם בקובץ אחד. <strong>חמי בכל תרגיל מציק: לא להעלות סיסמאות/טוקנים לגיט!</strong> — לכן <code>.env</code> נכנס ל-<code>.gitignore</code> ולא עולה.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">env · .env</span><button class="copy-btn">העתק</button></div>
+        <pre><code>PORT=3000
+JWT_SECRET=mysecretkey
+CPP_SERVER_HOST=127.0.0.1
+CPP_SERVER_PORT=5555</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · קריאה בקוד</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const PORT = process.env.PORT || 3000;   // עם ברירת מחדל</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">5.2</span> טסטים</h3>
+      <table>
+        <thead><tr><th>סוג</th><th>בודק</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Sanity</strong></td><td>שהפונקציה עובדת במקרה הרגיל</td></tr>
+          <tr><td><strong>Negative</strong></td><td>שלא מחזירה ערך שגוי, ושזורקת שגיאה היכן שצריך</td></tr>
+          <tr><td><strong>Boundary</strong></td><td>ערכים קיצוניים/גבוליים</td></tr>
+          <tr><td><strong>Edge case</strong></td><td>מצבים יוצאי-דופן/נדירים</td></tr>
+        </tbody>
+      </table>
+      <p>מבנה טסט (Google Test): <code>TEST(SuiteName, TestName)</code> — A שם קבוצה, B שם ספציפי (אנחנו ממציאים). בפנים: arrange → act → assert.</p>
+      <table>
+        <thead><tr><th>מאקרו</th><th>בודק ש...</th></tr></thead>
+        <tbody>
+          <tr><td><code>EXPECT_EQ(a, b)</code></td><td><code>a == b</code> (שווים)</td></tr>
+          <tr><td><code>EXPECT_NE(a, b)</code></td><td><code>a != b</code> (שונים)</td></tr>
+          <tr><td><code>EXPECT_TRUE(x)</code></td><td><code>x</code> אמת</td></tr>
+          <tr><td><code>EXPECT_FALSE(x)</code></td><td><code>x</code> שקר</td></tr>
+          <tr><td><code>EXPECT_THROW(code, ExType)</code></td><td><code>code</code> זורק חריגה מסוג <code>ExType</code></td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · דוגמאות טסטים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;gtest/gtest.h&gt;
+#include "Math.h"
+
+TEST(MathTest, AddBasic) {            // sanity
+    EXPECT_EQ(add(2, 3), 5);
+}
+TEST(MathTest, DivideByZeroThrows) {  // negative
+    EXPECT_THROW(divide(10, 0), std::invalid_argument);
+}
+TEST(MathTest, AddWithZero) {         // boundary
+    EXPECT_EQ(add(5, 0), 5);
+    EXPECT_EQ(add(-3, 3), 0);
+}
+TEST(MathTest, AddOverflow) {         // edge case
+    int big = 2147483647;             // INT_MAX
+    EXPECT_NE(add(big, 1), big + 1);  // overflow
+}</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">5.3</span> Docker</h3>
+      <p>דוקר אורז את האפליקציה עם כל מה שהיא צריכה (OS, ספריות) ל<strong>קופסה סגורה (container)</strong> שרצה זהה בכל מחשב — פותר את "אצלי זה עובד ואצלך לא". מושגים: <strong>Image</strong> = התבנית הקפואה · <strong>Container</strong> = מופע פעיל של ה-Image · <strong>Dockerfile</strong> = המתכון לבניית ה-Image.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">dockerfile · Dockerfile</span><button class="copy-btn">העתק</button></div>
+        <pre><code>FROM node:18           # 1. התחל ממערכת בסיס עם Node
+WORKDIR /app           # 2. תיקיית העבודה בתוך הקופסה
+COPY package*.json ./  # 3. העתק קבצי תלויות
+RUN npm install        # 4. התקן תלויות (בזמן הבנייה)
+COPY . .               # 5. העתק את כל שאר הקוד
+EXPOSE 3000            # 6. הצהר על הפורט
+CMD ["node", "app.js"] # 7. הפקודה שמריצה את האפליקציה</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="mongo">חלק 6 · MongoDB (Mongoose)
+      <small>דאטהבייס אמיתי על הדיסק — מחליף את ה-map בזיכרון</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        MongoDB הוא דאטהבייס מסוג <strong>NoSQL</strong> ששומר בצורת JSON על הדיסק (קבוע). הדבר המדהים: השינוי נכנס בעיקר ב<strong>שכבת ה-Model</strong>, מעט בקונטרולרים, ושורת חיבור ב-<code>app.js</code>. <strong>Collection</strong> = מגירה לכל סוג ישות · <strong>Document</strong> = רשומה אחת.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">6.1</span> ה-Model הופך ל-Schema</h3>
+      <p>במקום מחלקת <code>Model</code> ידנית — מגדירים <strong>Schema</strong> (אילו שדות ומאיזה סוג), ו-Mongoose נותן לנו אוטומטית את כל מתודות ה-CRUD.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · src/models/Restaurant.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const mongoose = require('mongoose');
+
+const restaurantSchema = new mongoose.Schema({
+    name:        { type: String, required: true },   // required → דחייה אוטומטית אם חסר
+    address:     { type: String },
+    categories:  { type: [String], default: [] },
+    lat:         { type: Number },
+    lng:         { type: Number }
+});
+// יוצר Model עם כל מתודות ה-CRUD; Mongo יקרא ל-collection 'restaurants' (ברבים)
+module.exports = mongoose.model('Restaurant', restaurantSchema);</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">6.2</span> חיבור ב-<code>app.js</code> + קונטרולרים async</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/woltdb')
+    .then(() =&gt; console.log('MongoDB connected'))
+    .catch(err =&gt; console.error('DB error:', err));</code></pre>
+      </div>
+      <p>בקונטרולרים: מוסיפים <code>async</code> + <code>await</code> כי כעת פונים לשרת DB:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · controller async</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function getAllRestaurants(req, res) {
+    const restaurants = await Restaurant.find();   // await!
+    return res.json(restaurants);
+}</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>פונקציה</th><th>מה עושה</th><th>מחזירה</th></tr></thead>
+        <tbody>
+          <tr><td><code>Restaurant.find()</code></td><td>כל המסמכים</td><td>מערך (ריק [] אם אין)</td></tr>
+          <tr><td><code>Restaurant.findById(id)</code></td><td>מסמך לפי id</td><td>המסמך או <code>null</code></td></tr>
+          <tr><td><code>Restaurant.findOne({name:"X"})</code></td><td>הראשון שתואם</td><td>המסמך או <code>null</code></td></tr>
+          <tr><td><code>Restaurant.create(data)</code></td><td>יוצר ושומר</td><td>המסמך שנוצר</td></tr>
+          <tr><td><code>Restaurant.findByIdAndUpdate(id, data)</code></td><td>מוצא ומעדכן</td><td>המסמך <em>לפני</em> העדכון (או null)</td></tr>
+          <tr><td><code>Restaurant.findByIdAndDelete(id)</code></td><td>מוצא ומוחק</td><td>המסמך שנמחק (או null)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="rn">חלק 7 · React Native
+      <small>אותו React, רק התגים מתחלפים — אפליקציית מובייל</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט</span>
+        ב-RN <strong>אין HTML</strong>. הקוד נראה זהה ל-React, רק התגים מתחלפים. הלוגיקה (useState, useEffect, fetch, props, map) — <strong>זהה לחלוטין</strong>.
+      </div>
+    </div>
+
+    <section>
+      <h3><span class="num">7.1</span> טבלאות ההמרה</h3>
+      <table>
+        <thead><tr><th>React (web)</th><th>React Native</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>&lt;div&gt;</code></td><td><code>&lt;View&gt;</code></td><td>מיכל/קופסה</td></tr>
+          <tr><td><code>&lt;p&gt;&lt;span&gt;&lt;h1&gt;</code></td><td><code>&lt;Text&gt;</code></td><td>כל טקסט</td></tr>
+          <tr><td><code>&lt;input&gt;</code></td><td><code>&lt;TextInput&gt;</code></td><td>שדה קלט</td></tr>
+          <tr><td><code>&lt;button&gt;</code></td><td><code>&lt;Button&gt;</code>/<code>&lt;TouchableOpacity&gt;</code></td><td>כפתור</td></tr>
+          <tr><td><code>&lt;img&gt;</code></td><td><code>&lt;Image&gt;</code></td><td>תמונה</td></tr>
+          <tr><td><code>&lt;ul&gt;</code></td><td><code>&lt;FlatList&gt;</code>/<code>&lt;ScrollView&gt;</code></td><td>רשימה נגללת</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>נושא</th><th>React</th><th>React Native</th></tr></thead>
+        <tbody>
+          <tr><td>אירוע לחיצה</td><td><code>onClick</code></td><td><code>onPress</code></td></tr>
+          <tr><td>אירוע הקלדה</td><td><code>onChange={(e)=&gt;set(e.target.value)}</code></td><td><code>onChangeText={set}</code> (נותן ערך ישר)</td></tr>
+          <tr><td>עיצוב</td><td><code>className="x"</code> + <code>main.css</code></td><td><code>style={styles.x}</code> + <code>StyleSheet.create</code></td></tr>
+          <tr><td>ייצוא קומפוננטה</td><td><code>window.X = X</code></td><td><code>export default X</code></td></tr>
+          <tr><td>ניתוב</td><td><code>react-router-dom</code></td><td><code>@react-navigation</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">3 המלכודות שהכי מפילות</span>
+          <ul style="margin:0">
+            <li>כל טקסט חייב להיות בתוך <code>&lt;Text&gt;</code> — אין "טקסט עירום".</li>
+            <li>אירועים: <code>onPress</code>/<code>onChangeText</code>, לא <code>onClick</code>/<code>onChange</code>.</li>
+            <li>עיצוב: <code>style={styles.x}</code>, לא <code>className</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h3><span class="num">7.2</span> נקודת הכניסה ב-RN</h3>
+      <p>אין <code>index.html</code>. הכניסה דרך <code>index.js</code> → <code>App.js</code> → קומפוננטות. ב-<code>app.js</code> של ה-backend <strong>אין</strong> <code>express.static</code>/catch-all — אפליקציית RN נפרדת ומתחברת דרך כתובת מלאה.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · index.js → App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// index.js
+import { registerRootComponent } from 'expo';
+import App from './App';
+registerRootComponent(App);
+
+// App.js
+import Home from './components/Home';
+export default function App() { return &lt;Home /&gt;; }</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">RN מתחבר דרך כתובת מלאה</span>
+          לא נתיב יחסי! <code>const BASE_URL = 'http://10.0.2.2:3000';</code> — כאשר <code>10.0.2.2</code> = מכונת ה-host כפי שנראית מאמולטור אנדרואיד. ואז <code>fetch(`${BASE_URL}/api/tasks`)</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════════════ -->
+    <div class="part-banner" id="examples">חלק 8 · דוגמאות קוד מלאות
+      <small>4 שאלות-בחינה לדוגמה, פתורות מקצה לקצה</small>
+    </div>
+
+    <div class="callout info">
+      <span class="ic">🧪</span>
+      <div class="body">
+        <span class="title">איך להשתמש בחלק הזה</span>
+        אלו 4 שאלות מסגנון המבחן, עם הקוד המלא. הן מדגימות כיצד הברגים והשלד מהחלקים הקודמים מתרכבים לפתרון שלם. כשמגיעה שאלה במבחן — מזהים לאיזה מהארבעה היא דומה, ומתאימים.
+      </div>
+    </div>
+
+    <!-- ───────────── דוגמה 1 ───────────── -->
+    <section id="ex-phonebook">
+      <h3><span class="num">A</span> תרגיל 2 — ספר טלפונים: שרת C++ (TCP) + לקוח Python</h3>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">השאלה</span>
+          שרת C++ על TCP המנהל ספר טלפונים, ולקוח Python. הפורט מועבר כארגומנט ל-<code>main</code> של השרת; ip+port ללקוח. לא עוצר לעולם. פקודות: <code>ADD [name] [phone]</code> (קיים → 409, אחרת → 201), <code>GET [name]</code> (לא קיים → 404, אחרת → 200 + הטלפון), <code>DELETE [name]</code> (לא קיים → 404, אחרת → 204), כל פקודה אחרת → 400. המידע נשמר לקובץ.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · ContactStorage.cpp (in-memory map → קובץ)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include "ContactStorage.h"
+#include &lt;fstream&gt;
+#include &lt;sstream&gt;
+
+ContactStorage::ContactStorage(const std::string&amp; filePath) : filePath(filePath) {
+    std::ifstream file(filePath);
+    std::string line;
+    while (std::getline(file, line)) {       // טוען אנשי קשר קיימים
+        std::istringstream s(line);
+        std::string name, phone;
+        s &gt;&gt; name &gt;&gt; phone;
+        if (!name.empty()) contacts[name] = phone;
+    }
+}
+bool ContactStorage::exists(const std::string&amp; name) {
+    return contacts.find(name) != contacts.end();
+}
+std::string ContactStorage::get(const std::string&amp; name) { return contacts[name]; }
+
+void ContactStorage::add(const std::string&amp; name, const std::string&amp; phone) {
+    contacts[name] = phone;  save();
+}
+void ContactStorage::remove(const std::string&amp; name) {
+    contacts.erase(name);    save();
+}
+void ContactStorage::save() {                // דורס את כל הקובץ
+    std::ofstream file(filePath);
+    for (auto&amp; pair : contacts)
+        file &lt;&lt; pair.first &lt;&lt; " " &lt;&lt; pair.second &lt;&lt; "\n";
+}</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · AddCommand / GetCommand / DeleteCommand (execute)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>std::string AddCommand::execute(const std::vector&lt;std::string&gt;&amp; args) {
+    if (args.size() != 2) return "400 Bad Request\n";       // name + phone
+    if (storage.exists(args[0])) return "409 Conflict\n";   // כבר קיים
+    storage.add(args[0], args[1]);
+    return "201 Created\n";
+}
+std::string GetCommand::execute(const std::vector&lt;std::string&gt;&amp; args) {
+    if (args.size() != 1) return "400 Bad Request\n";
+    if (!storage.exists(args[0])) return "404 Not Found\n";
+    return "200 Ok\n" + storage.get(args[0]) + "\n";        // סטטוס ואז הטלפון
+}
+std::string DeleteCommand::execute(const std::vector&lt;std::string&gt;&amp; args) {
+    if (args.size() != 1) return "400 Bad Request\n";
+    if (!storage.exists(args[0])) return "404 Not Found\n";
+    storage.remove(args[0]);
+    return "204 No Content\n";
+}</code></pre>
+      </div>
+      <p>ה-<code>CommandParser</code>, <code>server_main.cpp</code> ו-<code>client.py</code> — בדיוק כמו השלד ב<a class="link" href="#ex2">חלק 2</a> (רק עם <code>"ADD"/"GET"/"DELETE"</code> ב-<code>registerCommand</code>).</p>
+    </section>
+
+    <!-- ───────────── דוגמה 2 ───────────── -->
+    <section id="ex-express">
+      <h3><span class="num">B</span> תרגיל 3 — ספרים: Express MVC (in-memory)</h3>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">השאלה</span>
+          שרת Express בארכיטקטורת MVC, REST API לניהול ספרים, המידע בזיכרון. <code>/api/books</code>: GET → 200, POST (חסר <code>title</code>/<code>author</code> → 400, אחרת 201). <code>/api/books/:id</code>: GET/PATCH/DELETE (לא נמצא → 404; PATCH/DELETE מצליחים → 204).
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · src/controllers/bookController.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Book = require('../models/books');
+
+function getAllBooks(req, res) {
+    return res.json(Book.getAll());                                  // 200 + מערך
+}
+function createBook(req, res) {
+    const data = req.body;
+    if (!data.title || !data.author)
+        return res.status(400).json({ error: "title and author are required" });
+    return res.status(201).json(Book.add(data));                    // 201
+}
+function getBookById(req, res) {
+    const book = Book.findById(parseInt(req.params.id));
+    if (!book) return res.status(404).json({ error: "Book not found" });
+    return res.json(book);                                          // 200
+}
+function updateBook(req, res) {
+    const id = parseInt(req.params.id);
+    if (!Book.findById(id)) return res.status(404).json({ error: "Book not found" });
+    Book.update(id, req.body);
+    return res.status(204).send();                                  // 204
+}
+function deleteBook(req, res) {
+    const id = parseInt(req.params.id);
+    if (!Book.findById(id)) return res.status(404).json({ error: "Book not found" });
+    Book.delete(id);
+    return res.status(204).send();                                  // 204
+}
+module.exports = { getAllBooks, createBook, getBookById, updateBook, deleteBook };</code></pre>
+      </div>
+      <p>ה-<code>Model.js</code> הגנרי, <code>books.js</code> (<code>new Model()</code>), <code>bookRoutes.js</code> ו-<code>app.js</code> — בדיוק כמו השלד ב<a class="link" href="#ex3">חלק 3</a>.</p>
+    </section>
+
+    <!-- ───────────── דוגמה 3 ───────────── -->
+    <section id="ex-fullstack">
+      <h3><span class="num">C</span> Full Stack — Express + MongoDB + React</h3>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">השאלה</span>
+          אפליקציית Web לניהול ספרים. Backend: Express ב-MVC ששומר ב-MongoDB. Frontend: React שמציג את הספרים מהשרת (לא hard-coded) ומאפשר להוסיף ספר.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · src/models/Book.js (Mongoose)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const mongoose = require('mongoose');
+const bookSchema = new mongoose.Schema({
+    title:  { type: String, required: true },
+    author: { type: String, required: true }
+});
+module.exports = mongoose.model('Book', bookSchema);</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · bookController.js (async)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const Book = require('../models/Book');
+
+async function getAllBooks(req, res) {
+    return res.json(await Book.find());                             // await — DB
+}
+async function createBook(req, res) {
+    const { title, author } = req.body;
+    if (!title || !author)
+        return res.status(400).json({ error: "title and author are required" });
+    return res.status(201).json(await Book.create({ title, author }));
+}
+async function getBookById(req, res) {
+    const book = await Book.findById(req.params.id);                // _id — מחרוזת
+    if (!book) return res.status(404).json({ error: "Book not found" });
+    return res.json(book);
+}
+async function updateBook(req, res) {
+    const book = await Book.findByIdAndUpdate(req.params.id, req.body);
+    if (!book) return res.status(404).json({ error: "Book not found" });
+    return res.status(204).send();
+}
+async function deleteBook(req, res) {
+    const book = await Book.findByIdAndDelete(req.params.id);
+    if (!book) return res.status(404).json({ error: "Book not found" });
+    return res.status(204).send();
+}
+module.exports = { getAllBooks, createBook, getBookById, updateBook, deleteBook };</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · app.js (Mongo + React + API)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const express  = require('express');
+const mongoose = require('mongoose');
+const path     = require('path');
+const app = express();
+
+mongoose.connect('mongodb://localhost:27017/booksdb')
+    .then(() =&gt; console.log('MongoDB connected'))
+    .catch(err =&gt; console.error('DB error:', err));
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));   // מגיש את React
+
+app.use('/api/books', require('./src/routes/bookRoutes')); // ה-API
+app.get('*', (req, res) =&gt; res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
+app.listen(3000, () =&gt; console.log('Server running on port 3000'));</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · public/components/Home.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Home() {
+    const [books, setBooks]   = React.useState([]);
+    const [title, setTitle]   = React.useState('');
+    const [author, setAuthor] = React.useState('');
+
+    async function fetchBooks() {
+        const res = await fetch('/api/books');
+        setBooks(await res.json());
+    }
+    React.useEffect(() =&gt; { fetchBooks(); }, []);   // טעינה פעם אחת
+
+    async function addBook() {
+        await fetch('/api/books', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, author })
+        });
+        setTitle(''); setAuthor('');
+        fetchBooks();                               // רענון
+    }
+    return (
+        &lt;div&gt;
+            &lt;h1&gt;Books&lt;/h1&gt;
+            &lt;input value={title}  onChange={e =&gt; setTitle(e.target.value)}  placeholder="Title" /&gt;
+            &lt;input value={author} onChange={e =&gt; setAuthor(e.target.value)} placeholder="Author" /&gt;
+            &lt;button onClick={addBook}&gt;Add&lt;/button&gt;
+            &lt;ul&gt;
+                {books.map(book =&gt; (
+                    &lt;li key={book._id}&gt;{book.title} — {book.author}&lt;/li&gt;
+                ))}
+            &lt;/ul&gt;
+        &lt;/div&gt;
+    );
+}
+window.Home = Home;</code></pre>
+      </div>
+    </section>
+
+    <!-- ───────────── דוגמה 4 ───────────── -->
+    <section id="ex-rn">
+      <h3><span class="num">D</span> Full Stack — React Native + Express + MongoDB</h3>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">השאלה</span>
+          אפליקציית מובייל ב-React Native לניהול רשימת משימות (To-Do), מול שרת Express + MongoDB. מציגה משימות מהשרת ומאפשרת להוסיף.
+        </div>
+      </div>
+      <p>ה-Backend זהה לדוגמה C (רק <code>Task</code> במקום <code>Book</code>), עם הבדל אחד ב-<code>app.js</code>: <strong>אין</strong> <code>express.static</code>/catch-all — אפליקציית RN נפרדת. ה-Frontend:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · components/Home.js (RN)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
+
+// RN מתחבר דרך כתובת מלאה! 10.0.2.2 = ה-host מאמולטור אנדרואיד
+const BASE_URL = 'http://10.0.2.2:3000';
+
+function Home() {
+    const [tasks, setTasks] = useState([]);
+    const [title, setTitle] = useState('');
+
+    async function fetchTasks() {
+        const res = await fetch(`${BASE_URL}/api/tasks`);
+        setTasks(await res.json());
+    }
+    useEffect(() =&gt; { fetchTasks(); }, []);
+
+    async function addTask() {
+        await fetch(`${BASE_URL}/api/tasks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title })
+        });
+        setTitle(''); fetchTasks();
+    }
+    return (
+        &lt;View style={styles.container}&gt;
+            &lt;Text style={styles.title}&gt;My Tasks&lt;/Text&gt;
+            &lt;TextInput value={title} onChangeText={setTitle}
+                       placeholder="New task" style={styles.input} /&gt;
+            &lt;Button title="Add" onPress={addTask} /&gt;
+            &lt;FlatList
+                data={tasks}
+                keyExtractor={task =&gt; task._id}
+                renderItem={({ item }) =&gt; &lt;Text style={styles.item}&gt;{item.title}&lt;/Text&gt;}
+            /&gt;
+        &lt;/View&gt;
+    );
+}
+const styles = StyleSheet.create({
+    container: { flex: 1, padding: 20 },
+    title:     { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+    input:     { borderWidth: 1, padding: 8, marginBottom: 8 },
+    item:      { fontSize: 16, paddingVertical: 6 }
+});
+export default Home;</code></pre>
+      </div>
+    </section>
+
+    <!-- סיכום סופי -->
+    <section id="final-summary">
+      <h2 style="font-size:1.9rem;border-bottom-width:2px;margin-top:3.5rem">★ סיכום — מפת הדרכים למבחן</h2>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">הכלל היחיד שצריך לזכור</span>
+          <strong>זהה את 3 הברגים</strong> (IO / פקודות / אחסון) → <strong>בחר את השלד המתאים</strong> (console / client-server / Express / +React / +Mongo / RN) → <strong>מלא את הפרטים בסדר קבוע</strong>. כל שאלה היא וריאציה של הזרימה <code>input → router → handler → storage → output</code>.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">✔️</span>
+        <div class="body">
+          <span class="title">צ'ק-ליסט לפני שמגישים</span>
+          <ul style="margin:0">
+            <li>כל <code>execute</code>/controller בודק <strong>מספר ארגומנטים</strong> ו<strong>תקינות</strong> לפני הלוגיקה?</li>
+            <li>קודי הסטטוס המדויקים (201/204/400/404/409) במקומות הנכונים?</li>
+            <li><code>module.exports</code> בסוף כל קובץ Node? <code>#ifndef/#define/#endif</code> בכל <code>.h</code>?</li>
+            <li>SOLID — אינטרפייס לאחסון, מחלקה לכל פקודה, Dependency Injection?</li>
+            <li>תרגיל 4: עיצוב CSS אמיתי (לא מינימלי)? <code>.env</code> ב-<code>.gitignore</code> ולא בגיט?</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="lectures/lecture-01.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">הרצאה 1</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>
+
+
