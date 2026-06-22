@@ -114,13 +114,19 @@ a { color: inherit; text-decoration: none; }
   color: var(--text-faint);
 }
 
-/* באנר קריאה-לפעולה: מדריך המבחן */
+/* באנרי קריאה-לפעולה: מדריך המבחן + נושאים */
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  max-width: 760px;
+  margin: 1.8rem auto 0;
+}
 .exam-cta {
+  flex: 1 1 320px;
   display: flex;
   align-items: center;
   gap: 1rem;
-  max-width: 600px;
-  margin: 1.8rem auto 0;
   padding: 1rem 1.3rem;
   border-radius: var(--radius);
   background: linear-gradient(120deg, rgba(246,196,83,0.16), rgba(255,107,107,0.10));
@@ -133,6 +139,13 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(246,196,83,0.55);
   box-shadow: 0 16px 40px rgba(0,0,0,0.4);
 }
+/* וריאנט קוקיז — גוון קרמל/סגול */
+.exam-cta.cookies {
+  background: linear-gradient(120deg, rgba(214,158,84,0.16), rgba(124,92,255,0.10));
+  border-color: rgba(214,158,84,0.30);
+}
+.exam-cta.cookies:hover { border-color: rgba(214,158,84,0.55); }
+.exam-cta.cookies .exam-cta-arrow { color: #e0a96d; }
 .exam-cta-emoji { font-size: 2rem; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
 .exam-cta-text { flex: 1; display: flex; flex-direction: column; line-height: 1.4; }
 .exam-cta-text strong { color: #fff; font-size: 1.05rem; }
