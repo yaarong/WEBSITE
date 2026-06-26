@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>שכבת הזדהות (JWT) על תרגיל Node.js + MongoDB</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ההזדהות — אמרלד/ירוק (מנעול) */
+    .lesson-header.auth {
+      background: linear-gradient(135deg, rgba(22,194,163,0.16), rgba(91,140,255,0.08));
+    }
+    .lesson-header.auth .kicker { color: var(--tutorial-2); }
+    /* קופסת "3 משפטים" */
+    .three-liner { display:flex; flex-direction:column; gap:.6rem; margin:1.4rem 0; }
+    .three-liner .row {
+      display:flex; gap:.8rem; align-items:flex-start;
+      padding:.85rem 1.1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border);
+      border-inline-start:4px solid var(--tutorial);
+    }
+    .three-liner .row .k { font-weight:700; color:#fff; flex-shrink:0; min-width:84px; }
+    /* תרשים זרימה */
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.6rem; margin:1.4rem 0; justify-content:center; }
+    .flow .step { flex:1 1 150px; min-width:140px; padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.88rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.2rem; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.4rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    /* באנר חלק */
+    .part-banner {
+      margin:3.5rem 0 1rem; padding:1.1rem 1.4rem; border-radius:var(--radius);
+      background:linear-gradient(120deg, rgba(22,194,163,0.14), rgba(124,92,255,0.10));
+      border:1px solid var(--border-strong); font-size:1.5rem; font-weight:900; scroll-margin-top:80px;
+    }
+    .part-banner small { display:block; font-size:.85rem; font-weight:400; color:var(--text-dim); margin-top:.25rem; }
+    .step-tag { font-size:1.5rem; margin-inline-end:.3rem; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🔐 הזדהות JWT על Node.js + MongoDB</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header auth">
+      <div class="kicker">תרגיל משולב · Auth</div>
+      <h1>שכבת הזדהות (JWT) מעל תרגיל Node.js + MongoDB</h1>
+      <p>קיבלת תרגיל Express + MongoDB רגיל (CRUD על משאב כלשהו) — ועכשיו חמי דורש גם <strong>שכבת הזדהות</strong>: חלק מהפקודות מותרות רק למשתמש מחובר. כאן נראה בדיוק <strong>מה מתווסף לקוד</strong>: מודל <code>User</code> במונגו, קונטרולר הרשמה, <strong>קונטרולר טוקן</strong> (login שמחזיר JWT), ושכבת <strong>middleware</strong> ששומרת על הראוטים המוגנים.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">הרעיון ב-3 משפטים</span>
+        <div class="three-liner">
+          <div class="row"><span class="k">Register</span><span>יוצר משתמש ב-DB (שומר <code>username</code> + <code>password</code>).</span></div>
+          <div class="row"><span class="k">Login</span><span>בודק <code>username</code>+<code>password</code>, ואם תקין → מחזיר <strong>טוקן JWT חתום</strong>.</span></div>
+          <div class="row"><span class="k">Middleware</span><span>שומר על ראוטים מוגנים: מוודא שהטוקן תקין <em>לפני</em> שנותן להיכנס.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout syntax">
+      <span class="ic">🪙</span>
+      <div class="body">
+        <span class="title">מה זה בכלל JWT?</span>
+        <strong>JSON Web Token</strong> — מחרוזת בת 3 חלקים מופרדים בנקודה: <code>header.payload.signature</code>. ה-<em>payload</em> מכיל מידע על המשתמש (id, username); ה-<em>signature</em> נוצר בעזרת <strong>סוד</strong> (<code>JWT_SECRET</code>) שרק השרת מכיר. הטוקן <strong>חתום, לא מוצפן</strong> — כלומר כל אחד יכול לקרוא את ה-payload, אבל אף אחד לא יכול <em>לזייף</em> אותו בלי הסוד. כשהשרת מקבל טוקן הוא מאמת את החתימה — אם היא תקינה, סימן שהשרת עצמו הנפיק אותו ואפשר לסמוך עליו.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 סדר הכתיבה — 6 שלבים</div>
+      <ol>
+        <li><a class="link" href="#s1">1️⃣ <code>.env</code> — הסוד לחתימה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s2">2️⃣ <code>models/User.js</code> — מודל המשתמש</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s3">3️⃣ <code>controllers/userController.js</code> — Register</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s4">4️⃣ <code>controllers/tokenController.js</code> — Login (ה-JWT)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s5">5️⃣ <code>middleware/authMiddleware.js</code> — השומר</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s6">6️⃣ <code>routes/</code> — חיווט ותקיעת ה-middleware</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#app">🔌 <code>app.js</code> — חיבור הכל</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#flow">▶️ הזרימה המלאה + טבלת "מה התווסף"</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="s1">
+      <h2><span class="step-tag">1️⃣</span> <code>.env</code> — הסוד לחתימה</h2>
+      <p>החתימה של ה-JWT מבוססת על מחרוזת סוד. שומרים אותה ב-<code>.env</code> (<strong>אף פעם לא בקוד ולא בגיט!</strong>), יחד עם שאר ההגדרות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">env · .env</span><button class="copy-btn">העתק</button></div>
+        <pre><code>JWT_SECRET=mysecret
+PORT=3000
+MONGO_URI=mongodb://localhost:27017/mydb</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">במבחן בכתב</span>
+          מספיק להזכיר ש-<code>JWT_SECRET</code> יושב ב-<code>.env</code> (ושהקובץ ב-<code>.gitignore</code>). <strong>לעולם לא לכתוב את הסוד ישירות בקוד.</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="s2">
+      <h2><span class="step-tag">2️⃣</span> <code>models/User.js</code> — מודל המשתמש</h2>
+      <p>זו ה"מגירה" החדשה במונגו: collection בשם <code>users</code>, שכל מסמך בה הוא משתמש עם <code>username</code> ו-<code>password</code>. בדיוק כמו כל Mongoose Schema אחר:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · models/User.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+    username: { type: String, required: true },
+    password: { type: String, required: true }   // exam: plain. (אמיתי: hash)
+});
+
+module.exports = mongoose.model('User', userSchema);</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🐛</span>
+        <div class="body">
+          <span class="title">הבאגים החוזרים שלך כאן</span>
+          <ul style="margin:0">
+            <li><code>type: String</code> / <code>type: Number</code> — <strong>לא</strong> <code>int</code>.</li>
+            <li><code>required: true</code> — <strong>לא</strong> <code>require</code>.</li>
+            <li><code>module.exports</code> — <strong>לא</strong> <code>export</code>.</li>
+            <li>סוגריים נכונים: <code>new mongoose.Schema({ ... })</code>.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout danger">
+        <span class="ic">🔓</span>
+        <div class="body">
+          <span class="title">סיסמה ב-plain text</span>
+          במבחן שומרים את הסיסמה כמו שהיא (פשטות). <strong>במציאות</strong> אף פעם לא — מאחסנים <em>hash</em> (למשל עם <code>bcrypt</code>) ומשווים עם <code>bcrypt.compare</code>. אם חמי מבקש אבטחה אמיתית — להזכיר את זה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="s3">
+      <h2><span class="step-tag">3️⃣</span> <code>controllers/userController.js</code> — Register</h2>
+      <p>הקונטרולר שיוצר משתמש חדש. הלוגיקה: ולידציה → לבדוק שאין כבר משתמש כזה → ליצור. <code>register</code> הוא ה-handler של <code>POST /api/users</code>.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · controllers/userController.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const User = require('../models/User');
+
+async function register(req, res) {
+    const { username, password } = req.body;
+    if (!username || !password)
+        return res.status(400).json({ error: "missing fields" });
+
+    const existing = await User.findOne({ username });
+    if (existing)
+        return res.status(409).json({ error: "user exists" });
+
+    await User.create({ username, password });
+    return res.status(201).json({ message: "created" });
+}
+
+module.exports = { register };</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🐛</span>
+        <div class="body">
+          <span class="title">הבאגים החוזרים שלך כאן</span>
+          <ul style="margin:0">
+            <li>הסדר הוא <code>(req, res)</code> — <strong>לא</strong> <code>(res, req)</code>!</li>
+            <li><code>req.body</code> — <strong>לא</strong> <code>req.body()</code> (זה לא פונקציה).</li>
+            <li>מחרוזות שגיאה במרכאות: <code>{ error: "..." }</code>.</li>
+            <li><code>async</code> + <code>await</code> כי <code>findOne</code>/<code>create</code> פונים ל-DB.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔢</span>
+        <div class="body">
+          <span class="title">קודי הסטטוס כאן</span>
+          <code>400</code> שדה חסר · <code>409</code> Conflict (המשתמש כבר קיים) · <code>201</code> Created (נוצר בהצלחה).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="s4">
+      <h2><span class="step-tag">4️⃣</span> <code>controllers/tokenController.js</code> — Login (כאן ה-JWT)</h2>
+      <p>זה <strong>קונטרולר הטוקן</strong>. מאמת <code>username</code>+<code>password</code> מול ה-DB, ואם תקין — <strong>חותם</strong> טוקן JWT ומחזיר אותו ללקוח:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · controllers/tokenController.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+
+async function login(req, res) {
+    const { username, password } = req.body;
+
+    const user = await User.findOne({ username });
+    if (!user || user.password !== password)
+        return res.status(401).json({ error: "invalid credentials" });
+
+    const token = jwt.sign(
+        { id: user._id, username: user.username },   // payload
+        process.env.JWT_SECRET                         // הסוד
+    );
+    return res.status(200).json({ token });
+}
+
+module.exports = { login };</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>jwt.sign(payload, secret)</code></span>
+          מקבל את ה-<strong>payload</strong> (המידע שנרצה לשמור בתוך הטוקן — בד"כ ה-id והשם של המשתמש) ואת ה-<strong>secret</strong>, ומחזיר את הטוקן החתום כמחרוזת. <strong>לא לשים סיסמה ב-payload</strong> (הוא קריא לכולם!).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">למה <code>login</code> הוא <code>POST /api/tokens</code>?</span>
+          ב-REST כל פעולה היא "יצירה/קריאה/מחיקה של משאב". התחברות = <strong>"יצירת טוקן"</strong> → לכן <code>POST</code> על המשאב <code>tokens</code>. זה הסגנון ש<strong>חמי אוהב</strong> (בדיוק כמו <code>POST /api/restaurants</code> שיוצר מסעדה).
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🔐</span>
+        <div class="body">
+          <span class="title">למה <code>401</code> אחד גם ל"אין משתמש" וגם ל"סיסמה שגויה"</span>
+          מחזירים <code>401 invalid credentials</code> בשני המקרים <em>בכוונה</em> — כדי לא לחשוף לתוקף אם שם המשתמש קיים. שים לב לתנאי המאוחד: <code>if (!user || user.password !== password)</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="s5">
+      <h2><span class="step-tag">5️⃣</span> <code>middleware/authMiddleware.js</code> — השומר</h2>
+      <p>זו <strong>שכבת ההזדהות</strong> עצמה: פונקציה שרצה <em>לפני</em> ה-controller. היא שולפת את הטוקן מה-header, מאמתת אותו, ורק אם הוא תקין נותנת להמשיך:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · middleware/authMiddleware.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const jwt = require('jsonwebtoken');
+
+function authMiddleware(req, res, next) {
+    const header = req.headers.authorization;        // "Bearer &lt;token&gt;"
+    if (!header)
+        return res.status(401).json({ error: "no token" });
+
+    const token = header.split(' ')[1];              // קח רק את הטוקן
+    try {
+        const payload = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = payload;                          // מצרף את המשתמש לבקשה
+        next();                                       // ממשיך לראוט
+    } catch {
+        return res.status(401).json({ error: "invalid token" });
+    }
+}
+
+module.exports = authMiddleware;</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">שני הדברים הקריטיים</span>
+          <ul style="margin:0">
+            <li><code>req.user = payload;</code> — כדי שה-controller שאחרי יידע <strong>מי המשתמש המחובר</strong>.</li>
+            <li><code>next();</code> — מעביר את הבקשה הלאה ל-handler. <strong>בלעדיו הבקשה תיתקע</strong> ולא תגיע לעולם לקונטרולר.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פירוק ה-header ו-<code>jwt.verify</code></span>
+          ה-header מגיע בפורמט <code>"Bearer &lt;token&gt;"</code> — לכן <code>header.split(' ')[1]</code> מבודד רק את הטוקן עצמו. <code>jwt.verify(token, secret)</code> מאמת את החתימה: אם תקין → מחזיר את ה-payload; אם מזויף/פג → <strong>זורק שגיאה</strong>, ולכן עוטפים ב-<code>try/catch</code> ומחזירים <code>401</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 6 ════════════════════════ -->
+    <section id="s6">
+      <h2><span class="step-tag">6️⃣</span> <code>routes/</code> — חיווט ותקיעת ה-middleware</h2>
+      <p>שני ראוטים חדשים — אחד למשתמשים (הרשמה) ואחד לטוקנים (התחברות):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · routes/userRoutes.js + tokenRoutes.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// routes/userRoutes.js
+const router = require('express').Router();
+const { register } = require('../controllers/userController');
+router.post('/', register);                 // POST /api/users
+module.exports = router;
+
+// routes/tokenRoutes.js
+const router = require('express').Router();
+const { login } = require('../controllers/tokenController');
+router.post('/', login);                    // POST /api/tokens
+module.exports = router;</code></pre>
+      </div>
+      <p>וכאן הקסם — <strong>הגנה על ראוט קיים</strong>: תוקעים את ה-middleware כ"שכבה" בין הנתיב ל-handler. רצים משמאל לימין; <code>auth</code> רץ ראשון, ורק אם קרא <code>next()</code> מגיעים ל-controller:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · routes/restaurantRoutes.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const auth = require('../middleware/authMiddleware');
+
+router.post('/',   auth, createRestaurant);   // ← רק מחובר יכול ליצור
+router.get('/',          getRestaurants);     // ← פתוח לכולם
+router.delete('/:id', auth, deleteRestaurant); // ← גם מחיקה מוגנת</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🧱</span>
+        <div class="body">
+          <span class="title">"שכבה לפני ה-handler"</span>
+          <code>router.post('/', auth, createRestaurant)</code> = "כשמגיע POST, קודם הרץ את <code>auth</code>; אם הוא אישר (<code>next()</code>) — הרץ את <code>createRestaurant</code>". אפשר לשרשר כמה middleware. ראוטים בלי <code>auth</code> (כמו <code>get('/')</code>) — פתוחים לכולם.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ app.js ════════════════════════ -->
+    <section id="app">
+      <h2><span class="step-tag">🔌</span> <code>app.js</code> — חיבור הכל</h2>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · app.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>require('dotenv').config();                  // טוען את .env ל-process.env
+const express = require('express');
+const mongoose = require('mongoose');
+const app = express();
+app.use(express.json());                     // לקרוא body כ-JSON
+
+app.use('/api/users',       require('./routes/userRoutes'));
+app.use('/api/tokens',      require('./routes/tokenRoutes'));
+app.use('/api/restaurants', require('./routes/restaurantRoutes'));
+
+mongoose.connect(process.env.MONGO_URI);
+app.listen(process.env.PORT || 3000);</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🐛</span>
+        <div class="body">
+          <span class="title">אל תשכח</span>
+          <code>require('dotenv').config()</code> בשורה הראשונה (אחרת <code>process.env.JWT_SECRET</code> יהיה <code>undefined</code>) · <code>app.use(express.json())</code> (אחרת <code>req.body</code> ריק).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ flow ════════════════════════ -->
+    <div class="part-banner" id="flow">▶️ הזרימה המלאה
+      <small>register → login → שימוש בטוקן על ראוט מוגן</small>
+    </div>
+
+    <div class="flow">
+      <div class="step"><b>1. Register</b><code>POST /api/users</code><br>{username, password} → נוצר ב-DB → 201</div>
+      <div class="arrow">←</div>
+      <div class="step"><b>2. Login</b><code>POST /api/tokens</code><br>מאומת → מקבל <code>token</code> → 200</div>
+      <div class="arrow">←</div>
+      <div class="step"><b>3. בקשה מוגנת</b><code>POST /api/restaurants</code><br>header: <code>Authorization: Bearer &lt;token&gt;</code></div>
+      <div class="arrow">←</div>
+      <div class="step"><b>4. ה-middleware</b>מאמת טוקן → <code>req.user</code> → <code>next()</code> → ה-controller רץ</div>
+    </div>
+
+    <section>
+      <h3><span class="num">▸</span> דוגמה ב-curl</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">bash · השרשרת המלאה</span><button class="copy-btn">העתק</button></div>
+        <pre><code># 1. הרשמה
+curl -X POST localhost:3000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"username":"guy","password":"1234"}'
+
+# 2. התחברות → מקבלים { "token": "eyJ..." }
+curl -X POST localhost:3000/api/tokens \
+  -H "Content-Type: application/json" \
+  -d '{"username":"guy","password":"1234"}'
+
+# 3. שימוש בטוקן על ראוט מוגן
+curl -X POST localhost:3000/api/restaurants \
+  -H "Authorization: Bearer eyJ..." \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Wolt"}'</code></pre>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="num">📋</span> טבלת "מה התווסף" לתרגיל הבסיסי</h2>
+      <table>
+        <thead><tr><th>קובץ</th><th>חדש / שינוי</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>.env</code></td><td>+ שורה</td><td><code>JWT_SECRET</code> — הסוד לחתימת הטוקנים</td></tr>
+          <tr><td><code>models/User.js</code></td><td>🆕 חדש</td><td>collection <code>users</code>: username + password</td></tr>
+          <tr><td><code>controllers/userController.js</code></td><td>🆕 חדש</td><td><code>register</code> — יוצר משתמש</td></tr>
+          <tr><td><code>controllers/tokenController.js</code></td><td>🆕 חדש</td><td><code>login</code> — מאמת ומנפיק JWT</td></tr>
+          <tr><td><code>middleware/authMiddleware.js</code></td><td>🆕 חדש</td><td>מאמת טוקן ושומר על ראוטים</td></tr>
+          <tr><td><code>routes/userRoutes.js</code> · <code>tokenRoutes.js</code></td><td>🆕 חדש</td><td>נתיבי הרשמה והתחברות</td></tr>
+          <tr><td><code>routes/restaurantRoutes.js</code></td><td>✏️ שינוי</td><td>תקיעת <code>auth</code> לפני ה-handlers המוגנים</td></tr>
+          <tr><td><code>app.js</code></td><td>✏️ שינוי</td><td>חיבור הראוטים החדשים + <code>dotenv</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>Register</strong> יוצר משתמש, <strong>Login</strong> מנפיק טוקן חתום, ו<strong>ה-middleware</strong> תוקע <code>auth</code> לפני כל ראוט מוגן ובודק את הטוקן. שלושת אלה הם כל "שכבת ההזדהות" — נדבכים מעל אותו תרגיל Mongo רגיל.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="cookies.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">🍪 Cookies</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>
