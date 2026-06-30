@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Promise · async · await — וה-Event Loop</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏳</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ה-async — כתום */
+    .lesson-header.async {
+      background: linear-gradient(135deg, rgba(255,140,66,0.16), rgba(246,196,83,0.08));
+    }
+    .lesson-header.async .kicker { color: #ff9f45; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* בלוק פלט */
+    .output {
+      margin:1rem 0; border-radius:var(--radius-sm); overflow:hidden;
+      border:1px solid rgba(255,140,66,0.30); background:#0c1120;
+    }
+    .output .out-head {
+      padding:.4rem 1rem; font-size:.78rem; font-weight:700; direction:ltr;
+      background:rgba(255,140,66,0.10); color:#ff9f45; border-bottom:1px solid rgba(255,140,66,0.20);
+      font-family:'Fira Code', monospace; text-align:left;
+    }
+    .output pre { margin:0; padding:.8rem 1.2rem; direction:ltr; text-align:left;
+      font-family:'Fira Code', monospace; font-size:.9rem; line-height:1.7; color:#7df0d6; }
+    /* state badges */
+    .states { display:flex; flex-wrap:wrap; gap:.6rem; margin:1.2rem 0; }
+    .states .st { flex:1 1 160px; padding:.8rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; }
+    .states .st b { display:block; color:#fff; margin-bottom:.2rem; }
+    .states .st.p { border-inline-start:4px solid var(--warn); }
+    .states .st.f { border-inline-start:4px solid var(--tutorial); }
+    .states .st.r { border-inline-start:4px solid var(--danger); }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">⏳ Promise · async · await</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header async">
+      <div class="kicker">JavaScript · אסינכרוניות</div>
+      <h1>Promise, async, await — וה-Event Loop</h1>
+      <p>JavaScript היא שפה <strong>חד-תהליכית</strong> (single-threaded) — היא יכולה לעשות רק דבר אחד בכל רגע. אז איך היא מטפלת בפעולות שלוקחות זמן (בקשת רשת, קריאת קובץ, טיימר) בלי "להיתקע"? התשובה: <strong>Promises</strong>, התחביר <strong>async/await</strong>, וה-<strong>Event Loop</strong>. כאן נבין את התיאוריה לעומק, ואז נפצח חידות פלט שורה-שורה.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">למה זה חשוב למבחן</span>
+        חמי אוהב לשאול "מה הפלט של הקוד הבא?" עם ערבוב של <code>setTimeout</code>, <code>Promise.then</code> ו-<code>await</code>. כדי לענות נכון צריך להבין <strong>סדר אחד</strong>: קוד סינכרוני → ואז <strong>כל</strong> ה-microtasks → ואז macrotask אחד → וחוזר חלילה. נלמד את הכלל הזה, ואז הוא יפתור לך כל חידה.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#why">1️⃣ הבעיה — JS חד-תהליכית</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#promise">2️⃣ מה זה Promise? (3 מצבים, then/catch)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#asyncawait">3️⃣ async / await — סוכר תחבירי</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#eventloop">4️⃣ ה-Event Loop — החוק שפותר הכל</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#puzzles">5️⃣ 5 חידות פלט — פתורות שורה-שורה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#more">6️⃣ 5 דוגמאות נוספות (מושגים חדשים)</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="why">
+      <h2><span class="step-tag">1️⃣</span> הבעיה — JS חד-תהליכית</h2>
+      <p>ל-JavaScript יש <strong>thread אחד</strong> — "תור" אחד של פקודות שרץ מלמעלה למטה. אם פעולה לוקחת זמן (למשל בקשת רשת של 2 שניות), ובאמת היינו <em>מחכים</em> לה — כל הדף היה <strong>קופא</strong> ל-2 שניות (אי אפשר ללחוץ, לגלול, כלום).</p>
+      <p>הפתרון: פעולות שלוקחות זמן הן <strong>אסינכרוניות</strong>. במקום לעצור ולחכות, JS "שולחת אותן הצידה", ממשיכה בקוד, וכשהן מסתיימות — מטפלת בתוצאה. השאלה היחידה היא: <strong>איך מתארים "מה לעשות כשהתוצאה תגיע"?</strong></p>
+      <div class="callout warn">
+        <span class="ic">😵</span>
+        <div class="body">
+          <span class="title">הדרך הישנה — Callbacks (ולמה היא בעייתית)</span>
+          פעם העבירו פונקציה ("callback") שתופעל כשהפעולה תסתיים. הבעיה: כשמשרשרים כמה פעולות תלויות זו בזו, מקבלים "<strong>Callback Hell</strong>" — פונקציות מקוננות עמוק, קוד שקשה לקרוא ולתחזק. <strong>Promises</strong> נולדו כדי לפתור בדיוק את זה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="promise">
+      <h2><span class="step-tag">2️⃣</span> מה זה Promise?</h2>
+      <p><strong>Promise</strong> הוא אובייקט שמייצג <strong>תוצאה עתידית</strong> — "שובר" לערך שעוד לא הגיע. אפשר לחשוב עליו כמו קבלה שמקבלים בבית קפה: עדיין אין לך הקפה, אבל יש לך הבטחה שהוא יגיע (או שיגידו לך שנגמר). ל-Promise יש בדיוק <strong>3 מצבים</strong>:</p>
+      <div class="states">
+        <div class="st p"><b>Pending</b>ממתין — עוד לא הסתיים</div>
+        <div class="st f"><b>Fulfilled</b>הצליח — יש תוצאה (resolve)</div>
+        <div class="st r"><b>Rejected</b>נכשל — יש שגיאה (reject)</div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔒</span>
+        <div class="body">
+          <span class="title">כלל הברזל</span>
+          Promise מתחיל ב-<code>pending</code>, ועובר <strong>פעם אחת בלבד</strong> ל-<code>fulfilled</code> או ל-<code>rejected</code> — ואז הוא <strong>"נעול" (settled)</strong> ולא משתנה יותר. אי אפשר לקרוא ל-<code>resolve</code> פעמיים, ואי אפשר לעבור מ-fulfilled ל-rejected.
+        </div>
+      </div>
+
+      <h3><span class="num">2.1</span> יצירת Promise</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · new Promise</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const p = new Promise((resolve, reject) =&gt; {
+  // ה"executor" — רץ מיד, סינכרונית
+  const ok = true;
+  if (ok) {
+    resolve('הצליח!');   // → המצב הופך ל-fulfilled עם הערך 'הצליח!'
+  } else {
+    reject('נכשל!');     // → המצב הופך ל-rejected עם השגיאה
+  }
+});</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ה-executor רץ מיד</span>
+          הפונקציה שמעבירים ל-<code>new Promise(...)</code> רצה <strong>סינכרונית, ברגע היצירה</strong>. <code>resolve</code> ו-<code>reject</code> הן פונקציות שה-JS נותן לך כדי "לסגור" את ה-Promise. (זה חשוב לחידות בהמשך — ה-<code>console.log</code> בתוך ה-executor רץ מיד!)
+        </div>
+      </div>
+
+      <h3><span class="num">2.2</span> צריכת Promise — <code>.then</code> / <code>.catch</code> / <code>.finally</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>p
+  .then(value =&gt; console.log('הצלחה:', value))   // רץ אם fulfilled
+  .catch(err  =&gt; console.log('שגיאה:', err))      // רץ אם rejected
+  .finally(() =&gt; console.log('תמיד רץ'));          // בכל מקרה</code></pre>
+      </div>
+      <table>
+        <thead><tr><th>מתודה</th><th>מתי רצה</th><th>מקבלת</th></tr></thead>
+        <tbody>
+          <tr><td><code>.then(fn)</code></td><td>כשה-Promise הצליח (fulfilled)</td><td>את הערך מ-<code>resolve</code></td></tr>
+          <tr><td><code>.catch(fn)</code></td><td>כשה-Promise נכשל (rejected)</td><td>את השגיאה מ-<code>reject</code></td></tr>
+          <tr><td><code>.finally(fn)</code></td><td>בכל מקרה, אחרי שהסתיים</td><td>כלום</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">שרשור (chaining)</span>
+          <code>.then</code> מחזיר Promise חדש — לכן אפשר לשרשר: <code>fetch(url).then(res =&gt; res.json()).then(data =&gt; ...)</code>. כל שלב מקבל את התוצאה של הקודם. זה מה ש-Promises פתרו לעומת ה-callback hell — שרשרת שטוחה במקום קינון עמוק.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="asyncawait">
+      <h2><span class="step-tag">3️⃣</span> async / await — סוכר תחבירי</h2>
+      <p><code>async</code>/<code>await</code> הם <strong>דרך נוחה יותר</strong> לעבוד עם Promises — אותו דבר מתחת למכסה, אבל הקוד נראה סינכרוני וקריא. שתי מילות קסם:</p>
+      <table>
+        <thead><tr><th>מילה</th><th>מה היא עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>async</code></td><td>תווית על פונקציה. <strong>הופכת אותה כך שתמיד תחזיר Promise.</strong> חובה כדי שמותר יהיה להשתמש ב-<code>await</code> בתוכה.</td></tr>
+          <tr><td><code>await</code></td><td>"עצור כאן, חכה שה-Promise יסתיים, ותן לי את <strong>התוצאה האמיתית</strong>" (לא את ה-Promise). אם ה-Promise נכשל — <code>await</code> <strong>זורק</strong> את השגיאה.</td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · אותו קוד, שתי דרכים</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// עם .then
+function getData() {
+  return fetch('/api/data').then(res =&gt; res.json());
+}
+
+// עם async/await — קריא יותר
+async function getData() {
+  const res = await fetch('/api/data');
+  const data = await res.json();
+  return data;
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">3 כללים קריטיים</span>
+          <ul style="margin:0">
+            <li><strong>כל פונקציית <code>async</code> מחזירה Promise.</strong> <code>return 42</code> בתוכה = Promise שנפתר עם 42.</li>
+            <li><strong><code>await</code> רק בתוך <code>async</code>.</strong> מחוץ לפונקציית async זו שגיאת תחביר.</li>
+            <li><strong>אם קוראים לפונקציית async ממקום אחר — גם שם צריך <code>await</code></strong> (אחרת מקבלים את ה-Promise, לא את הערך).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">הנקודה הכי חשובה ל-event loop</span>
+          <code>await</code> <strong>מפצל את הפונקציה לשניים</strong>: מה שלפני ה-<code>await</code> רץ סינכרונית; מה שאחריו נהפך ל"המשך" שמתוזמן כ-<strong>microtask</strong> (בדיוק כמו <code>.then</code>). זה הסוד לפתרון כל החידות בהמשך.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="eventloop">
+      <h2><span class="step-tag">4️⃣</span> ה-Event Loop — החוק שפותר הכל</h2>
+      <p>יש <strong>שני תורים</strong> שבהם JS שומרת משימות אסינכרוניות, ולהם <strong>עדיפות שונה</strong>:</p>
+      <table>
+        <thead><tr><th>התור</th><th>מי נכנס אליו</th><th>עדיפות</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Microtasks</strong> (תור מהיר)</td><td><code>Promise.then</code>/<code>.catch</code>, וההמשך אחרי <code>await</code></td><td>🥇 גבוהה</td></tr>
+          <tr><td><strong>Macrotasks</strong> (תור איטי)</td><td><code>setTimeout</code>, <code>setInterval</code>, אירועי I/O</td><td>🥈 נמוכה</td></tr>
+        </tbody>
+      </table>
+      <div class="callout danger">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">הכלל — שננו אותו!</span>
+          <ol style="margin:0">
+            <li>הרץ את <strong>כל הקוד הסינכרוני</strong> (מלמעלה למטה) עד הסוף.</li>
+            <li>כשהמחסנית ריקה → <strong>רוקן את כל תור ה-microtasks</strong> (כולל microtasks חדשים שנוצרים תוך כדי!).</li>
+            <li>קח <strong>macrotask אחד</strong> (למשל <code>setTimeout</code> אחד), הרץ אותו.</li>
+            <li>חזור לשלב 2 — שוב רוקן את <em>כל</em> ה-microtasks.</li>
+            <li>חזור על 3–4 עד שהכל ריק.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">המסקנה בשורה אחת</span>
+          <strong>סינכרוני → כל ה-microtasks → macrotask אחד → כל ה-microtasks → ...</strong> כלומר: כל ה-<code>Promise.then</code> ו-<code>await</code> תמיד רצים <strong>לפני</strong> כל <code>setTimeout</code> — גם אם ה-<code>setTimeout</code> הוא <code>0ms</code>!
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="puzzles">
+      <h2><span class="step-tag">5️⃣</span> 5 חידות פלט — פתורות שורה-שורה</h2>
+
+      <!-- חידה 1 -->
+      <h3><span class="num">חידה 1</span> setTimeout מול Promise</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>console.log(1);
+setTimeout(() =&gt; {
+  console.log(2);
+}, 0);
+Promise.resolve().then(() =&gt; {
+  console.log(3);
+});
+console.log(4);</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>1
+4
+3
+2</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <ul style="margin:0">
+            <li><strong>סינכרוני:</strong> <code>console.log(1)</code> → <strong>1</strong>. ה-<code>setTimeout</code> נכנס לתור ה-macrotasks. ה-<code>.then</code> נכנס לתור ה-microtasks. <code>console.log(4)</code> → <strong>4</strong>.</li>
+            <li><strong>microtasks:</strong> המחסנית ריקה → רץ ה-<code>.then</code> → <strong>3</strong>.</li>
+            <li><strong>macrotask:</strong> עכשיו ה-<code>setTimeout</code> → <strong>2</strong>.</li>
+          </ul>
+          <strong>הלקח:</strong> <code>Promise.then</code> תמיד לפני <code>setTimeout(...,0)</code>.
+        </div>
+      </div>
+
+      <!-- חידה 2 -->
+      <h3><span class="num">חידה 2</span> microtask שמייצר עוד משימות</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>setTimeout(() =&gt; console.log(1), 0);
+Promise.resolve().then(() =&gt; {
+  console.log(2);
+  setTimeout(() =&gt; console.log(3), 0);
+  Promise.resolve().then(() =&gt; {
+    console.log(4);
+  });
+});</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>2
+4
+1
+3</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <ul style="margin:0">
+            <li><strong>סינכרוני:</strong> נרשם <code>setTimeout(1)</code> → macrotask <strong>A</strong>. נרשם ה-<code>.then</code> החיצוני → microtask.</li>
+            <li><strong>microtasks:</strong> רץ ה-<code>.then</code> → <strong>2</strong>. בתוכו: נרשם <code>setTimeout(3)</code> → macrotask <strong>B</strong> (אחרי A!), ונרשם <code>.then(4)</code> → microtask חדש. <strong>ממשיכים לרוקן microtasks</strong> → <strong>4</strong>.</li>
+            <li><strong>macrotasks לפי הסדר:</strong> A קודם → <strong>1</strong>, ואז B → <strong>3</strong>.</li>
+          </ul>
+          <strong>הלקח:</strong> תור ה-microtasks מתרוקן <em>לגמרי</em> (כולל חדשים) לפני שנוגעים ב-macrotask. וה-macrotasks רצים לפי סדר הרישום.
+        </div>
+      </div>
+
+      <!-- חידה 3 -->
+      <h3><span class="num">חידה 3</span> await מפצל את הפונקציה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function demo() {
+  console.log(1);
+  await Promise.resolve();
+  console.log(2);
+  await Promise.resolve();
+  console.log(3);
+}
+console.log(4);
+demo();
+console.log(5);</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>4
+1
+5
+2
+3</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <ul style="margin:0">
+            <li><strong>סינכרוני:</strong> <code>console.log(4)</code> → <strong>4</strong>. קוראים ל-<code>demo()</code>: <code>console.log(1)</code> → <strong>1</strong>. מגיעים ל-<code>await</code> → מה שאחריו (<code>log(2)...</code>) הופך ל-microtask, והשליטה <strong>חוזרת לקורא</strong>. <code>console.log(5)</code> → <strong>5</strong>.</li>
+            <li><strong>microtasks:</strong> ההמשך הראשון → <strong>2</strong>, ואז <code>await</code> שני → ההמשך הבא נכנס כ-microtask → רץ → <strong>3</strong>.</li>
+          </ul>
+          <strong>הלקח:</strong> כל מה שאחרי <code>await</code> הוא microtask. הקוד שאחרי קריאת <code>demo()</code> (כלומר <code>5</code>) רץ <em>לפני</em> ההמשכים.
+        </div>
+      </div>
+
+      <!-- חידה 4 -->
+      <h3><span class="num">חידה 4</span> await מקונן (עם <code>await</code> בכל רמה)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function level3() {
+  console.log(1);
+  await new Promise((resolve, reject) =&gt; {
+    console.log(2);
+    resolve();
+  });
+  console.log(3);
+}
+async function level2() {
+  console.log(4);
+  await level3();
+  console.log(5);
+}
+async function level1() {
+  console.log(6);
+  await level2();
+  console.log(7);
+}
+level1();</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>6
+4
+1
+2
+3
+5
+7</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <ul style="margin:0">
+            <li><strong>שלב סינכרוני (יורדים פנימה):</strong> <code>level1</code> → <strong>6</strong>, קורא ל-<code>level2</code> → <strong>4</strong>, קורא ל-<code>level3</code> → <strong>1</strong>. מגיעים ל-<code>new Promise</code> — ה-executor רץ <strong>מיד</strong> → <strong>2</strong> ו-<code>resolve()</code>. ה-<code>await</code> ב-level3 עוצר אותו; וההמתנה מתפשטת כלפי מעלה — כל הרמות "תקועות" על ה-await שלהן.</li>
+            <li><strong>microtasks (עולים בחזרה):</strong> ההמשך של level3 → <strong>3</strong>; level3 סיים → משחרר את ה-<code>await</code> של level2 → <strong>5</strong>; level2 סיים → משחרר את level1 → <strong>7</strong>.</li>
+          </ul>
+          <strong>הלקח:</strong> כשכל רמה <code>await</code>-ת על הבאה, ה"ירידה" סינכרונית (6,4,1,2) וה"עלייה" דרך microtasks (3,5,7).
+        </div>
+      </div>
+
+      <!-- חידה 5 -->
+      <h3><span class="num">חידה 5</span> אותו קוד — אבל בלי <code>await</code> ב-level1</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · ההבדל: level2() במקום await level2()</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function level3() {
+  console.log(1);
+  await new Promise((resolve, reject) =&gt; {
+    console.log(2);
+    resolve();
+  });
+  console.log(3);
+}
+async function level2() {
+  console.log(4);
+  await level3();
+  console.log(5);
+}
+async function level1() {
+  console.log(6);
+  level2();          // ← בלי await!
+  console.log(7);
+}
+level1();</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>6
+4
+1
+2
+7
+3
+5</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה — וההבדל מחידה 4</span>
+          <ul style="margin:0">
+            <li><strong>סינכרוני:</strong> <code>level1</code> → <strong>6</strong>. קורא ל-<code>level2()</code> <strong>בלי await</strong>: <code>level2</code> → <strong>4</strong>, <code>level3</code> → <strong>1</strong>, ה-executor → <strong>2</strong>+resolve, ו-level3 נעצר ב-await. השליטה חוזרת ל-level2 (שנעצר ב-await), שמחזיר Promise ל-level1 — אבל <strong>level1 לא מחכה לו!</strong> ממשיך מיד → <code>console.log(7)</code> → <strong>7</strong>.</li>
+            <li><strong>microtasks:</strong> ההמשך של level3 → <strong>3</strong>; level3 סיים → ההמשך של level2 → <strong>5</strong>. (אף אחד לא מחכה ל-level2, אז אין "7" נוסף — הוא כבר רץ.)</li>
+          </ul>
+          <strong>הלקח:</strong> <code>await</code> = "חכה לי". בלעדיו (<code>level2()</code> סתם), הקוד שאחרי הקריאה (<strong>7</strong>) <em>לא ממתין</em> ורץ בשלב הסינכרוני. זה ההבדל היחיד — והוא מזיז את ה-<strong>7</strong> קדימה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 6 ════════════════════════ -->
+    <section id="more">
+      <h2><span class="step-tag">6️⃣</span> 5 דוגמאות נוספות — מושגים חדשים</h2>
+      <p>החידות לימדו אותך <em>סדר</em>. עכשיו 5 דוגמאות שמכסות <em>מושגים</em> שחשובים בקוד אמיתי ובמבחן.</p>
+
+      <!-- דוגמה א -->
+      <h3><span class="num">דוגמה א'</span> async תמיד מחזירה Promise</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function getNumber() {
+  return 42;                 // לא "מחזיר 42" — מחזיר Promise שנפתר עם 42
+}
+
+console.log(getNumber());                  // אובייקט Promise
+getNumber().then(n =&gt; console.log(n));     // 42 (שולפים את הערך)
+console.log('end');</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>Promise { 42 }
+end
+42</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          סינכרוני: <code>getNumber()</code> מחזיר <strong>Promise</strong> (לא 42!) → מודפס <code>Promise { 42 }</code>. הקריאה השנייה רושמת <code>.then</code> כ-microtask. <code>'end'</code> מודפס. ואז ה-microtask → <strong>42</strong>. <strong>הלקח:</strong> כדי לקבל את הערך — <code>await</code> או <code>.then</code>, אף פעם לא ישירות.
+        </div>
+      </div>
+
+      <!-- דוגמה ב -->
+      <h3><span class="num">דוגמה ב'</span> טיפול בשגיאות — <code>throw</code> + try/catch</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function risky() {
+  throw new Error('boom');     // throw ב-async = Promise שנדחה (rejected)
+}
+
+async function main() {
+  try {
+    await risky();             // await על rejected → זורק כאן
+  } catch (e) {
+    console.log('caught:', e.message);
+  }
+  console.log('after');
+}
+main();</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>caught: boom
+after</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <code>throw</code> בתוך <code>async</code> = ה-Promise חוזר <strong>rejected</strong>. כש-<code>await</code> פוגש Promise דחוי, הוא <strong>זורק את השגיאה</strong> — ולכן אפשר לתפוס אותה ב-<code>try/catch</code> רגיל. <strong>הלקח:</strong> עם async/await מטפלים בשגיאות בדיוק כמו בקוד סינכרוני (במקום <code>.catch</code>).
+        </div>
+      </div>
+
+      <!-- דוגמה ג -->
+      <h3><span class="num">דוגמה ג'</span> טור מול מקביל — מלכודת הביצועים</h3>
+      <p>שתי פונקציות שכל אחת "לוקחת זמן". נשווה: <code>await</code> אחד-אחרי-השני מול <code>Promise.all</code>.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function wait(ms, label) {
+  return new Promise(res =&gt; setTimeout(() =&gt; { console.log(label); res(); }, ms));
+}
+
+// ❌ טורי — ~300ms (מחכה ל-A ורק אז מתחיל את B)
+async function sequential() {
+  await wait(100, 'A');
+  await wait(200, 'B');
+  console.log('sequential done');
+}
+
+// ✅ מקבילי — ~200ms (מתחיל את שניהם יחד)
+async function parallel() {
+  await Promise.all([ wait(100, 'A'), wait(200, 'B') ]);
+  console.log('parallel done');
+}</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">למה זה חשוב</span>
+          ב-<code>sequential</code>, <code>await wait(100)</code> חוסם עד שהוא מסתיים, <em>ורק אז</em> מתחיל את השני — סה"כ 100+200=<strong>300ms</strong>. ב-<code>parallel</code>, <code>Promise.all</code> מתחיל את שני הטיימרים <strong>בו-זמנית</strong> וממתין לשניהם — סה"כ <strong>200ms</strong> (האיטי שבהם). <strong>הלקח:</strong> אם פעולות אסינכרוניות <em>לא תלויות</em> זו בזו — אל תעשה להן <code>await</code> בטור! הרץ אותן יחד עם <code>Promise.all</code>.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>Promise.all([...])</code></span>
+          מקבל מערך של Promises, ומחזיר Promise אחד שנפתר כש<strong>כולם</strong> נפתרו — עם <strong>מערך התוצאות</strong> (לפי הסדר). אם <em>אחד</em> נדחה — כל ה-<code>all</code> נדחה מיד.
+        </div>
+      </div>
+
+      <!-- דוגמה ד -->
+      <h3><span class="num">דוגמה ד'</span> <code>Promise.all</code> מול <code>Promise.race</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const fast = new Promise(res =&gt; setTimeout(() =&gt; res('fast'), 100));
+const slow = new Promise(res =&gt; setTimeout(() =&gt; res('slow'), 300));
+
+Promise.all([fast, slow]).then(r =&gt; console.log('all:', r));    // מחכה לשניהם
+Promise.race([fast, slow]).then(r =&gt; console.log('race:', r));  // הראשון שמסתיים</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>race: fast          // אחרי ~100ms
+all: [ 'fast', 'slow' ]   // אחרי ~300ms</pre></div>
+      <div class="callout info">
+        <span class="ic">🔍</span>
+        <div class="body">
+          <span class="title">למה</span>
+          <code>race</code> נפתר עם <strong>הראשון שמסתיים</strong> (<code>fast</code>, אחרי 100ms) — לכן הוא מודפס קודם. <code>all</code> ממתין ל<strong>כולם</strong> ומחזיר מערך (אחרי 300ms — האיטי). <strong>הלקח:</strong> <code>all</code> = "כולם", <code>race</code> = "הראשון". (<code>race</code> שימושי ל-timeout: מירוץ בין בקשה לבין טיימר.)
+        </div>
+      </div>
+
+      <!-- דוגמה ה -->
+      <h3><span class="num">דוגמה ה'</span> ה-<code>await</code> שנשכח — הבאג הנפוץ</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function save() {
+  console.log('saving...');
+  return 'saved';
+}
+
+function handler() {
+  const result = save();              // ❌ שכחנו await!
+  console.log('result =', result);    // לא 'saved' — אלא Promise!
+}
+handler();</code></pre>
+      </div>
+      <div class="output"><div class="out-head">פלט</div><pre>saving...
+result = Promise { 'saved' }</pre></div>
+      <div class="callout danger">
+        <span class="ic">🐛</span>
+        <div class="body">
+          <span class="title">למה — והתיקון</span>
+          בלי <code>await</code>, <code>save()</code> מחזיר <strong>Promise</strong>, לא את המחרוזת. <code>result</code> הוא אובייקט Promise — ולכן <code>result === 'saved'</code> יהיה <code>false</code>, וכל לוגיקה שתסתמך עליו תישבר בשקט. <strong>התיקון:</strong> להפוך את <code>handler</code> ל-<code>async</code> ולכתוב <code>const result = await save();</code>. <strong>הלקח:</strong> אם משתנה מכיל "<code>Promise { ... }</code>" — שכחת <code>await</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- סיכום -->
+    <section>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>Promise</strong> = תוצאה עתידית (pending → fulfilled/rejected). <strong>async</strong> = פונקציה שמחזירה Promise; <strong>await</strong> = חכה לתוצאה (ומפצל את הפונקציה ל-microtask). וה-<strong>event loop</strong>: סינכרוני → <em>כל</em> ה-microtasks (then/await) → macrotask אחד (setTimeout) → וחוזר חלילה.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

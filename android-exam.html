@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>שאלת מבחן · Android — EditText → TextView</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>" />
+  <style>
+    .lesson-header.exam-android {
+      background: linear-gradient(135deg, rgba(251,113,133,0.18), rgba(244,63,94,0.08));
+    }
+    .lesson-header.exam-android .kicker { color: #fda4af; }
+    .part-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* עץ קבצים */
+    .filetree { margin:1rem 0; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--code-border); background:var(--code-bg); }
+    .filetree .ft-head { padding:.4rem 1rem; font-size:.74rem; font-weight:700; direction:ltr;
+      background:rgba(255,255,255,0.03); color:var(--text-faint); border-bottom:1px solid var(--code-border);
+      font-family:'Fira Code', monospace; text-align:left; }
+    .filetree pre { margin:0; padding:.8rem 1.2rem; direction:ltr; text-align:left;
+      font-family:'Fira Code', monospace; font-size:.84rem; line-height:1.7; color:#c7d2e6; white-space:pre; overflow-x:auto; }
+    .filetree .f { color:#fda4af; } .filetree .note { color:#8a93a8; }
+    /* בלוק הכללה */
+    .vary { margin:1.1rem 0; border:1px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+    .vary > .vary-q { background:rgba(251,113,133,0.12); padding:.6rem 1rem; font-weight:700; color:#fda4af; border-bottom:1px solid var(--border); }
+    .vary > .vary-body { padding:.8rem 1rem; }
+    .vary .lbl { display:inline-block; font-family:'Fira Code',monospace; font-size:.72rem; font-weight:700;
+      padding:.1rem .5rem; border-radius:4px; margin-inline-end:.4rem; }
+    .vary .lbl.xml  { background:rgba(34,197,94,0.18); color:#86efac; }
+    .vary .lbl.java { background:rgba(129,140,248,0.18); color:#a5b4fc; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">📝 שאלת מבחן · Android</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header exam-android">
+      <div class="kicker">שאלה 2 במבחן · בלי MVVM</div>
+      <h1>שאלת מבחן ב-Android — EditText → TextView</h1>
+      <p>שאלת אנדרואיד קלאסית, פתורה מקצה לקצה עם הסברים. ואז ההרחבה לשני מסכים (Intent), ולבסוף <strong>טבלת הכללות</strong> — איך הקוד משתנה אם השאלה הייתה מבקשת משהו אחר.</p>
+    </header>
+
+    <div class="callout danger">
+      <span class="ic">📋</span>
+      <div class="body">
+        <span class="title">השאלה (בנוסח חמי)</span>
+        כתבו קוד אנדרואיד תקני ומלא, עם חלוקה מסודרת לקבצים, המציג אפליקציה בעלת <strong>מסך יחיד</strong> עם תיבת עריכת טקסט (<code>EditText</code>), כפתור (<code>Button</code>), ושדה הצגת טקסט (<code>TextView</code>). בעת לחיצה על הכפתור, הטקסט שבתיבת העריכה יוצג בשדה ההצגה. הוסיפו הסברים מתאימים.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#single">1️⃣ הפתרון — מסך יחיד</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#pattern">2️⃣ הדפוס שמכליל (לשינון)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#two">3️⃣ הרחבה — שני מסכים (Intent)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#variations">4️⃣ הכללות — איך זה משתנה אם השאלה אחרת</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 — מסך יחיד ════════════════════════ -->
+    <section id="single">
+      <h2><span class="part-tag">1️⃣</span> הפתרון — מסך יחיד</h2>
+      <p>שלושה קבצים בלבד: העיצוב (XML), הלוגיקה (Java), והרישום (Manifest).</p>
+      <div class="filetree">
+        <div class="ft-head">מבנה הקבצים (3)</div>
+<pre><span class="f">res/layout/activity_main.xml</span>   <span class="note">← העיצוב</span>
+<span class="f">MainActivity.java</span>              <span class="note">← הלוגיקה</span>
+<span class="f">AndroidManifest.xml</span>            <span class="note">← רישום המסך</span></pre>
+      </div>
+
+      <h3><span class="num">1.</span> <code>res/layout/activity_main.xml</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · העיצוב</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;EditText
+        android:id="@+id/etInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter text" /&gt;
+
+    &lt;Button
+        android:id="@+id/btnUpdate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Update" /&gt;
+
+    &lt;TextView
+        android:id="@+id/tvOutput"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" /&gt;
+
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          מיכל <code>LinearLayout</code> אנכי, ובתוכו 3 רכיבים. לכל רכיב <code>layout_width</code>/<code>height</code> ו-<code>@+id</code> (כי נוגעים בכולם מ-Java). <code>EditText</code> = קלט, <code>Button</code> = כפתור, <code>TextView</code> = הצגה (ריק — יתמלא בקוד).
+        </div>
+      </div>
+
+      <h3><span class="num">2.</span> <code>MainActivity.java</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · הלוגיקה</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Button btn = findViewById(R.id.btnUpdate);
+        btn.setOnClickListener(view -&gt; {
+            EditText et = findViewById(R.id.etInput);
+            TextView tv = findViewById(R.id.tvOutput);
+            tv.setText(et.getText().toString());
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          <code>onCreate</code> רץ כשהמסך נולד → <code>setContentView</code> טוען את ה-XML → <code>findViewById</code> תופס את הכפתור → <code>setOnClickListener</code> מחווט לחיצה → בפנים: קח טקסט מ-<code>et</code> (<code>getText().toString()</code>) ושים ב-<code>tv</code> (<code>setText</code>).
+        </div>
+      </div>
+
+      <h3><span class="num">3.</span> <code>AndroidManifest.xml</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · הרישום</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;activity android:name=".MainActivity"&gt;
+    &lt;intent-filter&gt;
+        &lt;action   android:name="android.intent.action.MAIN" /&gt;
+        &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          רושם את המסך. <code>MAIN</code> + <code>LAUNCHER</code> = מסך הכניסה (נפתח בלחיצה על אייקון האפליקציה).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 — דפוס ════════════════════════ -->
+    <section id="pattern">
+      <h2><span class="part-tag">2️⃣</span> הדפוס שמכליל (לשינון)</h2>
+      <div class="callout tip">
+        <span class="ic">🔑</span>
+        <div class="body">
+          <span class="title">שלושת השלבים — נכון לכל שאלת אנדרואיד</span>
+          <strong>XML מצייר</strong> (מיכל + רכיבים עם <code>id</code>) ← <strong>Java תופס</strong> (<code>findViewById</code>) <strong>ומחווט</strong> (<code>setOnClickListener</code>) ← <strong>Manifest רושם</strong>.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🏷️</span>
+        <div class="body">
+          <span class="title">על השמות — נקודה שמבלבלת הרבה</span>
+          השמות (<code>id</code>) הם <strong>שרירותיים</strong> — אתה בוחר. <code>etInput</code>/<code>btnUpdate</code>/<code>tvOutput</code> זה סתם שמות; יכולת לקרוא להם <code>box1</code>/<code>b</code>/<code>result</code>. הכלל היחיד: ה-<code>id</code> ב-XML (<code>@+id/X</code>) חייב להיות <strong>אותו שם</strong> כמו ב-Java (<code>R.id.X</code>) — זה הקישור. ה-<code>et</code>/<code>btn</code>/<code>tv</code> זו רק מוסכמה נחמדה (et=EditText, btn=Button), לא חובה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 — שני מסכים ════════════════════════ -->
+    <section id="two">
+      <h2><span class="part-tag">3️⃣</span> הרחבה — שני מסכים (Intent)</h2>
+      <p><strong>התרחיש:</strong> מסך 1 — תיבת קלט + כפתור. בלחיצה, עוברים למסך 2 שמציג את הטקסט שהוקלד.</p>
+      <div class="filetree">
+        <div class="ft-head">מבנה הקבצים (עכשיו כפול — 2 מסכים)</div>
+<pre><span class="f">res/layout/activity_main.xml</span>     <span class="note">← עיצוב מסך 1</span>
+<span class="f">res/layout/activity_second.xml</span>   <span class="note">← עיצוב מסך 2</span>
+<span class="f">MainActivity.java</span>                <span class="note">← לוגיקה מסך 1</span>
+<span class="f">SecondActivity.java</span>              <span class="note">← לוגיקה מסך 2</span>
+<span class="f">AndroidManifest.xml</span>              <span class="note">← רושם את שני המסכים</span></pre>
+      </div>
+
+      <h3><span class="num">1.</span> <code>activity_main.xml</code> — מסך 1 (קלט + כפתור)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · מסך 1</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;EditText
+        android:id="@+id/etInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" /&gt;
+
+    &lt;Button
+        android:id="@+id/btnGo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Go" /&gt;
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+
+      <h3><span class="num">2.</span> <code>MainActivity.java</code> — בלחיצה: Intent + putExtra</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · מסך 1</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class MainActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        Button btn = findViewById(R.id.btnGo);
+        btn.setOnClickListener(view -&gt; {
+            EditText et = findViewById(R.id.etInput);
+            Intent intent = new Intent(this, SecondActivity.class);   // לאן עוברים
+            intent.putExtra("text", et.getText().toString());          // צרף נתון
+            startActivity(intent);                                     // בצע מעבר
+        });
+    }
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          בדיוק כמו מסך יחיד, אבל בתוך הלחיצה — במקום <code>setText</code>, יוצרים <code>Intent</code> ("מהמסך הזה → אל <code>SecondActivity</code>"), מצרפים את הטקסט עם <code>putExtra</code> (מפתח <code>"text"</code>), ו-<code>startActivity</code> מבצע את המעבר.
+        </div>
+      </div>
+
+      <h3><span class="num">3.</span> <code>activity_second.xml</code> — מסך 2 (הצגה)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · מסך 2</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"&gt;
+
+    &lt;TextView
+        android:id="@+id/tvOutput"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" /&gt;
+&lt;/LinearLayout&gt;</code></pre>
+      </div>
+
+      <h3><span class="num">4.</span> <code>SecondActivity.java</code> — מקבל את הנתון ומציג</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · מסך 2</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public class SecondActivity extends AppCompatActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_second);
+
+        TextView tv = findViewById(R.id.tvOutput);
+        Intent intent = getIntent();                              // ה-Intent שפתח אותי
+        String text = intent.getExtras().getString("text");      // שלוף לפי המפתח
+        tv.setText(text);
+    }
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          מסך 2 הוא Activity רגיל (<code>onCreate</code> + <code>setContentView</code>). אחר כך: <code>getIntent()</code> מחזיר את ה-Intent שפתח אותו, ו-<code>getExtras().getString("text")</code> שולף את הנתון לפי <strong>אותו מפתח</strong> ששלחנו. ואז מציגים.
+        </div>
+      </div>
+
+      <h3><span class="num">5.</span> <code>AndroidManifest.xml</code> — שני המסכים</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">xml · הרישום</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;activity android:name=".MainActivity"&gt;
+    &lt;intent-filter&gt;
+        &lt;action   android:name="android.intent.action.MAIN" /&gt;
+        &lt;category android:name="android.intent.category.LAUNCHER" /&gt;
+    &lt;/intent-filter&gt;
+&lt;/activity&gt;
+
+&lt;activity android:name=".SecondActivity" /&gt;</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הסבר</span>
+          <code>MainActivity</code> = מסך הכניסה (MAIN+LAUNCHER). <code>SecondActivity</code> = שורה אחת (מסך רגיל שמגיעים אליו ב-Intent).
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">➕</span>
+        <div class="body">
+          <span class="title">מה התווסף מהמסך היחיד? (זה כל ההבדל)</span>
+          <ul style="margin:0">
+            <li>עוד <code>layout</code> + עוד <code>Activity</code> (מסך 2).</li>
+            <li>בלחיצה: <code>Intent</code> + <code>putExtra</code> + <code>startActivity</code> (במקום <code>setText</code>).</li>
+            <li>במסך 2: <code>getIntent</code> + <code>getExtras</code> לקבל את הנתון.</li>
+            <li>Manifest רושם את שניהם (השני בשורה אחת).</li>
+          </ul>
+          <div style="margin-top:.5rem"><strong>הדפוס לזכור:</strong> שולח = <code>new Intent(this, X.class)</code> + <code>putExtra</code> + <code>startActivity</code>. מקבל = <code>getIntent().getExtras().getString(key)</code>.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 — הכללות ════════════════════════ -->
+    <section id="variations">
+      <h2><span class="part-tag">4️⃣</span> הכללות — איך זה משתנה אם השאלה אחרת</h2>
+      <p>הקסם: ה-<strong>שלד קבוע</strong>. כמעט תמיד משנים רק (א) אילו רכיבים יש ב-XML, ו-(ב) את השורה(ות) בתוך ה-<code>setOnClickListener</code>. הנה וריאציות נפוצות שחמי יכול לבקש — לכל אחת מסומן מה משתנה ב-<span style="color:#86efac">XML</span> ומה ב-<span style="color:#a5b4fc">Java</span>:</p>
+
+      <div class="vary">
+        <div class="vary-q">א. "הצג את הטקסט באותיות גדולות"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> ללא שינוי.</p>
+          <p><span class="lbl java">JAVA</span> רק מוסיפים <code>.toUpperCase()</code> בשורת ההצגה:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>tv.setText(et.getText().toString().toUpperCase());</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ב. "חבר שני מספרים משתי תיבות והצג את הסכום"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> שתי <code>EditText</code> (עם <code>inputType="number"</code>) במקום אחת:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">xml</span><button class="copy-btn">העתק</button></div>
+            <pre><code>&lt;EditText android:id="@+id/etA" ... android:inputType="number" /&gt;
+&lt;EditText android:id="@+id/etB" ... android:inputType="number" /&gt;</code></pre>
+          </div>
+          <p><span class="lbl java">JAVA</span> ממירים למספר (<code>Integer.parseInt</code>), מחברים, ומציגים:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>EditText etA = findViewById(R.id.etA);
+EditText etB = findViewById(R.id.etB);
+int sum = Integer.parseInt(etA.getText().toString())
+        + Integer.parseInt(etB.getText().toString());
+tv.setText(String.valueOf(sum));</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ג. "הוסף כפתור 'נקה' שמרוקן את התיבה"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> עוד <code>Button</code>:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">xml</span><button class="copy-btn">העתק</button></div>
+            <pre><code>&lt;Button android:id="@+id/btnClear" ... android:text="Clear" /&gt;</code></pre>
+          </div>
+          <p><span class="lbl java">JAVA</span> עוד <code>setOnClickListener</code>, ובפנים שורה אחת:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>Button btnClear = findViewById(R.id.btnClear);
+btnClear.setOnClickListener(v -&gt; {
+    et.setText("");      // מרוקן את התיבה
+    tv.setText("");      // ומנקה את ההצגה
+});</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ד. "הצג את הטקסט רק אם תיבת סימון (CheckBox) מסומנת"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> מוסיפים <code>CheckBox</code>:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">xml</span><button class="copy-btn">העתק</button></div>
+            <pre><code>&lt;CheckBox android:id="@+id/cbShow" ... android:text="Show?" /&gt;</code></pre>
+          </div>
+          <p><span class="lbl java">JAVA</span> בודקים <code>isChecked()</code> בתוך הלחיצה:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>CheckBox cb = findViewById(R.id.cbShow);
+if (cb.isChecked()) {
+    tv.setText(et.getText().toString());
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ה. "בחירה מתוך כמה אפשרויות (RadioGroup)"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> <code>RadioGroup</code> עם <code>RadioButton</code>-ים (רק אחד נבחר בכל פעם):</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">xml</span><button class="copy-btn">העתק</button></div>
+            <pre><code>&lt;RadioGroup android:id="@+id/rg" ... &gt;
+    &lt;RadioButton android:id="@+id/rbEng" android:text="English" ... /&gt;
+    &lt;RadioButton android:id="@+id/rbHeb" android:text="עברית" ... /&gt;
+&lt;/RadioGroup&gt;</code></pre>
+          </div>
+          <p><span class="lbl java">JAVA</span> שואלים איזה <code>id</code> נבחר:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>RadioGroup rg = findViewById(R.id.rg);
+int checkedId = rg.getCheckedRadioButtonId();
+if (checkedId == R.id.rbEng) {
+    tv.setText(et.getText().toString().toUpperCase());
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ו. "הצג הודעה קופצת (Toast) במקום TextView"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> אפשר אפילו בלי <code>TextView</code> — רק <code>EditText</code> + <code>Button</code>.</p>
+          <p><span class="lbl java">JAVA</span> שורה אחת של Toast:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>Toast.makeText(this,
+        et.getText().toString(),
+        Toast.LENGTH_SHORT).show();</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="vary">
+        <div class="vary-q">ז. "ספור כמה פעמים נלחץ הכפתור"</div>
+        <div class="vary-body">
+          <p><span class="lbl xml">XML</span> ללא שינוי (כפתור + TextView).</p>
+          <p><span class="lbl java">JAVA</span> משתנה <strong>ברמת המחלקה</strong> (כדי שיישמר בין לחיצות), ומגדילים אותו:</p>
+          <div class="code-block">
+            <div class="code-head"><span class="lang">java</span><button class="copy-btn">העתק</button></div>
+            <pre><code>public class MainActivity extends AppCompatActivity {
+    int count = 0;                              // נשמר בין לחיצות
+
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        setContentView(R.layout.activity_main);
+
+        Button btn = findViewById(R.id.btnUpdate);
+        TextView tv = findViewById(R.id.tvOutput);
+        btn.setOnClickListener(v -&gt; {
+            count++;
+            tv.setText("נלחץ " + count + " פעמים");
+        });
+    }
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המסקנה</span>
+          בכל הווריאציות — ה<strong>שלד זהה</strong> (onCreate → setContentView → findViewById → setOnClickListener). מה שמשתנה זה רק <strong>אילו רכיבים מציירים ב-XML</strong> ו<strong>מה כותבים בתוך הלחיצה ב-Java</strong> (לרוב שורה־שתיים). תדע את השלד בעל-פה — ותפתור כל וריאציה.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="lectures/lecture-11.html">
+        <span class="dir">→ קשור</span>
+        <span class="ttl">🎓 הרצאה 11 · Android</span>
+      </a>
+      <a class="next" href="index.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

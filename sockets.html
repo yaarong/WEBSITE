@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sockets · TCP ו-UDP</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ה-sockets — טורקיז */
+    .lesson-header.sockets {
+      background: linear-gradient(135deg, rgba(20,184,166,0.18), rgba(45,212,191,0.08));
+    }
+    .lesson-header.sockets .kicker { color: #5eead4; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* תרשים זרימה */
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem; margin:1.2rem 0; justify-content:center; }
+    .flow .step { flex:1 1 120px; min-width:110px; padding:.7rem .8rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.82rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.15rem; font-family:'Fira Code',monospace; }
+    .flow .step.srv { border-inline-start:4px solid #2dd4bf; }
+    .flow .step.cli { border-inline-start:4px solid #f6c453; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.2rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    .two-col { display:grid; grid-template-columns:1fr; gap:.4rem; }
+    @media (min-width:680px){ .two-col{ grid-template-columns:auto 1fr; align-items:center; column-gap:1rem } }
+    .two-col .role { font-weight:700; color:#5eead4; font-family:'Fira Code',monospace; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🔌 Sockets · TCP ו-UDP</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header sockets">
+      <div class="kicker">תקשורת רשת · C++ / Python</div>
+      <h1>Sockets — TCP ו-UDP</h1>
+      <p><strong>Socket</strong> הוא "השקע" שדרכו שתי תוכניות מדברות זו עם זו <strong>ברשת</strong> — בדיוק כמו שקע חשמל שמחבר מכשיר לקיר. כאן נבנה את אותה אפליקציית client-server פעמיים: פעם מעל <strong>TCP</strong> (חיבור מתמשך ואמין) ופעם מעל <strong>UDP</strong> (בלי חיבור, מהיר). נראה את כל קריאות-המערכת שורה-שורה, ונסכם בטבלאות לזיכרון.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט — Client / Server ושני הפרוטוקולים</span>
+        ב-<strong>client-server</strong>, ה-<strong>שרת</strong> מחכה לפנייה בכתובת ופורט ידועים, וה-<strong>לקוח</strong> יוזם את הקשר. שניהם משתמשים ב-<strong>socket</strong> כנקודת-הקצה. מתחת לזה יש שני פרוטוקולי תעבורה: <strong>TCP</strong> — אמין, מסודר, מבוסס-חיבור (כמו שיחת טלפון); ו-<strong>UDP</strong> — מהיר, בלי חיבור, בלי הבטחות (כמו לזרוק גלויה לתיבת דואר).
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#api">1️⃣ ה-Socket API — קריאות המערכת</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#tcp">2️⃣ TCP — חיבור מתמשך</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#udp">3️⃣ UDP — בלי חיבור</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#tables">4️⃣ טבלאות השוואה לזיכרון 🧠</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#summary">5️⃣ סיכום — מתי כל אחד</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="api">
+      <h2><span class="step-tag">1️⃣</span> ה-Socket API — קריאות המערכת</h2>
+      <p>גם TCP וגם UDP בנויים מאותו ארגז-כלים של קריאות מערכת (system calls). נכיר אותן פעם אחת, ואז נראה איך כל פרוטוקול מרכיב אותן אחרת:</p>
+      <table>
+        <thead><tr><th>קריאה</th><th>מה עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>socket(AF_INET, type, 0)</code></td><td>יוצר socket ומחזיר <strong>file descriptor</strong>. <code>AF_INET</code> = IPv4; <code>type</code> = <code>SOCK_STREAM</code> (TCP) או <code>SOCK_DGRAM</code> (UDP).</td></tr>
+          <tr><td><code>struct sockaddr_in</code></td><td>מבנה שמחזיק כתובת: <code>sin_family</code> (AF_INET), <code>sin_addr</code> (IP), <code>sin_port</code> (פורט).</td></tr>
+          <tr><td><code>htons(port)</code></td><td>"host-to-network short" — ממיר את הפורט ל-<strong>byte order של הרשת</strong> (big-endian). חובה, כי מחשבים שונים שומרים מספרים אחרת.</td></tr>
+          <tr><td><code>INADDR_ANY</code></td><td>(בשרת) "האזן על <strong>כל</strong> כתובות ה-IP של המכונה" — לא משנה דרך איזה כרטיס רשת יגיע הלקוח.</td></tr>
+          <tr><td><code>inet_pton(AF_INET, ip, &amp;addr)</code></td><td>(בלקוח) "presentation-to-network" — ממיר כתובת IP מ<strong>טקסט</strong> (<code>"127.0.0.1"</code>) לייצוג בינארי.</td></tr>
+          <tr><td><code>bind(fd, &amp;addr, len)</code></td><td><strong>קושר</strong> את ה-socket לכתובת+פורט מקומיים. בשרת — כך לקוחות יודעים לאן לפנות.</td></tr>
+          <tr><td><code>close(fd)</code></td><td>סוגר את ה-socket ומשחרר את המשאבים.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">השאר תלוי בפרוטוקול</span>
+          <code>listen</code>/<code>accept</code>/<code>connect</code> ו-<code>send</code>/<code>recv</code> שייכים ל-<strong>TCP</strong>; <code>sendto</code>/<code>recvfrom</code> שייכים ל-<strong>UDP</strong>. נכיר כל אחד במקומו.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="tcp">
+      <h2><span class="step-tag">2️⃣</span> TCP — חיבור מתמשך</h2>
+      <div class="callout info">
+        <span class="ic">📞</span>
+        <div class="body">
+          <span class="title">הרעיון</span>
+          TCP הוא <strong>חיבור מתמשך</strong> (כמו שיחת טלפון): קודם "מרימים טלפון" ויוצרים חיבור, ואז מדברים חופשי. השרת עושה <strong>bind → listen → accept</strong>, הלקוח עושה <strong>connect</strong>. אחרי שהחיבור קיים — <code>send</code>/<code>recv</code> <strong>בלי כתובת</strong> (החיבור כבר "זוכר" מי הצד השני).
+        </div>
+      </div>
+      <div class="flow">
+        <div class="step srv"><b>socket</b>SOCK_STREAM</div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>bind</b>כתובת+פורט</div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>listen</b>מאזין לחיבורים</div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>accept</b>→ clientfd</div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>recv / send</b>על החיבור</div>
+      </div>
+      <div class="callout danger">
+        <span class="ic">🌊</span>
+        <div class="body">
+          <span class="title">למה קוראים בית-בית? — TCP הוא זרם (stream)</span>
+          ב-TCP אין <strong>גבולות הודעה</strong>: ה-<code>recv</code> עלול להחזיר <em>חצי</em> הודעה, או <em>שתי</em> הודעות מודבקות יחד. הנתונים זורמים כמו ברז. לכן צריך להגדיר <strong>מפריד</strong> משלנו — כאן <code>\n</code> — ולקרוא <strong>בית-בית עד שמגיעים אליו</strong>, וזו הודעה שלמה.
+        </div>
+      </div>
+
+      <h3><span class="num">2.1</span> <code>server_main.cpp</code> — שרת TCP</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · TCP server</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cstring&gt;
+#include &lt;memory&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+#include "parser/CommandParser.h"
+#include "storage/FileDataStorage.h"
+#include "commands/RecordCommand.h"
+#include "commands/ReadCommand.h"
+
+int main(int argc, char* argv[]) {
+    int port = std::stoi(argv[1]);
+
+    FileDataStorage storage("data/sensor.txt");
+    CommandParser parser;
+    parser.registerCommand("RECORD", std::make_shared&lt;RecordCommand&gt;(storage));
+    parser.registerCommand("READ",   std::make_shared&lt;ReadCommand&gt;(storage));
+
+    int serverfd = socket(AF_INET, SOCK_STREAM, 0);      // STREAM
+
+    struct sockaddr_in addr;
+    memset(&amp;addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+    bind(serverfd, (struct sockaddr*)&amp;addr, sizeof(addr));
+    listen(serverfd, 1);                                 // listen
+
+    while (true) {
+        int clientfd = accept(serverfd, nullptr, nullptr); // accept
+        std::string line;
+        char c;
+        while (recv(clientfd, &amp;c, 1, 0) &gt; 0) {           // recv בית-בית
+            if (c == '\n') {
+                std::string response = parser.parse(line);
+                send(clientfd, response.c_str(), response.size(), 0);
+                line.clear();
+            } else {
+                line += c;
+            }
+        }
+        close(clientfd);
+    }
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פירוק השרת</span>
+          <ul style="margin:0">
+            <li><code>listen(serverfd, 1)</code> — מסמן את ה-socket כ"מאזין", עם תור באורך 1 לחיבורים ממתינים.</li>
+            <li><code>accept(...)</code> — <strong>חוסם</strong> עד שלקוח מתחבר, ומחזיר <strong>clientfd חדש</strong> — socket נפרד לאותו לקוח (ה-<code>serverfd</code> ממשיך להאזין לבאים).</li>
+            <li><code>recv(clientfd, &amp;c, 1, 0)</code> — קורא <strong>בית אחד</strong>. מצטברים ל-<code>line</code> עד <code>\n</code>, ואז <code>parser.parse(line)</code> ושולחים תשובה ב-<code>send</code>.</li>
+            <li>הלולאה החיצונית חוזרת ל-<code>accept</code> — לקוח אחד בכל פעם.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3><span class="num">2.2</span> <code>client.cpp</code> — לקוח TCP ב-C++</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · TCP client</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cstring&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+int main(int argc, char* argv[]) {
+    std::string ip = argv[1];
+    int port = std::stoi(argv[2]);
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    struct sockaddr_in addr;
+    memset(&amp;addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, ip.c_str(), &amp;addr.sin_addr);
+
+    connect(sock, (struct sockaddr*)&amp;addr, sizeof(addr));   // connect
+
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        line += "\n";
+        send(sock, line.c_str(), line.size(), 0);
+        char buffer[4096];
+        int bytes = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (bytes &lt;= 0) break;
+        buffer[bytes] = '\0';
+        std::cout &lt;&lt; buffer;
+    }
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">הלקוח — <code>connect</code> פעם אחת</span>
+          הלקוח בונה את כתובת <strong>השרת</strong> (עם <code>inet_pton</code>), עושה <code>connect</code> <strong>פעם אחת</strong>, ואז בלולאה: שולח שורה ב-<code>send</code> ומקבל תשובה ב-<code>recv</code> — בלי כתובת, כי החיבור קיים.
+        </div>
+      </div>
+
+      <h3><span class="num">2.3</span> <code>client.py</code> — לקוח TCP בפייתון</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · TCP client</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import sys, socket
+
+ip = sys.argv[1]
+port = int(sys.argv[2])
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect((ip, port))                                # connect
+
+while True:
+    line = input()
+    s.sendall((line + '\n').encode())
+    response = s.recv(4096).decode()
+    print(response, end='')</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🐍</span>
+        <div class="body">
+          <span class="title">אותו רעיון, פחות שורות</span>
+          בפייתון ה-API זהה במהות: <code>socket(AF_INET, SOCK_STREAM)</code> → <code>connect((ip, port))</code> → <code>sendall</code>/<code>recv</code>. צריך <code>.encode()</code> (טקסט→בייטים) בשליחה ו-<code>.decode()</code> בקבלה. <code>sendall</code> דואג לשלוח את כל הבייטים.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="udp">
+      <h2><span class="step-tag">3️⃣</span> UDP — בלי חיבור</h2>
+      <div class="callout info">
+        <span class="ic">✉️</span>
+        <div class="body">
+          <span class="title">הרעיון</span>
+          UDP הוא <strong>בלי חיבור</strong> (כמו לשלוח גלויות): אין "הרמת טלפון" — כל הודעה נשלחת לבד עם כתובת היעד עליה. השרת עושה רק <strong>bind</strong> (<strong>בלי</strong> <code>listen</code>/<code>accept</code>), והלקוח <strong>בלי</strong> <code>connect</code>. כל שליחה/קבלה היא <code>sendto</code>/<code>recvfrom</code> ש<strong>נושאת את הכתובת</strong>.
+        </div>
+      </div>
+      <div class="flow">
+        <div class="step srv"><b>socket</b>SOCK_DGRAM</div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>bind</b>כתובת+פורט</div>
+        <div class="arrow">→</div>
+        <div class="step srv" style="opacity:.45;text-decoration:line-through"><b>listen</b></div>
+        <div class="step srv" style="opacity:.45;text-decoration:line-through"><b>accept</b></div>
+        <div class="arrow">→</div>
+        <div class="step srv"><b>recvfrom / sendto</b>+כתובת לקוח</div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">כל חבילה = הודעה שלמה</span>
+          בניגוד ל-TCP, ב-UDP <strong>נשמרים גבולות ההודעה</strong>: <code>sendto</code> אחד = <code>recvfrom</code> אחד = <strong>חבילה (datagram) שלמה</strong>. לכן <strong>אין לולאת בית-בית</strong> — קוראים את כל החבילה בבת אחת ומתייחסים אליה כשורה שלמה.
+        </div>
+      </div>
+
+      <h3><span class="num">3.1</span> <code>server_main.cpp</code> — שרת UDP</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · UDP server</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cstring&gt;
+#include &lt;memory&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+#include "parser/CommandParser.h"
+#include "storage/FileDataStorage.h"
+#include "commands/RecordCommand.h"
+#include "commands/ReadCommand.h"
+
+int main(int argc, char* argv[]) {
+    int port = std::stoi(argv[1]);
+
+    FileDataStorage storage("data/sensor.txt");
+    CommandParser parser;
+    parser.registerCommand("RECORD", std::make_shared&lt;RecordCommand&gt;(storage));
+    parser.registerCommand("READ",   std::make_shared&lt;ReadCommand&gt;(storage));
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);           // DGRAM
+
+    struct sockaddr_in addr;
+    memset(&amp;addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+    bind(sock, (struct sockaddr*)&amp;addr, sizeof(addr));
+    // אין listen, אין accept
+
+    while (true) {
+        char buffer[4096];
+        struct sockaddr_in client;
+        socklen_t clientLen = sizeof(client);
+
+        int bytes = recvfrom(sock, buffer, sizeof(buffer) - 1, 0,
+                             (struct sockaddr*)&amp;client, &amp;clientLen);  // recvfrom
+        buffer[bytes] = '\0';
+
+        std::string line(buffer);                        // חבילה שלמה = שורה
+        std::string response = parser.parse(line);       // ← זהה ל-TCP!
+
+        sendto(sock, response.c_str(), response.size(), 0,
+               (struct sockaddr*)&amp;client, clientLen);    // sendto
+    }
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">פירוק השרת</span>
+          <ul style="margin:0">
+            <li><code>SOCK_DGRAM</code> במקום <code>SOCK_STREAM</code> — וזהו, <strong>אין</strong> <code>listen</code> ו-<strong>אין</strong> <code>accept</code> ואין <code>clientfd</code> נפרד.</li>
+            <li><code>recvfrom(...)</code> — מקבל חבילה <strong>וגם ממלא את כתובת השולח</strong> (<code>client</code>), כדי לדעת למי לענות.</li>
+            <li><code>sendto(...)</code> — שולח את התשובה <strong>בחזרה לאותה כתובת</strong> שקיבלנו מ-<code>recvfrom</code>.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">שים לב — לוגיקת ה-business זהה</span>
+          השורה <code>parser.parse(line)</code> <strong>זהה לחלוטין</strong> ל-TCP. רק שכבת <em>התעבורה</em> (איך הבייטים נעים) השתנתה — כל הקוד של הפקודות (RECORD/READ, האחסון) נשאר אותו דבר. הפרדת אחריות נקייה בין רשת ללוגיקה.
+        </div>
+      </div>
+
+      <h3><span class="num">3.2</span> <code>client.cpp</code> — לקוח UDP ב-C++</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">cpp · UDP client</span><button class="copy-btn">העתק</button></div>
+        <pre><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cstring&gt;
+#include &lt;unistd.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;sys/socket.h&gt;
+
+int main(int argc, char* argv[]) {
+    std::string ip = argv[1];
+    int port = std::stoi(argv[2]);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+
+    struct sockaddr_in addr;
+    memset(&amp;addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, ip.c_str(), &amp;addr.sin_addr);
+    // אין connect
+
+    socklen_t addrLen = sizeof(addr);
+    std::string line;
+    while (std::getline(std::cin, line)) {
+        line += "\n";
+        sendto(sock, line.c_str(), line.size(), 0,
+               (struct sockaddr*)&amp;addr, addrLen);            // sendto
+        char buffer[4096];
+        int bytes = recvfrom(sock, buffer, sizeof(buffer) - 1, 0,
+                            (struct sockaddr*)&amp;addr, &amp;addrLen); // recvfrom
+        buffer[bytes] = '\0';
+        std::cout &lt;&lt; buffer;
+    }
+    close(sock);
+    return 0;
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">הלקוח — בלי <code>connect</code></span>
+          מכינים את כתובת השרת (<code>inet_pton</code>) אבל <strong>לא</strong> עושים <code>connect</code>. בכל סבב: <code>sendto</code> עם כתובת השרת, ו-<code>recvfrom</code> לקבלת התשובה. הכתובת נלווית לכל הודעה.
+        </div>
+      </div>
+
+      <h3><span class="num">3.3</span> <code>client.py</code> — לקוח UDP בפייתון</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">python · UDP client</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import sys, socket
+
+ip = sys.argv[1]
+port = int(sys.argv[2])
+
+s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)     # DGRAM
+# אין connect
+
+while True:
+    line = input()
+    s.sendto((line + '\n').encode(), (ip, port))          # sendto
+    response, server = s.recvfrom(4096)                   # recvfrom
+    print(response.decode(), end='')</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🐍</span>
+        <div class="body">
+          <span class="title">בפייתון</span>
+          <code>SOCK_DGRAM</code>, ללא <code>connect</code>. <code>sendto((data, (ip, port)))</code> שולח עם כתובת, ו-<code>recvfrom(4096)</code> מחזיר <strong>גם את הנתון וגם את כתובת השולח</strong> (<code>response, server</code>).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="tables">
+      <h2><span class="step-tag">4️⃣</span> טבלאות השוואה לזיכרון 🧠</h2>
+
+      <h3><span class="num">4.1</span> TCP מול UDP</h3>
+      <table>
+        <thead><tr><th></th><th>TCP</th><th>UDP</th></tr></thead>
+        <tbody>
+          <tr><td>סוג socket</td><td><code>SOCK_STREAM</code></td><td><code>SOCK_DGRAM</code></td></tr>
+          <tr><td>מודל</td><td>חיבור מתמשך</td><td>בלי חיבור</td></tr>
+          <tr><td>שרת</td><td><code>bind → listen → accept</code></td><td><code>bind</code> בלבד</td></tr>
+          <tr><td>לקוח</td><td><code>connect</code></td><td>(כלום — רק כתובת יעד)</td></tr>
+          <tr><td>שליחה/קבלה</td><td><code>send</code> / <code>recv</code></td><td><code>sendto</code> / <code>recvfrom</code> (+כתובת)</td></tr>
+          <tr><td>גבולות הודעה</td><td>זרם → קוראים בית-בית עד <code>\n</code></td><td>חבילה שלמה בכל פעם</td></tr>
+          <tr><td><code>clientfd</code> נפרד</td><td>כן (מ-<code>accept</code>)</td><td>לא (אותו socket לכולם)</td></tr>
+        </tbody>
+      </table>
+
+      <h3><span class="num">4.2</span> שרת מול לקוח (אותו פרוטוקול)</h3>
+      <table>
+        <thead><tr><th></th><th>שרת</th><th>לקוח</th></tr></thead>
+        <tbody>
+          <tr><td>כתובת</td><td><code>INADDR_ANY</code></td><td>כתובת השרת (<code>inet_pton</code> / <code>(ip, port)</code>)</td></tr>
+          <tr><td>TCP</td><td><code>bind + listen + accept</code></td><td><code>connect</code></td></tr>
+          <tr><td>UDP</td><td><code>bind</code></td><td>(רק כתובת יעד)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="summary">
+      <h2><span class="step-tag">5️⃣</span> סיכום — מתי כל אחד</h2>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>TCP</strong> = חיבור (<code>SOCK_STREAM</code>): השרת <code>bind→listen→accept</code>, הלקוח <code>connect</code>, ואז <code>send</code>/<code>recv</code> בלי כתובת — זרם בלי גבולות, אז קוראים <strong>בית-בית עד <code>\n</code></strong>. <strong>UDP</strong> = בלי חיבור (<code>SOCK_DGRAM</code>): השרת רק <code>bind</code>, הלקוח בלי <code>connect</code>, וכל <code>sendto</code>/<code>recvfrom</code> נושא כתובת — <strong>כל חבילה הודעה שלמה</strong>.
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="role">בחר TCP כש...</div>
+        <div>חשובה <strong>אמינות וסדר</strong> — שכל בית יגיע, פעם אחת, בסדר הנכון. (אתרים, העברת קבצים, רוב הבקשות.)</div>
+        <div class="role">בחר UDP כש...</div>
+        <div>חשובה <strong>מהירות</strong> ואפשר להרשות אובדן חבילה בודדת. (סטרימינג וידאו, משחקים, שיחות קול, DNS.)</div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧩</span>
+        <div class="body">
+          <span class="title">הנקודה הגדולה</span>
+          שתי הגרסאות מריצות את <strong>אותה אפליקציה</strong> (RECORD/READ, אותו <code>parser.parse</code>, אותו אחסון) — רק שכבת <strong>התעבורה</strong> מתחלפת. זה מדגים הפרדה נקייה: לוגיקת העסק לא יודעת ולא אכפת לה אם הבייטים הגיעו ב-TCP או UDP.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

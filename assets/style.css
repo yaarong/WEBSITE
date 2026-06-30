@@ -116,10 +116,10 @@ a { color: inherit; text-decoration: none; }
 
 /* באנרי קריאה-לפעולה: מדריך המבחן + נושאים */
 .cta-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1rem;
-  max-width: 1000px;
+  max-width: 680px;
   margin: 1.8rem auto 0;
 }
 .exam-cta {
@@ -153,6 +153,69 @@ a { color: inherit; text-decoration: none; }
 }
 .exam-cta.auth:hover { border-color: rgba(22,194,163,0.55); }
 .exam-cta.auth .exam-cta-arrow { color: var(--tutorial-2); }
+/* וריאנט React Native — גוון תכלת React */
+.exam-cta.rn {
+  background: linear-gradient(120deg, rgba(121,192,255,0.16), rgba(22,194,163,0.10));
+  border-color: rgba(121,192,255,0.30);
+}
+.exam-cta.rn:hover { border-color: rgba(121,192,255,0.55); }
+.exam-cta.rn .exam-cta-arrow { color: #79c0ff; }
+/* וריאנט React Router — גוון סגול */
+.exam-cta.router {
+  background: linear-gradient(120deg, rgba(124,92,255,0.16), rgba(91,140,255,0.10));
+  border-color: rgba(124,92,255,0.30);
+}
+.exam-cta.router:hover { border-color: rgba(124,92,255,0.55); }
+.exam-cta.router .exam-cta-arrow { color: #b9a7ff; }
+/* וריאנט React Native Navigation — גוון ורוד */
+.exam-cta.rnnav {
+  background: linear-gradient(120deg, rgba(244,141,167,0.16), rgba(124,92,255,0.10));
+  border-color: rgba(244,141,167,0.30);
+}
+.exam-cta.rnnav:hover { border-color: rgba(244,141,167,0.55); }
+.exam-cta.rnnav .exam-cta-arrow { color: #f48da7; }
+/* וריאנט async/Promise — גוון כתום */
+.exam-cta.async {
+  background: linear-gradient(120deg, rgba(255,140,66,0.16), rgba(246,196,83,0.10));
+  border-color: rgba(255,140,66,0.30);
+}
+.exam-cta.async:hover { border-color: rgba(255,140,66,0.55); }
+.exam-cta.async .exam-cta-arrow { color: #ff9f45; }
+/* וריאנט Git — גוון כתום-אדום (מותג Git) */
+.exam-cta.git {
+  background: linear-gradient(120deg, rgba(240,80,51,0.16), rgba(246,196,83,0.10));
+  border-color: rgba(240,80,51,0.30);
+}
+.exam-cta.git:hover { border-color: rgba(240,80,51,0.55); }
+.exam-cta.git .exam-cta-arrow { color: #f0744f; }
+/* וריאנט Java Threads — גוון אינדיגו */
+.exam-cta.java {
+  background: linear-gradient(120deg, rgba(99,102,241,0.18), rgba(129,140,248,0.10));
+  border-color: rgba(99,102,241,0.32);
+}
+.exam-cta.java:hover { border-color: rgba(99,102,241,0.58); }
+.exam-cta.java .exam-cta-arrow { color: #a5b4fc; }
+/* וריאנט Sockets — גוון טורקיז */
+.exam-cta.sockets {
+  background: linear-gradient(120deg, rgba(20,184,166,0.18), rgba(45,212,191,0.10));
+  border-color: rgba(20,184,166,0.32);
+}
+.exam-cta.sockets:hover { border-color: rgba(20,184,166,0.58); }
+.exam-cta.sockets .exam-cta-arrow { color: #5eead4; }
+/* וריאנט Expo Router — גוון ירוק */
+.exam-cta.expo {
+  background: linear-gradient(120deg, rgba(34,197,94,0.18), rgba(74,222,128,0.10));
+  border-color: rgba(34,197,94,0.32);
+}
+.exam-cta.expo:hover { border-color: rgba(34,197,94,0.58); }
+.exam-cta.expo .exam-cta-arrow { color: #86efac; }
+/* וריאנט שאלת מבחן Android — גוון ורד */
+.exam-cta.android-exam {
+  background: linear-gradient(120deg, rgba(251,113,133,0.18), rgba(244,63,94,0.10));
+  border-color: rgba(251,113,133,0.32);
+}
+.exam-cta.android-exam:hover { border-color: rgba(251,113,133,0.58); }
+.exam-cta.android-exam .exam-cta-arrow { color: #fda4af; }
 .exam-cta-emoji { font-size: 2rem; flex-shrink: 0; filter: drop-shadow(0 4px 10px rgba(0,0,0,.4)); }
 .exam-cta-text { flex: 1; display: flex; flex-direction: column; line-height: 1.4; }
 .exam-cta-text strong { color: #fff; font-size: 1.05rem; }

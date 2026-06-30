@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Java · Threads ו-Synchronization</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ה-threads — אינדיגו */
+    .lesson-header.java {
+      background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(129,140,248,0.08));
+    }
+    .lesson-header.java .kicker { color: #a5b4fc; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* בלוק פלט */
+    .output {
+      margin:1rem 0; border-radius:var(--radius-sm); overflow:hidden;
+      border:1px solid rgba(99,102,241,0.30); background:#0c1120;
+    }
+    .output .out-head {
+      padding:.4rem 1rem; font-size:.78rem; font-weight:700; direction:ltr;
+      background:rgba(99,102,241,0.12); color:#a5b4fc; border-bottom:1px solid rgba(99,102,241,0.22);
+      font-family:'Fira Code', monospace; text-align:left;
+    }
+    .output pre { margin:0; padding:.8rem 1.2rem; direction:ltr; text-align:left;
+      font-family:'Fira Code', monospace; font-size:.9rem; line-height:1.7; color:#7df0d6; }
+    .output .note { color:#8a93a8; }
+    /* טבלת ה-race */
+    .race { display:flex; flex-wrap:wrap; gap:.6rem; margin:1.2rem 0; }
+    .race .t { flex:1 1 240px; padding:.8rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); font-family:'Fira Code',monospace; font-size:.82rem; direction:ltr; }
+    .race .t b { display:block; color:#fff; font-family:sans-serif; margin-bottom:.3rem; }
+    .race .t.a { border-inline-start:4px solid #818cf8; }
+    .race .t.b { border-inline-start:4px solid #f6c453; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🧵 Java · Threads ו-Synchronization</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header java">
+      <div class="kicker">Java · Concurrency</div>
+      <h1>Threads ו-Synchronization ב-Java</h1>
+      <p>כשכמה <strong>threads</strong> (חוטי ריצה) נוגעים באותו משתנה <strong>בו-זמנית</strong>, מתרחש באג עדין ומסוכן — <strong>race condition</strong>: התוצאה שגויה ומשתנה מהרצה להרצה. כאן נבין למה זה קורה, איך <code>synchronized</code> פותר את זה, ולמה <strong>לא</strong> כדאי פשוט לעטוף הכל ב-synchronized (רמז: ביצועים). הכל סביב התרגיל שמצורף.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧵</span>
+      <div class="body">
+        <span class="title">קונטקסט — מה זה Thread ולמה זה מסובך</span>
+        <strong>Thread</strong> = "חוט ריצה" עצמאי בתוך התוכנית. כמה threads רצים <strong>במקביל</strong> (על ליבות שונות) וחולקים את אותו זיכרון. זה נהדר לביצועים — אבל ברגע ששניים <em>כותבים לאותו משתנה</em> בלי תיאום, הם דורכים אחד על השני. זה הנושא של העמוד.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#threads">1️⃣ Threads — איך מריצים קוד במקביל</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#race">2️⃣ הבעיה — Race Condition</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#sync">3️⃣ הפתרון — <code>synchronized</code></a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#block">4️⃣ <code>synchronized(this)</code> — בלוק במקום מתודה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#perf">5️⃣ למה לא תמיד? — Performance</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#summary">6️⃣ סיכום ומה לזכור</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="threads">
+      <h2><span class="step-tag">1️⃣</span> Threads — איך מריצים קוד במקביל</h2>
+      <p>ב-Java יוצרים thread עם המחלקה <code>Thread</code>, ונותנים לו קוד להריץ (כ-lambda מסוג <code>Runnable</code>). שלוש פעולות מרכזיות:</p>
+      <table>
+        <thead><tr><th>פעולה</th><th>מה עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>new Thread(() -&gt; {...})</code></td><td>יוצר thread עם הקוד שירוץ בתוכו (עדיין לא רץ).</td></tr>
+          <tr><td><code>.start()</code></td><td>מ<strong>תחיל</strong> את ה-thread — הקוד מתחיל לרוץ <em>במקביל</em> ל-thread הראשי.</td></tr>
+          <tr><td><code>.join()</code></td><td>"חכה ל-thread הזה שיסיים" — ה-thread הראשי נעצר עד שזה מסתיים.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה <code>start()</code> ולא קריאה ישירה?</span>
+          קריאה ישירה לקוד הייתה מריצה אותו ב-thread הנוכחי (טורי). <code>start()</code> פותח <strong>thread חדש</strong> שרץ בנפרד. וה-<code>join()</code> חשוב כדי שה-thread הראשי לא ידפיס את התוצאה <em>לפני</em> ש-thread-ים אחרים סיימו לעבוד.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="race">
+      <h2><span class="step-tag">2️⃣</span> הבעיה — Race Condition</h2>
+      <p>הקוד מהתרגיל: מחלקה <code>Foo</code> עם מונה <code>bar</code>. שני threads, כל אחד מגדיל את <code>bar</code> ב-<code>baz()</code> עשרת-אלפים פעם. נצפה לקבל בסוף <strong>20000</strong>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · race condition</span><button class="copy-btn">העתק</button></div>
+        <pre><code>class Foo {
+    private int bar = 0;
+    public void baz() {
+        bar++;
+    }
+    public int getBar() {
+        return bar;
+    }
+    public static void main(String[] args) {
+        Foo f = new Foo();
+        Thread[] arr = new Thread[2];
+        for (int i = 0; i &lt; arr.length; i++) {
+            arr[i] = new Thread(() -&gt; {
+                for (int j = 0; j &lt; 10000; j++) {
+                    f.baz();
+                }
+            });
+            arr[i].start();        // מריץ את שני ה-threads במקביל
+        }
+        for (int i = 0; i &lt; arr.length; i++) {
+            arr[i].join();         // מחכה לשניהם
+        }
+        System.out.println(f.getBar());
+    }
+}</code></pre>
+      </div>
+      <div class="output">
+        <div class="out-head">פלט (משתנה מהרצה להרצה!)</div>
+<pre>17342     <span class="note">// ולא 20000... בריצה אחרת: 15981, 19004 ...</span></pre>
+      </div>
+      <div class="callout danger">
+        <span class="ic">💥</span>
+        <div class="body">
+          <span class="title">למה התוצאה קטנה מ-20000? — <code>bar++</code> אינו אטומי</span>
+          השורה <code>bar++</code> נראית כמו פעולה אחת, אבל למעשה היא <strong>שלוש</strong> פעולות:
+          <ol style="margin:.3rem 0">
+            <li><strong>קורא</strong> את הערך של <code>bar</code> מהזיכרון.</li>
+            <li><strong>מוסיף</strong> 1 לערך שנקרא.</li>
+            <li><strong>כותב</strong> את התוצאה בחזרה ל-<code>bar</code>.</li>
+          </ol>
+          כששני threads עושים את זה <strong>במקביל</strong>, הם יכולים לקרוא את <em>אותו</em> ערך לפני שאחד מהם הספיק לכתוב — ואז שתי ההגדלות "נדרסות" לאחת. זה נקרא <strong>lost update</strong> (עדכון אבוד).
+        </div>
+      </div>
+      <div class="race">
+        <div class="t a">
+          <b>Thread A</b>
+          read bar  → 41<br>
+          + 1       → 42<br>
+          <span style="opacity:.5">(נעצר רגע)</span><br>
+          write 42  → bar=42
+        </div>
+        <div class="t b">
+          <b>Thread B (במקביל)</b>
+          read bar  → 41   <span style="opacity:.6">// אותו ערך!</span><br>
+          + 1       → 42<br>
+          write 42  → bar=42<br>
+          <span style="opacity:.6">// שתי הגדלות → +1 בלבד</span>
+        </div>
+      </div>
+      <p style="text-align:center;color:var(--text-faint)">↑ שתי הגדלות שהפכו לאחת. לכן הסכום הסופי <strong>נמוך</strong> מ-20000, ו<strong>משתנה</strong> בכל הרצה לפי הטיימינג.</p>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="sync">
+      <h2><span class="step-tag">3️⃣</span> הפתרון — <code>synchronized</code></h2>
+      <p>השינוי מהתרגיל: מוסיפים את המילה <code>synchronized</code> למתודות:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · synchronized methods</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public synchronized void baz() {
+    bar++;
+}
+public synchronized int getBar() {
+    return bar;
+}</code></pre>
+      </div>
+      <div class="output">
+        <div class="out-head">פלט (תמיד!)</div>
+<pre>20000     <span class="note">// נכון, ויציב בכל הרצה</span></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔒</span>
+        <div class="body">
+          <span class="title">מה <code>synchronized</code> עושה — מנעול (lock / monitor)</span>
+          לכל אובייקט ב-Java יש <strong>מנעול פנימי</strong> (intrinsic lock / monitor). כשמתודה מסומנת <code>synchronized</code>, thread שנכנס אליה <strong>תופס את המנעול</strong> של האובייקט, וכל thread אחר שמנסה להיכנס למתודה synchronized של <em>אותו אובייקט</em> <strong>חייב לחכות</strong> עד שהראשון יוצא. כך <code>bar++</code> רץ <strong>בלעדית</strong> — שלושת הצעדים (read-add-write) קורים בלי שאף אחד מתערב באמצע.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">👁️</span>
+        <div class="body">
+          <span class="title">למה לסנכרן גם את <code>getBar()</code>?</span>
+          לא רק בגלל ה-race — אלא בגלל <strong>visibility (נראוּת)</strong>. בלי סנכרון, thread אחד עלול לראות ערך <em>ישן</em> של <code>bar</code> (מ-cache של הליבה שלו) ולא את הערך העדכני. <code>synchronized</code> מבטיח שהשינויים של thread אחד <strong>נראים</strong> ל-threads האחרים. לכן מסנכרנים גם את הקריאה וגם את הכתיבה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="block">
+      <h2><span class="step-tag">4️⃣</span> <code>synchronized(this)</code> — בלוק במקום מתודה</h2>
+      <p>וריאציה דומה (אך מעט שונה) מהתרגיל — לסנכרן <strong>בלוק</strong> בתוך המתודה במקום את כולה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · synchronized block</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public void baz() {
+    synchronized (this) {
+        bar++;
+    }
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">אותה תוצאה, יותר שליטה</span>
+          <code>public synchronized void baz()</code> הוא בדיוק <strong>קיצור</strong> של עטיפת <em>כל</em> גוף המתודה ב-<code>synchronized(this){...}</code> — אותו מנעול (של <code>this</code>), אותה התנהגות (הפלט שוב <strong>20000</strong>). היתרון של הבלוק: אפשר לנעול <strong>רק את החלק הקריטי</strong> ולהשאיר את שאר המתודה בלי נעילה — מה שמקצר את הזמן שבו המנעול תפוס (וזה משפר ביצועים, כי threads אחרים מחכים פחות).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">הכלל</span>
+          ננעל <strong>כמה שפחות קוד</strong> — רק את הגישה למשתנה המשותף. כל שורה מיותרת בתוך הבלוק מאריכה את זמן ההמתנה של כל שאר ה-threads.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="perf">
+      <h2><span class="step-tag">5️⃣</span> אז למה לא תמיד <code>synchronized</code>? — Performance</h2>
+      <p>אם synchronized מתקן את הבאג — למה לא לעטוף הכל? כי לנעילה יש <strong>מחיר</strong>. נמדוד אותו: 10 threads, כל אחד מגדיל <strong>10,000,000</strong> פעם (סה"כ 100 מיליון), עם מדידת זמן.</p>
+
+      <h3><span class="num">5.1</span> בלי סנכרון — מהיר אבל <em>שגוי</em></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · ללא synchronized</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public void baz() { bar++; }          // ← ללא synchronized
+// ... 10 threads, כל אחד 10,000,000 הגדלות ...
+System.out.println(f.getBar() + " " + (System.currentTimeMillis() - start));</code></pre>
+      </div>
+      <div class="output">
+        <div class="out-head">פלט (מייצג — משתנה לפי מחשב)</div>
+<pre>38274915 142     <span class="note">// סכום שגוי (הרבה פחות מ-100000000), אבל מהיר (~142ms)</span></pre>
+      </div>
+
+      <h3><span class="num">5.2</span> עם <code>synchronized</code> — נכון אבל <em>איטי בהרבה</em></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">java · עם synchronized(this)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>public void baz() {
+    synchronized (this) {
+        bar++;
+    }
+}
+// ... אותם 10 threads × 10,000,000 ...</code></pre>
+      </div>
+      <div class="output">
+        <div class="out-head">פלט (מייצג — משתנה לפי מחשב)</div>
+<pre>100000000 4380   <span class="note">// סכום נכון, אבל איטי פי כמה (~4380ms)</span></pre>
+      </div>
+      <div class="callout danger">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">למה synchronized כל-כך מאט?</span>
+          <ul style="margin:0">
+            <li><strong>Serialization (טוריות):</strong> המנעול מאלץ את ה-threads לעבוד <strong>בתור, אחד-אחד</strong> — מבטל את היתרון של המקביליות. בדיוק החלק שרצינו במקביל הפך לטורי.</li>
+            <li><strong>Contention (תחרות):</strong> 10 threads נלחמים על אותו מנעול. רובם <strong>חוסמים וממתינים</strong> רוב הזמן.</li>
+            <li><strong>Overhead:</strong> כל תפיסה/שחרור של מנעול עולה זמן בפני עצמה — וכאן זה קורה 100 מיליון פעם.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">⚖️</span>
+        <div class="body">
+          <span class="title">ה-trade-off</span>
+          בלי סנכרון: מהיר אבל <strong>שגוי</strong>. עם סנכרון: <strong>נכון</strong> אבל איטי. לכן הכלל: לסנכרן <strong>רק כשחייבים</strong> (גישה משותפת לנתון משתנה), <strong>ורק את החלק המינימלי</strong>. סנכרון מיותר = איטיות בלי תועלת.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🧪</span>
+        <div class="body">
+          <span class="title">העשרה — חלופות ל-synchronized</span>
+          לדוגמה הספציפית הזו (מונה), Java מציעה את <code>AtomicInteger</code> עם <code>incrementAndGet()</code> — מבצע את ה-read-add-write כפעולה <strong>אטומית</strong> אחת ברמת החומרה, בלי מנעול מלא — מהיר יותר מ-synchronized ועדיין נכון. (מעבר לתרגיל, אבל טוב לדעת שיש כלים קלים יותר.)
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 6 ════════════════════════ -->
+    <section id="summary">
+      <h2><span class="step-tag">6️⃣</span> סיכום ומה לזכור</h2>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          כש-threads כותבים לאותו משתנה, <code>x++</code> אינו אטומי (read-add-write) → <strong>race condition</strong> ותוצאה שגויה. <code>synchronized</code> נותן <strong>מנעול</strong> שמכריח גישה בלעדית (ומבטיח visibility) — מתקן את הבאג, אבל <strong>מאט</strong> כי הוא מטריל את המקביליות. הכלל: לסנכרן <strong>רק את החלק הקריטי, ורק כשצריך</strong>.
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>גרסה</th><th>תוצאה</th><th>מהירות</th></tr></thead>
+        <tbody>
+          <tr><td>ללא <code>synchronized</code></td><td>❌ שגויה (lost updates)</td><td>⚡ מהירה</td></tr>
+          <tr><td><code>synchronized</code> (מתודה / בלוק)</td><td>✅ נכונה</td><td>🐢 איטית</td></tr>
+          <tr><td><code>AtomicInteger</code> (העשרה)</td><td>✅ נכונה</td><td>⚡ מהירה יחסית</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="lectures/lecture-12.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎓 הרצאה 12</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

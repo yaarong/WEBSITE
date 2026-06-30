@@ -17,7 +17,7 @@
     <header class="lesson-header">
       <div class="kicker">הרצאה 6</div>
       <h1>JavaScript</h1>
-      <p>בהרצאה הקודמת השתמשנו ב-JavaScript בלי לעצור על השפה עצמה. עכשיו נכיר אותה לעומק: <strong>המאפיינים והקוויארקים</strong> שלה, איך מתמשקים עם הדף (<strong>DOM</strong>) והדפדפן (<strong>BOM</strong>), <strong>jQuery</strong>, ההבדלים העדינים של <strong>var/let/const</strong> ו-<strong>hoisting</strong>, אובייקטים ו-<strong>modules</strong>, ה-<strong>async</strong> (callbacks, Promises, async/await), <strong>prototypes</strong>, ולבסוף הצצה ל-<strong>React</strong>.</p>
+      <p>בהרצאה הקודמת השתמשנו ב-JavaScript בלי לעצור על השפה עצמה. עכשיו נכיר אותה לעומק: <strong>המאפיינים והקוויארקים</strong> שלה, מנוע ההרצה, ואז שפת הליבה — ההבדלים העדינים של <strong>var/let/const</strong> ו-<strong>hoisting</strong>, אובייקטים, ה-<strong>async</strong> (callbacks, Promises, async/await) ו-<strong>prototypes</strong>.</p>
     </header>
 
     <div class="callout info">
@@ -39,27 +39,13 @@
             <li><a class="link" href="#hello">Hello World + הפרדת HTML/JS</a></li>
           </ol>
         </li>
-        <li style="margin-top:.5rem"><strong>חלק ב' — DOM, אירועים, jQuery</strong>
-          <ol style="margin-top:.4rem">
-            <li><a class="link" href="#dom">DOM — מודל המסמך</a></li>
-            <li><a class="link" href="#events">DOM + Events</a></li>
-            <li><a class="link" href="#jquery">jQuery</a></li>
-            <li><a class="link" href="#bom">BOM</a></li>
-          </ol>
-        </li>
-        <li style="margin-top:.5rem"><strong>חלק ג' — שפת הליבה לעומק</strong>
+        <li style="margin-top:.5rem"><strong>חלק ב' — שפת הליבה לעומק</strong>
           <ol style="margin-top:.4rem">
             <li><a class="link" href="#var-let">var / let / const ו-scoping</a></li>
             <li><a class="link" href="#objects">אובייקטים (JSON) ומתודות</a></li>
             <li><a class="link" href="#hoisting">Hoisting</a></li>
-            <li><a class="link" href="#modules">Modules</a></li>
             <li><a class="link" href="#async">Async: callbacks, Promises, async/await</a></li>
             <li><a class="link" href="#prototype">Prototypes ושרשרת הפרוטוטייפ</a></li>
-          </ol>
-        </li>
-        <li style="margin-top:.5rem"><strong>חלק ד' — מסגרות מודרניות</strong>
-          <ol style="margin-top:.4rem">
-            <li><a class="link" href="#react">React ו-Transpilation</a></li>
           </ol>
         </li>
       </ol>
@@ -206,243 +192,11 @@ console.log(foo); // 1   (foo נשאר 1, לא נמחק!)</code></pre>
     </section>
 
     <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · DOM, אירועים, jQuery</h2>
-
-    <!-- 5 -->
-    <section id="dom">
-      <h3><span class="num">5.</span> DOM — מודל המסמך (Document Object Model)</h3>
-
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          איך JS "נוגעת" בדף שמוצג? דפדפנים מציגים מסמכי web. כשהדפדפן <strong>טוען מסמך, הוא יוצר ייצוג אובייקטי שלו</strong> — זהו ה-<strong>DOM</strong>. ל-DOM יש API שמאפשר לקרוא, לשנות ולתמרן את הדף בזמן ריצה.
-        </div>
-      </div>
-
-      <p>האובייקט הגלובלי <code>document</code> נותן גישה לחלקי הדף:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · ממשק document</span><button class="copy-btn">העתק</button></div>
-        <pre><code>console.log(document.head);      // אלמנט ה-head
-console.log(document.body);      // אלמנט ה-body
-console.log(document.forms);     // כל הטפסים בדף
-console.log(document.links);     // כל הקישורים (&lt;a&gt;)
-console.log(document.images);    // כל התמונות (&lt;img&gt;)
-console.log(document.cookie);    // העוגיות
-console.log(document.location);  // ה-URL הנוכחי</code></pre>
-      </div>
-      <p>כל אחד מהם מחזיר אוסף או אובייקט שמייצג חלק מהדף — שאפשר לקרוא ולשנות.</p>
-    </section>
-
-    <!-- 6 -->
-    <section id="events">
-      <h3><span class="num">6.</span> DOM + Events</h3>
-
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          זוכרים ש-JS היא <strong>event-driven</strong>? הדרך העיקרית להגיב למשתמש היא <strong>אירועים (events)</strong>: לחיצה, הקלדה, מעבר עכבר... מאתרים אלמנט ב-DOM ומחברים לו פונקציית טיפול (handler).
-        </div>
-      </div>
-
-      <p><strong>דוגמה 1 — כפתור עם onclick:</strong></p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">html</span><button class="copy-btn">העתק</button></div>
-        <pre><code>&lt;button id="btnFoo"&gt;Click me&lt;/button&gt;
-&lt;script type="text/javascript" src="index.js"&gt;&lt;/script&gt;</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · index.js</span><button class="copy-btn">העתק</button></div>
-        <pre><code>function show(){
-    alert("You clicked me!");
-}
-
-var btnFoo = document.getElementById('btnFoo');
-btnFoo.onclick = show;   // שים לב: show בלי () — מעבירים את הפונקציה, לא קוראים לה!</code></pre>
-      </div>
-
-      <div class="callout danger">
-        <span class="ic">⚠️</span>
-        <div class="body">
-          <span class="title">מלכודת נפוצה — <code>show</code> מול <code>show()</code></span>
-          כותבים <code>btnFoo.onclick = show</code> (בלי סוגריים!) — מעבירים <em>הפניה לפונקציה</em> שתופעל בעת הלחיצה. אם תכתוב <code>show()</code> עם סוגריים, הפונקציה תרוץ <em>מיד</em> (בעת טעינת הדף) ותשמור את <em>ערך ההחזרה</em> שלה כ-handler — באג קלאסי. בדיוק כמו <code>start()</code> מול <code>run()</code> ב-Java threads מהרצאה 4!
-        </div>
-      </div>
-
-      <p><strong>דוגמה 2 — תגובה להקלדה (onkeyup) + עדכון innerHTML:</strong></p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · echo להקלדה</span><button class="copy-btn">העתק</button></div>
-        <pre><code>function handleKeyup(){
-    var divBar = document.getElementById('divBar');
-    divBar.innerHTML = '&lt;u&gt;' + inpFoo.value + '&lt;/u&gt;';
-}
-
-var inpFoo = document.getElementById('inpFoo');
-inpFoo.onkeyup = handleKeyup;</code></pre>
-      </div>
-      <p>בכל הקלדה, התוכן של ה-<code>div</code> מתעדכן לערך השדה (מקווקו). <code>innerHTML</code> מאפשר לכתוב HTML חדש לתוך אלמנט.</p>
-
-      <p><strong>דוגמה 3 — צביעת מספר אלמנטים + <code>this</code>:</strong></p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · mouseover/mouseout</span><button class="copy-btn">העתק</button></div>
-        <pre><code>function handleMouseover(){
-    this.style.backgroundColor = 'blue';
-}
-function handleMouseout(){
-    this.style.backgroundColor = 'red';
-}
-
-var divs = document.getElementsByTagName('div');
-for (let i = 0; i &lt; divs.length; i++) {
-    divs[i].onmouseover = handleMouseover;
-    divs[i].onmouseout = handleMouseout;
-}</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">מהו <code>this</code> כאן</span>
-          בתוך handler, <code>this</code> מצביע על <strong>האלמנט שעליו קרה האירוע</strong>. לכן אותה פונקציה אחת (<code>handleMouseover</code>) עובדת על כל ה-divs — כל אחד צובע את עצמו. שים לב גם ל-<code>let i</code> בלולאה (ולא <code>var</code>) — נראה מיד למה זה קריטי.
-        </div>
-      </div>
-
-      <p><strong>דרכים נוספות ליצור/לאתר אלמנטים:</strong></p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · create / find</span><button class="copy-btn">העתק</button></div>
-        <pre><code>document.write("Hello world");
-document.write("&lt;h1&gt;Hello world&lt;/h1&gt;");
-
-var txt = document.createTextNode(document.body.innerHTML);
-var div = document.createElement("div");   // יצירת אלמנט חדש
-div.appendChild(txt);                       // הוספת ילד
-document.body.appendChild(div);             // הוספה לדף
-
-const byId      = document.getElementById("foo");
-const byTagName = document.getElementsByTagName("bar");
-const byClass   = document.getElementsByClassName("baz");</code></pre>
-      </div>
-
-      <p><strong>חיבור אירועים — שתי דרכים:</strong> ישירות ב-HTML (inline) או מ-JS:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">html · inline events</span><button class="copy-btn">העתק</button></div>
-        <pre><code>&lt;body onClick="console.log('click')" onLoad="console.log('load')"&gt;
-    &lt;input onFocus="console.log('focus')"
-           onBlur="console.log('blur')"
-           onChange="console.log('change')"&gt;
-&lt;/body&gt;</code></pre>
-      </div>
-      <table>
-        <thead><tr><th>אירוע</th><th>מתי</th></tr></thead>
-        <tbody>
-          <tr><td><code>onLoad</code></td><td>הדף סיים להיטען.</td></tr>
-          <tr><td><code>onClick</code></td><td>לחיצה.</td></tr>
-          <tr><td><code>onFocus</code> / <code>onBlur</code></td><td>שדה קיבל / איבד מיקוד.</td></tr>
-          <tr><td><code>onChange</code></td><td>ערך השדה השתנה (אחרי איבוד מיקוד).</td></tr>
-          <tr><td><code>onSubmit</code></td><td>טופס נשלח (אם מחזיר <code>false</code> — השליחה מבוטלת).</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <!-- 7 jQuery -->
-    <section id="jquery">
-      <h3><span class="num">7.</span> jQuery — ספריית JavaScript</h3>
-
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          ה-DOM API הגולמי מסורבל (<code>document.getElementById</code> וכו'). <strong>jQuery</strong> היא ספרייה שמפשטת בחירת אלמנטים, מניפולציה ואירועים, עם הפונקציה הקסומה <code>$</code>.
-        </div>
-      </div>
-
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · jQuery בסיסי</span><button class="copy-btn">העתק</button></div>
-        <pre><code>$(document).ready(function () {
-    console.log("Hello world");   // רץ כשה-DOM מוכן
-});</code></pre>
-      </div>
-
-      <p><strong>בחירה ומניפולציה</strong> — סלקטורים בסגנון CSS:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · סלקטורים</span><button class="copy-btn">העתק</button></div>
-        <pre><code>$(document).ready(function () {
-    var a = $('div');              // כל ה-div-ים
-    console.log(a.length);
-
-    $('.bar').each(function(i, elem){   // לולאה על מחלקה .bar
-        console.log($(elem).text());
-    });
-
-    var c = $('#foo');             // לפי id
-    c.attr('x', 'y');              // הוספת attribute
-
-    var d = $('div div.bar');      // סלקטור מקונן
-    d.addClass('zzzz');            // הוספת class
-});</code></pre>
-      </div>
-
-      <p><strong>אירועים מתקדמים</strong> — שרשור, מניעת התנהגות ברירת מחדל, קודי מקשים:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · jQuery events</span><button class="copy-btn">העתק</button></div>
-        <pre><code>$(function () {
-    $('body').click(function(){
-        $('#foo').toggle();             // הצג/הסתר
-    });
-
-    $('input#search').click(function(event){
-        event.stopPropagation();        // עצור "בעבוע" האירוע למעלה
-    }).keydown(function(event){
-        if (event.keyCode == 13 &amp;&amp; this.value.length &lt; 5){  // Enter = 13
-            $('#foo div').text('5 letters minimum');
-            event.preventDefault();     // בטל את התנהגות ברירת המחדל
-        }
-    }).keyup(function(event){
-        if (event.keyCode == 13) return;
-        $('#foo div').text($(this).val());
-    });
-});</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">מושגי מפתח</span>
-          <ul style="margin:0">
-            <li><code>$('selector')</code> — בוחר אלמנטים בסגנון CSS (<code>#id</code>, <code>.class</code>, <code>tag</code>).</li>
-            <li><strong>Chaining</strong> — <code>.click().keydown().keyup()</code> משורשרים על אותו אובייקט.</li>
-            <li><code>event.stopPropagation()</code> — מונע מהאירוע "לבעבע" (bubble) להורים.</li>
-            <li><code>event.preventDefault()</code> — מבטל את הפעולה הדיפולטית (למשל שליחת טופס).</li>
-            <li><code>event.keyCode == 13</code> — קוד המקש Enter.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- 8 BOM -->
-    <section id="bom">
-      <h3><span class="num">8.</span> BOM — Browser Object Model</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          ה-<strong>DOM</strong> מאפשר להתממשק עם <em>הדף</em>; באופן דומה, ה-<strong>BOM</strong> מאפשר להתממשק עם <em>הדפדפן</em> עצמו. האובייקט הגלובלי הוא <code>window</code> — ולמעשה <code>document</code> הוא <code>window.document</code>, וכל משתנה גלובלי (<code>window.foo</code>) הוא תכונה של <code>window</code>.
-        </div>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · window</span><button class="copy-btn">העתק</button></div>
-        <pre><code>window.document    // אותו document שהכרנו
-window.foo         // undefined  (עוד לא הוגדר)
-var foo = {a:1}
-window.foo         // {a: 1}     (משתנה גלובלי = תכונה של window)</code></pre>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · שפת הליבה לעומק</h2>
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · שפת הליבה לעומק</h2>
 
     <!-- 9 var/let -->
     <section id="var-let">
-      <h3><span class="num">9.</span> var / let / const ו-scoping</h3>
+      <h3><span class="num">5.</span> var / let / const ו-scoping</h3>
 
       <div class="callout info">
         <span class="ic">🧭</span>
@@ -534,7 +288,7 @@ console.log(x); // 2   ← נגיש מבחוץ! (זיהום ה-global scope)</co
 
     <!-- 10 objects -->
     <section id="objects">
-      <h3><span class="num">10.</span> אובייקטים (JSON) ומתודות</h3>
+      <h3><span class="num">6.</span> אובייקטים (JSON) ומתודות</h3>
 
       <div class="callout info">
         <span class="ic">🧭</span>
@@ -590,7 +344,7 @@ console.log(o.bar(1))   // 2</code></pre>
 
     <!-- 11 hoisting -->
     <section id="hoisting">
-      <h3><span class="num">11.</span> Hoisting (הרמה)</h3>
+      <h3><span class="num">7.</span> Hoisting (הרמה)</h3>
 
       <div class="callout info">
         <span class="ic">🧭</span>
@@ -657,50 +411,9 @@ var foo = function (){          // רק ההצהרה var foo מורמת (=undefi
       </div>
     </section>
 
-    <!-- 12 modules -->
-    <section id="modules">
-      <h3><span class="num">12.</span> Modules</h3>
-
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          איך מארגנים קוד גדול? <strong>Module</strong>, בדומה ל-class, מקבץ יחד נתונים ופעולות. אבל בניגוד ל-class (שבו הכל public) — module <strong>חושף רק את מה שהוא מחזיר/מייצא</strong>; השאר נשאר פרטי.
-        </div>
-      </div>
-
-      <p><strong>ES Modules</strong> — קובץ אחד = module אחד. מה ש<code>export</code>-ים זמין לאחרים; מה שלא — פרטי:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · Foo.js — ייצוא</span><button class="copy-btn">העתק</button></div>
-        <pre><code>// דרך 1 — export ישיר
-export function Foo(bar) {
-    // ...
-}
-
-// דרך 2 — export בנפרד
-function Foo(bar) {
-    // ...
-}
-export Foo;</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · קובץ אחר — ייבוא</span><button class="copy-btn">העתק</button></div>
-        <pre><code>import Foo from "Foo.js"
-
-var foo = Foo(1)</code></pre>
-      </div>
-      <div class="callout tip">
-        <span class="ic">🔗</span>
-        <div class="body">
-          <span class="title">כבר ראינו את זה!</span>
-          בהרצאה 5, ב-MVC של NodeJS, השתמשנו ב-<code>module.exports</code> / <code>require</code> (סגנון CommonJS). זו אותה רעיון — אנקפסולציה ברמת הקובץ: חושפים API מינימלי ומסתירים את הפרטים, בדיוק כמו ב-encapsulation של OOP.
-        </div>
-      </div>
-    </section>
-
     <!-- 13 async -->
     <section id="async">
-      <h3><span class="num">13.</span> Async: Callbacks, Promises, async/await</h3>
+      <h3><span class="num">8.</span> Async: Callbacks, Promises, async/await</h3>
 
       <div class="callout info">
         <span class="ic">🧭</span>
@@ -787,7 +500,7 @@ console.log(bar)        // bar</code></pre>
 
     <!-- 14 prototype -->
     <section id="prototype">
-      <h3><span class="num">14.</span> Prototypes ושרשרת הפרוטוטייפ</h3>
+      <h3><span class="num">9.</span> Prototypes ושרשרת הפרוטוטייפ</h3>
 
       <div class="callout info">
         <span class="ic">🧭</span>
@@ -841,107 +554,6 @@ console.log(f)   // Foo2 {caz: 1, bar: 3}, [[Prototype]]: Foo</code></pre>
       </div>
     </section>
 
-    <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ד' · מסגרות מודרניות</h2>
-
-    <!-- 15 react -->
-    <section id="react">
-      <h3><span class="num">15.</span> React ו-Transpilation</h3>
-
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          לתמרן את ה-DOM ידנית (<code>createElement</code>, <code>appendChild</code>) זה מסורבל ומועד לשגיאות. <strong>React</strong> היא הספרייה הפופולרית שמפשטת בניית ממשקים. נראה את ההתפתחות צעד-צעד.
-        </div>
-      </div>
-
-      <p><strong>DOM גולמי</strong> — איך עושים את זה בלי React:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · DOM ידני</span><button class="copy-btn">העתק</button></div>
-        <pre><code>const h = document.createElement('h1')
-h.textContent = 'Hello'
-h.className = 'foo'
-document.getElementById('root').appendChild(h)</code></pre>
-      </div>
-
-      <p><strong>אותו דבר עם React</strong> — <code>React.createElement</code> + <code>ReactDOM.render</code>:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">js · React.createElement</span><button class="copy-btn">העתק</button></div>
-        <pre><code>const h = React.createElement('h1', { className: 'foo' }, 'Hello')
-ReactDOM.render(h, document.getElementById('root'))</code></pre>
-      </div>
-
-      <p><strong>JSX</strong> — כותבים "HTML" בתוך JS (קריא בהרבה מ-<code>createElement</code>):</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">jsx · JSX</span><button class="copy-btn">העתק</button></div>
-        <pre><code>const h = &lt;h1&gt;Hello {1+2}
-    &lt;div&gt;
-        &lt;span className="foo" foo="bar"&gt;Hi&lt;/span&gt;
-    &lt;/div&gt;
-&lt;/h1&gt;
-
-ReactDOM.render(h, document.getElementById('root'))</code></pre>
-      </div>
-      <p>שים לב ל-<code>{1+2}</code> — אפשר להזריק ביטויי JS לתוך ה-JSX, ול-<code>className</code> במקום <code>class</code> (כי <code>class</code> שמורה ב-JS).</p>
-
-      <p><strong>קומפוננטות + props</strong> — פונקציה שמחזירה JSX, עם פרמטרים:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">jsx · component</span><button class="copy-btn">העתק</button></div>
-        <pre><code>function Foo({a, b, c}) {       // destructuring של props
-    return (
-        &lt;div&gt;
-            a: {a}, b: {b}, c: {c}
-        &lt;/div&gt;
-    );
-}
-
-function App() {
-    var i = 1+2;
-    return (
-        &lt;div&gt;
-            &lt;Foo a="1" b="a" c={i} /&gt;
-            &lt;Foo a="2" b="b" c={i+1} /&gt;
-            &lt;Foo a="3" b="c" c={i+i} /&gt;
-        &lt;/div&gt;
-    );
-}</code></pre>
-      </div>
-
-      <p><strong>State עם useState</strong> — קומפוננטה ש"זוכרת" מצב ומתעדכנת:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">jsx · useState</span><button class="copy-btn">העתק</button></div>
-        <pre><code>import { useState } from 'react';
-
-function Foo() {
-    const [bar, setBar] = useState(0);   // [ערך, פונקציית-עדכון]
-    console.log(bar);
-    return (
-        &lt;div onClick={() =&gt; setBar(bar + 1)}&gt;
-            {bar}
-        &lt;/div&gt;
-    );
-}</code></pre>
-      </div>
-      <p>בכל לחיצה <code>setBar</code> מעדכן את ה-state, ו-React <strong>מרנדר מחדש</strong> את הקומפוננטה אוטומטית עם הערך החדש.</p>
-
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">Transpilation — איך JSX/ES חדש רץ בדפדפנים ישנים</span>
-          JavaScript מתפתחת ומוסיפה תחביר חדש. יכול להיות שתכתוב קוד תקין לפי ES החדש, אבל <strong>דפדפן ישן לא תומך בו</strong>. <strong>Transpilation</strong> פותר זאת — ממיר תחביר חדש לתחביר ישן. <strong>Babel</strong> הוא transpiler כזה: הוא ממיר JSX ו-ES6+ ל-JS שדפדפנים ישנים מבינים. (בדף אפשר לטעון <code>babel.js</code> ולסמן <code>&lt;script type="text/babel"&gt;</code>.)
-        </div>
-      </div>
-
-      <div class="callout tip">
-        <span class="ic">⚛️</span>
-        <div class="body">
-          <span class="title">create-react-app — פרויקט אמיתי</span>
-          בפועל לא טוענים React מ-CDN אלא יוצרים פרויקט: <code>npx create-react-app hello_world</code>. זה מקים מבנה מוכן (<code>src/App.js</code>, <code>public/index.html</code>...) עם פקודות: <code>npm start</code> (שרת פיתוח), <code>npm run build</code> (חבילה לפרודקשן), <code>npm test</code> (בדיקות). React מטפל ב-transpilation, bundling וכו' מאחורי הקלעים.
-        </div>
-      </div>
-    </section>
-
     <!-- Summary -->
     <section id="summary">
       <h3><span class="num">★</span> סיכום ההרצאה</h3>
@@ -951,14 +563,11 @@ function Foo() {
           <span class="title">התמונה המלאה</span>
           <ul style="margin:0">
             <li><strong>JS</strong>: weakly-typed, interpreted (JIT, V8/Node), case-sensitive, single-threaded event-driven. סלחנית — אבל אל תנצל זאת לרעה.</li>
-            <li><strong>DOM</strong> = ייצוג אובייקטי של הדף (<code>document</code>); <strong>BOM</strong> = הדפדפן (<code>window</code>). מגיבים למשתמש דרך <strong>events</strong> (זכור: <code>onclick = show</code> בלי סוגריים, <code>this</code> = האלמנט).</li>
-            <li><strong>jQuery</strong>: <code>$('selector')</code>, chaining, <code>stopPropagation</code>/<code>preventDefault</code>.</li>
             <li><strong>scoping</strong>: <code>var</code> = function-scoped + hoisted ל-undefined; <code>let</code>/<code>const</code> = block-scoped + TDZ. השתמש ב-<code>const</code>/<code>let</code>, לעולם לא <code>var</code>. משתנה לא-מוצהר = גלובלי (סכנה!).</li>
             <li><strong>Hoisting</strong>: הצהרות עולות לראש ה-scope (לא האתחול). function declaration עולה במלואה; function expression לא.</li>
-            <li><strong>אובייקטים</strong> דינמיים; אל תשתמש ב-arrow כמתודה (אין <code>this</code>). <strong>Modules</strong>: חושפים רק מה ש-export.</li>
+            <li><strong>אובייקטים</strong> דינמיים; אל תשתמש ב-arrow כמתודה (אין <code>this</code>).</li>
             <li><strong>Async</strong>: callbacks → Promises → async/await; הכל מעל event loop יחיד.</li>
             <li><strong>Prototypes</strong>: JS היא prototype-based; <code>class</code> הוא syntactic sugar מעל prototype chain.</li>
-            <li><strong>React</strong>: <code>createElement</code> → JSX → components + props + <code>useState</code>; Babel ל-transpilation.</li>
           </ul>
         </div>
       </div>

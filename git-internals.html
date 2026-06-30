@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Git — מהבסיס ועד Git Internals</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗃️</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד הגיט — כתום-אדום (מותג Git) */
+    .lesson-header.git {
+      background: linear-gradient(135deg, rgba(240,80,51,0.16), rgba(246,196,83,0.08));
+    }
+    .lesson-header.git .kicker { color: #f0744f; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* תרשים זרימה / שכבות */
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.6rem; margin:1.4rem 0; justify-content:center; }
+    .flow .step { flex:1 1 150px; min-width:140px; padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.88rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.2rem; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.4rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    /* טרמינל */
+    .term { margin:1rem 0; border-radius:var(--radius-sm); overflow:hidden; border:1px solid rgba(240,80,51,0.25); background:#0c1120; }
+    .term .term-head { padding:.4rem 1rem; font-size:.74rem; font-weight:700; direction:ltr;
+      background:rgba(240,80,51,0.10); color:#f0744f; border-bottom:1px solid rgba(240,80,51,0.18);
+      font-family:'Fira Code', monospace; text-align:left; }
+    .term pre { margin:0; padding:.8rem 1.2rem; direction:ltr; text-align:left;
+      font-family:'Fira Code', monospace; font-size:.84rem; line-height:1.65; color:#c7d2e6; white-space:pre; overflow-x:auto; }
+    .term .c { color:#7df0d6; }   /* command */
+    .term .o { color:#8a93a8; }   /* output */
+    .term .h { color:#ffb784; }   /* hash */
+    /* אובייקטים */
+    .obj-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.8rem; margin:1.4rem 0; }
+    .obj { padding:1rem; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--accent); }
+    .obj .ot { font-weight:700; color:#fff; font-size:1.05rem; margin-bottom:.3rem; }
+    .obj.blob   { border-top-color:#5b8cff; }
+    .obj.tree   { border-top-color:#16c2a3; }
+    .obj.commit { border-top-color:#f6c453; }
+    .obj.tag    { border-top-color:#c084fc; }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🗃️ Git Internals</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header git">
+      <div class="kicker">Git · מהבסיס ועד הפנים</div>
+      <h1>Git — מהבסיס ועד Git Internals</h1>
+      <p>נתחיל מהבסיס: מה זה Git, שלוש האזורים, והפקודות בטרמינל. ואז נצלול ל<strong>עיקר</strong> — <strong>Git Internals</strong>: נבין מאפס איך Git באמת עובד מתחת למכסה. נגלה שכל המערכת הזו, שנראית מסובכת, בנויה על <strong>רעיון אחד פשוט ויפהפה</strong> — מסד נתונים שממוען לפי תוכן. ברגע שתבין את זה, הכל יתחבר.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">איך לקרוא את העמוד</span>
+        <strong>חלק א'</strong> (בסיס + טרמינל) נותן את כלי העבודה. <strong>חלק ב'</strong> (Internals) הוא הלב — שם נלמד את 4 סוגי האובייקטים, איך SHA-1 ממען תוכן, ומה זה באמת "commit". בסוף נבנה commit <em>ביד</em> עם פקודות plumbing, ותראה שאין שום קסם.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><strong>חלק א' — בסיס וטרמינל</strong>
+          <ol style="margin-top:.3rem">
+            <li><a class="link" href="#what">מה זה Git? (snapshots, לא diffs)</a></li>
+            <li><a class="link" href="#areas">שלושת האזורים: Working / Staging / Repo</a></li>
+            <li><a class="link" href="#commands">הפקודות הבסיסיות בטרמינל</a></li>
+          </ol>
+        </li>
+        <li style="margin-top:.4rem"><strong>חלק ב' — Git Internals (העיקר)</strong>
+          <ol style="margin-top:.3rem">
+            <li><a class="link" href="#bigidea">הרעיון הגדול — מסד נתונים ממוען-תוכן</a></li>
+            <li><a class="link" href="#gitdir">תיקיית <code>.git</code></a></li>
+            <li><a class="link" href="#sha">SHA-1 — איך תוכן הופך לכתובת</a></li>
+            <li><a class="link" href="#objects">4 סוגי האובייקטים</a></li>
+            <li><a class="link" href="#graph">איך הכל מתחבר — גרף האובייקטים</a></li>
+            <li><a class="link" href="#refs">Refs, HEAD וענפים — רק קבצים עם hash</a></li>
+            <li><a class="link" href="#plumbing">בונים commit ביד (plumbing)</a></li>
+            <li><a class="link" href="#principles">העקרונות הגדולים</a></li>
+          </ol>
+        </li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════════ חלק א' ════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · בסיס וטרמינל</h2>
+
+    <section id="what">
+      <h3><span class="num">1.</span> מה זה Git?</h3>
+      <p><strong>Git</strong> היא מערכת <strong>בקרת גרסאות מבוזרת</strong> (distributed version control). תפקידה: לעקוב אחרי שינויים בקבצים לאורך זמן, לאפשר לחזור לכל נקודה בעבר, ולעבוד בכמה אנשים על אותו פרויקט.</p>
+      <div class="callout syntax">
+        <span class="ic">📸</span>
+        <div class="body">
+          <span class="title">הרעיון המרכזי: Snapshots, לא Diffs</span>
+          רוב מערכות בקרת הגרסאות הישנות שמרו <strong>הפרשים</strong> (diffs) — "בקובץ הזה השתנו השורות האלו". Git שונה: בכל <code>commit</code> הוא שומר <strong>תצלום (snapshot) של כל הפרויקט</strong> באותו רגע. קובץ שלא השתנה — Git לא משכפל אותו, אלא <strong>מצביע לאותו תוכן קודם</strong> (כבר נראה איך, ב-internals). זה הבסיס למהירות ולאמינות של Git.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🌍</span>
+        <div class="body">
+          <span class="title">"מבוזרת"</span>
+          לכל מפתח יש <strong>עותק מלא</strong> של כל ההיסטוריה על המחשב שלו (לא רק "העתק עבודה" כמו במערכות מרכזיות). אפשר לבצע commit, לדפדף בהיסטוריה ולעבוד — <strong>בלי חיבור לרשת</strong>. השרת (כמו GitHub) הוא רק "עוד עותק" שמסנכרנים מולו.
+        </div>
+      </div>
+    </section>
+
+    <section id="areas">
+      <h3><span class="num">2.</span> שלושת האזורים</h3>
+      <p>כל קובץ בפרויקט Git חי באחד משלושה "אזורים". להבין אותם = להבין את כל זרימת העבודה:</p>
+      <div class="flow">
+        <div class="step"><b>Working Directory</b>הקבצים שאתה עורך כרגע בתיקייה</div>
+        <div class="arrow">→</div>
+        <div class="step"><b>Staging Area (Index)</b>"רשימת ההמתנה" — מה ייכנס ל-commit הבא</div>
+        <div class="arrow">→</div>
+        <div class="step"><b>Repository (.git)</b>ההיסטוריה הקבועה — כל ה-commits</div>
+      </div>
+      <table>
+        <thead><tr><th>אזור</th><th>מה זה</th><th>הפקודה שמעבירה אליו</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Working Directory</strong></td><td>התיקייה שלך עם הקבצים, כפי שהם עכשיו. כאן עורכים.</td><td>(עריכה ידנית)</td></tr>
+          <tr><td><strong>Staging Area</strong> (Index)</td><td>אזור ביניים. "בחרתי את השינויים האלה להיכנס ל-commit הבא".</td><td><code>git add</code></td></tr>
+          <tr><td><strong>Repository</strong></td><td>מסד הנתונים הקבוע (<code>.git</code>). ברגע שעשית commit — השינוי שמור לתמיד.</td><td><code>git commit</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">למה צריך Staging Area?</span>
+          כדי שתוכל <strong>לבחור בדיוק מה נכנס לכל commit</strong>. ערכת 5 קבצים אבל רוצה commit שמכיל רק 2 מהם? <code>git add</code> רק על השניים → <code>git commit</code>. ה-Staging הוא ה"טיוטה" של ה-commit הבא.
+        </div>
+      </div>
+    </section>
+
+    <section id="commands">
+      <h3><span class="num">3.</span> הפקודות הבסיסיות בטרמינל</h3>
+      <p>זרימת העבודה הטיפוסית, מההתחלה:</p>
+      <div class="term">
+        <div class="term-head">terminal · זרימה בסיסית</div>
+<pre><span class="c">$ git init</span>                  <span class="o"># יוצר מאגר חדש (תיקיית .git) בתיקייה הנוכחית</span>
+<span class="c">$ git config user.name "Guy"</span>   <span class="o"># מגדיר מי אתה (פעם אחת)</span>
+<span class="c">$ git config user.email "g@x.com"</span>
+
+<span class="c">$ git status</span>                <span class="o"># מה מצב הקבצים? (modified / staged / untracked)</span>
+<span class="c">$ git add file.txt</span>         <span class="o"># מעביר קובץ ל-Staging</span>
+<span class="c">$ git add .</span>                 <span class="o"># מעביר את כל השינויים ל-Staging</span>
+<span class="c">$ git commit -m "message"</span>   <span class="o"># שומר snapshot מה-Staging ל-Repository</span>
+
+<span class="c">$ git log</span>                   <span class="o"># מציג את היסטוריית ה-commits</span>
+<span class="c">$ git log --oneline</span>         <span class="o"># גרסה קצרה: hash + הודעה לכל commit</span>
+<span class="c">$ git diff</span>                  <span class="o"># מה השתנה ב-Working אבל עוד לא ב-Staging</span>
+<span class="c">$ git diff --staged</span>         <span class="o"># מה נמצא ב-Staging (ייכנס ל-commit הבא)</span></pre>
+      </div>
+      <table>
+        <thead><tr><th>פקודה</th><th>מה עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>git init</code></td><td>יוצר מאגר חדש — תיקיית <code>.git</code> ריקה.</td></tr>
+          <tr><td><code>git clone &lt;url&gt;</code></td><td>מוריד עותק מלא של מאגר קיים (כולל כל ההיסטוריה).</td></tr>
+          <tr><td><code>git status</code></td><td>מציג מה השתנה, מה ב-Staging, ומה לא במעקב.</td></tr>
+          <tr><td><code>git add &lt;file&gt;</code></td><td>מעביר שינויים ל-Staging Area.</td></tr>
+          <tr><td><code>git commit -m "..."</code></td><td>שומר את ה-Staging כ-commit חדש בהיסטוריה.</td></tr>
+          <tr><td><code>git log</code></td><td>מציג את היסטוריית ה-commits.</td></tr>
+          <tr><td><code>git diff</code></td><td>מראה הבדלים בין האזורים.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🚫</span>
+        <div class="body">
+          <span class="title"><code>.gitignore</code></span>
+          קובץ טקסט שמפרט מה <strong>לא</strong> לעקוב אחריו. כל שורה = תבנית. למשל <code>node_modules</code>, <code>.env</code>, <code>*.log</code>. קבצים שתואמים לא יופיעו ב-<code>git status</code> ולא ייכנסו ל-commit — כך לא מעלים תלויות ענק או סודות לגיט.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════ חלק ב' ════════════════════════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3.5rem">חלק ב' · Git Internals — הלב 🫀</h2>
+
+    <div class="callout warn">
+      <span class="ic">🔑</span>
+      <div class="body">
+        <span class="title">המעבר מ"איך משתמשים" ל"איך זה עובד"</span>
+        עד כאן למדנו <em>פקודות</em>. עכשiv נפתח את הקופסה השחורה. כל מה שראינו (<code>add</code>, <code>commit</code>, branches) הוא רק "ממשק נוח" מעל מנגנון אחד פשוט להפליא. כשתבין אותו — תפסיק לשנן פקודות ותתחיל <strong>להבין</strong> מה כל אחת עושה.
+      </div>
+    </div>
+
+    <section id="bigidea">
+      <h3><span class="num">4.</span> הרעיון הגדול — מסד נתונים ממוען-תוכן</h3>
+      <p>בלבו, Git הוא פשוט <strong>key-value store</strong> (מסד נתונים מסוג מפתח→ערך):</p>
+      <div class="callout syntax">
+        <span class="ic">🗃️</span>
+        <div class="body">
+          <span class="title">Content-Addressable Store</span>
+          אתה נותן ל-Git <strong>תוכן</strong> (bytes), והוא: (1) מחשב את ה-<strong>SHA-1</strong> שלו — מחרוזת בת 40 תווים הקסדצימליים, (2) שומר את התוכן בקובץ ששמו הוא ה-hash הזה, ו-(3) מחזיר לך את ה-hash. כדי לקבל את התוכן בחזרה — אתה נותן את ה-hash. <strong>המפתח הוא ה-hash של התוכן עצמו</strong> — מכאן "ממוען-תוכן" (content-addressable).
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">ההשלכה המיידית</span>
+          אם המפתח נגזר מהתוכן, אז <strong>תוכן זהה → hash זהה → נשמר פעם אחת בלבד</strong>. שני קבצים זהים (או אותו קובץ ב-100 commits) חולקים אובייקט אחד. זה ה-deduplication שמאחורי "snapshots" יעילים — וזה הסוד למה Git לא מתנפח.
+        </div>
+      </div>
+    </section>
+
+    <section id="gitdir">
+      <h3><span class="num">5.</span> תיקיית <code>.git</code></h3>
+      <p>כש-<code>git init</code> רץ, הוא יוצר תיקייה אחת — <code>.git</code> — שמכילה את <strong>כל</strong> המאגר. זהו "המוח" של Git:</p>
+      <div class="term">
+        <div class="term-head">.git/ — המבנה החשוב</div>
+<pre>.git/
+├── <span class="h">objects/</span>      <span class="o"># מסד הנתונים — כאן יושבים כל האובייקטים (לפי hash)</span>
+├── <span class="h">refs/</span>         <span class="o"># מצביעים: refs/heads/ (ענפים), refs/tags/ (תגיות)</span>
+├── <span class="h">HEAD</span>          <span class="o"># "איפה אני עכשיו" — מצביע לענף הנוכחי</span>
+├── index         <span class="o"># ה-Staging Area (קובץ בינארי)</span>
+└── config        <span class="o"># הגדרות המאגר</span></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">שלושת השחקנים</span>
+          כמעט הכל ב-Git מסתכם ב-3 אלה: <strong><code>objects/</code></strong> (התוכן — האובייקטים), <strong><code>refs/</code></strong> (מצביעים בעלי-שם ל-commits), ו-<strong><code>HEAD</code></strong> (איפה אני עומד). נכיר כל אחד.
+        </div>
+      </div>
+    </section>
+
+    <section id="sha">
+      <h3><span class="num">6.</span> SHA-1 — איך תוכן הופך לכתובת</h3>
+      <p>נראה את זה בעיניים. <code>git hash-object</code> היא פקודת ה-plumbing ששומרת תוכן ומחזירה את ה-hash שלו:</p>
+      <div class="term">
+        <div class="term-head">terminal · שמירת blob</div>
+<pre><span class="c">$ printf 'hello git\n' | git hash-object -w --stdin</span>
+<span class="h">8d0e41234f24b6da002d962a26c2495ea16a425f</span>     <span class="o"># ← ה-SHA-1 של התוכן</span></pre>
+      </div>
+      <ul>
+        <li><code>-w</code> = "write" (באמת תשמור, לא רק תחשב). בלעדיו Git רק <em>מחשב</em> את ה-hash.</li>
+        <li><code>--stdin</code> = קרא את התוכן מהקלט (במקום מקובץ).</li>
+      </ul>
+      <p>איך ה-hash מחושב? Git לא מערבב את ה-bytes הגולמיים — הוא מוסיף <strong>כותרת</strong> קטנה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">פורמט אובייקט (לפני SHA-1 + דחיסה)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>"&lt;type&gt; &lt;size&gt;\0&lt;content&gt;"
+
+# לדוגמה, עבור 'hello git\n' (10 בייטים):
+"blob 10\0hello git\n"
+        └────┬───┘ └┬┘ └────┬────┘
+           type   size   התוכן עצמו
+# SHA-1 של המחרוזת הזו = 8d0e4123...</code></pre>
+      </div>
+      <p>ואיפה זה נשמר על הדיסק? לפי ה-hash, מחולק ל-2 חלקים:</p>
+      <div class="term">
+        <div class="term-head">terminal · מיקום על הדיסק</div>
+<pre><span class="c">$ ls .git/objects/8d/</span>
+<span class="o">0e41234f24b6da002d962a26c2495ea16a425f</span>
+
+<span class="o"># 2 התווים הראשונים = שם התיקייה   → 8d/</span>
+<span class="o"># 38 התווים הנותרים  = שם הקובץ      → 0e41234f...</span></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">חקירת אובייקטים — <code>git cat-file</code></span>
+          הפקודה לקריאת אובייקטים מהמסד:
+          <ul style="margin:.3rem 0 0">
+            <li><code>git cat-file -t &lt;hash&gt;</code> — ה<strong>type</strong> של האובייקט (blob/tree/commit/tag).</li>
+            <li><code>git cat-file -p &lt;hash&gt;</code> — ה<strong>תוכן</strong> (pretty-print).</li>
+            <li><code>git cat-file -s &lt;hash&gt;</code> — ה<strong>גודל</strong> בבייטים.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="term">
+        <div class="term-head">terminal · cat-file</div>
+<pre><span class="c">$ git cat-file -t 8d0e4123</span>
+<span class="o">blob</span>
+<span class="c">$ git cat-file -p 8d0e4123</span>
+<span class="o">hello git</span>
+<span class="c">$ git cat-file -s 8d0e4123</span>
+<span class="o">10</span></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">✂️</span>
+        <div class="body">
+          <span class="title">לא צריך את כל ה-40 תווים</span>
+          מספיק קידומת ייחודית (בד"כ 7 תווים, כמו <code>8d0e412</code>). Git ישלים את השאר כל עוד אין שני אובייקטים עם אותה קידומת.
+        </div>
+      </div>
+    </section>
+
+    <section id="objects">
+      <h3><span class="num">7.</span> 4 סוגי האובייקטים</h3>
+      <p>זה הלב של ה-internals. <strong>כל</strong> מה שיש ב-Git הוא אחד מ-4 סוגי אובייקטים — וכולם נשמרים באותו אופן (תוכן → SHA-1 → <code>objects/</code>):</p>
+      <div class="obj-grid">
+        <div class="obj blob"><div class="ot">🟦 Blob</div>תוכן של <strong>קובץ אחד</strong>. בלי שם, בלי תאריך — רק ה-bytes.</div>
+        <div class="obj tree"><div class="ot">🟩 Tree</div><strong>תיקייה</strong>: רשימה של שמות → blobs/trees + הרשאות.</div>
+        <div class="obj commit"><div class="ot">🟨 Commit</div><strong>snapshot</strong>: מצביע ל-tree אחד + הורה + מחבר + הודעה.</div>
+        <div class="obj tag"><div class="ot">🟪 Tag</div><strong>תגית</strong> מוערת: מצביע לאובייקט (בד"כ commit) + הודעה.</div>
+      </div>
+      <table>
+        <thead><tr><th>אובייקט</th><th>מייצג</th><th>מכיל</th><th>מה הוא <em>לא</em> מכיל</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Blob</strong></td><td>תוכן קובץ</td><td>רק את ה-bytes של הקובץ</td><td>שם הקובץ, תאריך, הרשאות</td></tr>
+          <tr><td><strong>Tree</strong></td><td>תיקייה</td><td>רשומות: מצב + שם + hash (לכל blob/tree)</td><td>את התוכן עצמו (רק מצביע)</td></tr>
+          <tr><td><strong>Commit</strong></td><td>snapshot בזמן</td><td>tree אחד + הורה/הורים + author + committer + הודעה</td><td>את הקבצים (רק מצביע ל-tree)</td></tr>
+          <tr><td><strong>Tag</strong></td><td>תגית קבועה</td><td>אובייקט-יעד + type + שם + tagger + הודעה</td><td>—</td></tr>
+        </tbody>
+      </table>
+
+      <h4 style="color:#79b8ff;margin-top:1.6rem">🟦 Blob — תוכן קובץ</h4>
+      <p>ה-blob שכבר יצרנו (<code>8d0e4123</code>) הוא בדיוק זה — התוכן <code>hello git</code>. שים לב: <strong>ל-blob אין שם!</strong> הוא לא יודע שהוא "hello.txt". הוא רק תוכן. השם יגיע מה-tree.</p>
+
+      <h4 style="color:#7df0d6;margin-top:1.6rem">🟩 Tree — תיקייה</h4>
+      <p>ה-tree נותן <strong>שמות</strong> ל-blobs ובונה היררכיה. נבנה אחד: נכניס את ה-blob ל-Staging תחת השם <code>hello.txt</code>, ונכתוב tree:</p>
+      <div class="term">
+        <div class="term-head">terminal · בניית tree</div>
+<pre><span class="c">$ git update-index --add --cacheinfo 100644 8d0e4123 hello.txt</span>
+<span class="c">$ git write-tree</span>
+<span class="h">07ed5a7aebb914e3a02edf6d622b82d364037e3c</span>
+
+<span class="c">$ git cat-file -p 07ed5a7</span>
+<span class="o">100644 blob 8d0e41234f24b6da002d962a26c2495ea16a425f	hello.txt</span>
+       <span class="o">└─┬─┘ └─┬─┘ └──────────────┬──────────────┘ └───┬───┘</span>
+       <span class="o">mode  type        hash (מצביע ל-blob)         שם</span></pre>
+      </div>
+      <p>כל שורה ב-tree היא רשומה: <strong>מצב (mode) + type + hash + שם</strong>. ה-tree לא מכיל את התוכן — רק <em>מצביע</em> ל-blob לפי ה-hash שלו. תיקיית-משנה? פשוט רשומה נוספת מסוג <code>tree</code> שמצביעה ל-tree אחר.</p>
+      <table>
+        <thead><tr><th>mode</th><th>משמעות</th></tr></thead>
+        <tbody>
+          <tr><td><code>100644</code></td><td>קובץ רגיל</td></tr>
+          <tr><td><code>100755</code></td><td>קובץ הרצה (executable)</td></tr>
+          <tr><td><code>040000</code></td><td>תיקייה (tree)</td></tr>
+          <tr><td><code>120000</code></td><td>symlink</td></tr>
+        </tbody>
+      </table>
+
+      <h4 style="color:#f6c453;margin-top:1.6rem">🟨 Commit — snapshot בזמן</h4>
+      <p>ה-commit עוטף tree אחד ומוסיף לו <strong>הקשר</strong>: מי, מתי, הודעה, ומה ה-commit הקודם. נבנה אחד שמצביע ל-tree שלנו:</p>
+      <div class="term">
+        <div class="term-head">terminal · בניית commit</div>
+<pre><span class="c">$ echo "first commit" | git commit-tree 07ed5a7</span>
+<span class="h">7237a5c6304c71e23be9eb1d038efb63bca4febe</span>
+
+<span class="c">$ git cat-file -p 7237a5c</span>
+<span class="o">tree 07ed5a7aebb914e3a02edf6d622b82d364037e3c</span>     <span class="o"># ← ה-snapshot</span>
+<span class="o">author    demo &lt;a@b.c&gt; 1782651228 +0300</span>           <span class="o"># מי כתב, מתי</span>
+<span class="o">committer demo &lt;a@b.c&gt; 1782651228 +0300</span>           <span class="o"># מי ביצע commit</span>
+<span class="o"></span>
+<span class="o">first commit</span>                                    <span class="o"># ההודעה</span></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מבנה ה-commit</span>
+          <ul style="margin:0">
+            <li><code>tree</code> — מצביע ל-tree <strong>אחד</strong> (השורש של ה-snapshot). זהו "צילום המסך" של כל הפרויקט.</li>
+            <li><code>parent</code> — ה-commit הקודם. ל-commit הראשון אין; לרגיל יש אחד; ל-merge יש 2+ (לא נעסוק בזה).</li>
+            <li><code>author</code> מול <code>committer</code> — בד"כ זהים. author = מי כתב את השינוי במקור; committer = מי הכניס אותו בפועל.</li>
+            <li>ההודעה — אחרי שורה ריקה.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">שרשרת ה-commits = ההיסטוריה</span>
+          כל commit מצביע ל-<code>parent</code> שלו, וזה ל-parent שלו... עד ה-commit הראשון. <strong>ההיסטוריה היא פשוט שרשרת מקושרת של commits</strong>, שכל אחד מצביע אחורה. <code>git log</code> בסך הכל הולך אחורה לאורך ה-parents.</span>
+        </div>
+      </div>
+
+      <h4 style="color:#c084fc;margin-top:1.6rem">🟪 Tag — תגית מוערת</h4>
+      <p>אובייקט tag (annotated) מצביע ל-commit ונותן לו שם קבוע + הודעה (למשל <code>v1.0</code>). הוא נוצר ב-<code>git tag -a v1.0 -m "..."</code>, ומבנהו דומה ל-commit: <code>object</code> (היעד) + <code>type</code> + <code>tag</code> (השם) + <code>tagger</code> + הודעה.</p>
+    </section>
+
+    <section id="graph">
+      <h3><span class="num">8.</span> איך הכל מתחבר — גרף האובייקטים</h3>
+      <p>כל אובייקט <strong>מצביע</strong> לאובייקטים אחרים לפי ה-hash שלהם. התוצאה היא גרף יפהפה:</p>
+      <div class="term">
+        <div class="term-head">גרף האובייקטים</div>
+<pre>  commit  <span class="h">7237a5c</span>
+    │ tree
+    ▼
+  tree  <span class="h">07ed5a7</span>
+    │ hello.txt
+    ▼
+  blob  <span class="h">8d0e412</span>   →  "hello git"
+
+<span class="o"># commit → tree (snapshot) → blobs (תוכן הקבצים)</span>
+<span class="o"># commit הבא → parent → commit הקודם ...</span></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧩</span>
+        <div class="body">
+          <span class="title">זה הכל. באמת.</span>
+          <strong>commit → tree → (subtrees +) blobs.</strong> ושרשרת ה-commits אחורה דרך <code>parent</code>. כל מה ש-Git עושה הוא ליצור אובייקטים כאלה ולקשר ביניהם. אין שום דבר מעבר לזה במודל הנתונים.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📸</span>
+        <div class="body">
+          <span class="title">למה זה "snapshots" ולא "diffs" — עכשiv זה ברור</span>
+          כל commit מצביע ל-tree <strong>מלא</strong> של כל הפרויקט. אבל אם קובץ לא השתנה בין שני commits — שני ה-trees מצביעים ל<strong>אותו blob</strong> (אותו hash!). אז יש snapshot מלא בכל commit, אבל בלי שכפול — קבצים שלא השתנו נשמרים פעם אחת ומשותפים. snapshot מלא + dedup = הטוב משני העולמות.
+        </div>
+      </div>
+    </section>
+
+    <section id="refs">
+      <h3><span class="num">9.</span> Refs, HEAD וענפים — רק קבצים עם hash</h3>
+      <p>בעיה: ה-hashes הם 40 תווים מקריים. בני אדם לא זוכרים <code>7237a5c...</code>. הפתרון: <strong>refs</strong> — שמות קריאים שמצביעים ל-commits.</p>
+      <div class="callout syntax">
+        <span class="ic">🏷️</span>
+        <div class="body">
+          <span class="title">ענף (branch) הוא פשוט קובץ טקסט</span>
+          ענף בשם <code>main</code> הוא קובץ <code>.git/refs/heads/main</code> שמכיל <strong>שורה אחת</strong> — ה-hash של ה-commit האחרון בענף. זהו. "ליצור ענף" = ליצור קובץ קטן עם hash. "להזיז ענף קדימה" (commit חדש) = לכתוב hash חדש לקובץ.
+        </div>
+      </div>
+      <div class="term">
+        <div class="term-head">terminal · refs הם קבצים</div>
+<pre><span class="c">$ cat .git/refs/heads/main</span>
+<span class="o">7237a5c6304c71e23be9eb1d038efb63bca4febe</span>     <span class="o"># ← רק hash של commit</span>
+
+<span class="c">$ cat .git/HEAD</span>
+<span class="o">ref: refs/heads/main</span>                       <span class="o"># ← HEAD מצביע לענף (לא ל-commit)</span></pre>
+      </div>
+      <table>
+        <thead><tr><th>שחקן</th><th>מה זה</th><th>מצביע ל...</th></tr></thead>
+        <tbody>
+          <tr><td><strong>branch</strong> (<code>refs/heads/x</code>)</td><td>קובץ עם hash</td><td>ה-commit האחרון בענף</td></tr>
+          <tr><td><strong>tag</strong> (<code>refs/tags/x</code>)</td><td>קובץ עם hash</td><td>commit קבוע (גרסה)</td></tr>
+          <tr><td><strong>HEAD</strong></td><td>"איפה אני עכשיו"</td><td>בד"כ ל<em>ענף</em> (<code>ref: refs/heads/main</code>)</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">השרשרת המלאה</span>
+          <code>HEAD</code> → <code>refs/heads/main</code> → <code>commit 7237a5c</code> → <code>tree 07ed5a7</code> → <code>blob 8d0e412</code>. כשאתה עושה <code>git commit</code>: נוצרים tree+commit חדשים, וה-Git <strong>מעדכן את הקובץ</strong> <code>refs/heads/main</code> כך שיצביע ל-commit החדש. "להחליף ענף" (<code>git checkout</code>) = לשנות לאן <code>HEAD</code> מצביע.
+        </div>
+      </div>
+    </section>
+
+    <section id="plumbing">
+      <h3><span class="num">10.</span> בונים commit ביד (plumbing)</h3>
+      <p>נחבר הכל. כל מה שעושה <code>git commit -m "..."</code> מאחורי הקלעים הוא רצף הפקודות האלה — ועכשiv תראה שאין בו שום קסם:</p>
+      <div class="term">
+        <div class="term-head">terminal · commit ביד, מ-A עד ת</div>
+<pre><span class="o"># 1. שומרים תוכן כ-blob</span>
+<span class="c">$ printf 'hello git\n' | git hash-object -w --stdin</span>
+<span class="h">8d0e4123...</span>
+
+<span class="o"># 2. שמים אותו ב-Staging תחת שם, וכותבים tree</span>
+<span class="c">$ git update-index --add --cacheinfo 100644 8d0e4123 hello.txt</span>
+<span class="c">$ git write-tree</span>
+<span class="h">07ed5a7...</span>
+
+<span class="o"># 3. עוטפים את ה-tree ב-commit</span>
+<span class="c">$ echo "first commit" | git commit-tree 07ed5a7</span>
+<span class="h">7237a5c...</span>
+
+<span class="o"># 4. מצביעים את הענף main ל-commit החדש</span>
+<span class="c">$ git update-ref refs/heads/main 7237a5c</span>
+
+<span class="o"># זהו! בדיוק כמו git add + git commit.</span></pre>
+      </div>
+      <table>
+        <thead><tr><th>plumbing</th><th>מה עושה</th><th>השכבה ב-porcelain</th></tr></thead>
+        <tbody>
+          <tr><td><code>git hash-object -w</code></td><td>שומר תוכן כ-blob</td><td>חלק מ-<code>git add</code></td></tr>
+          <tr><td><code>git update-index</code></td><td>מעדכן את ה-Staging</td><td>חלק מ-<code>git add</code></td></tr>
+          <tr><td><code>git write-tree</code></td><td>הופך את ה-Staging ל-tree</td><td>חלק מ-<code>git commit</code></td></tr>
+          <tr><td><code>git commit-tree</code></td><td>יוצר אובייקט commit</td><td>חלק מ-<code>git commit</code></td></tr>
+          <tr><td><code>git update-ref</code></td><td>מזיז ענף ל-commit</td><td>חלק מ-<code>git commit</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout info">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">Porcelain מול Plumbing</span>
+          Git מחלק את הפקודות לשתיים: <strong>Porcelain</strong> (האינסטלציה היפה — <code>add</code>, <code>commit</code>, <code>log</code> — מה שמשתמשים בו יומיום) ו-<strong>Plumbing</strong> (הצנרת הנמוכה — <code>hash-object</code>, <code>cat-file</code>, <code>write-tree</code> — שעליהם בנויים הראשונים). הבנת ה-plumbing = הבנת Git.
+        </div>
+      </div>
+    </section>
+
+    <section id="principles">
+      <h3><span class="num">11.</span> העקרונות הגדולים</h3>
+      <div class="callout tip">
+        <span class="ic">🏛️</span>
+        <div class="body">
+          <span class="title">4 העקרונות שנובעים ממיעון-לפי-תוכן</span>
+          <ul style="margin:0">
+            <li><strong>Deduplication</strong> — תוכן זהה = hash זהה = נשמר פעם אחת. קבצים שלא השתנו משותפים בין commits.</li>
+            <li><strong>Integrity (שלמות)</strong> — ה-hash מחושב מהתוכן. אם בייט אחד משתנה (אפילו תקלת דיסק) — ה-hash כבר לא יתאים, ו-Git מזהה שחיתות מיד.</li>
+            <li><strong>Immutability (אי-שינוי)</strong> — אובייקטים <em>אף פעם</em> לא משתנים. "לשנות היסטוריה" = ליצור אובייקטים <em>חדשים</em> ולהזיז ref. הישנים נשארים עד שמנקים אותם.</li>
+            <li><strong>Snapshots יעילים</strong> — כל commit הוא תצלום מלא, אבל בזכות ה-dedup זה לא בזבזני.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>Git הוא מסד נתונים שממען תוכן לפי ה-SHA-1 שלו.</strong> יש 4 אובייקטים: <strong>blob</strong> (תוכן קובץ), <strong>tree</strong> (תיקייה: שמות→hashes), <strong>commit</strong> (tree אחד + הורה + מטא), <strong>tag</strong>. הם מצביעים זה לזה ב-hashes ויוצרים גרף: <code>commit → tree → blobs</code>. <strong>refs</strong> (ענפים) הם קבצים עם hash, ו-<code>HEAD</code> אומר איפה אתה. זהו כל Git.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🧪</span>
+        <div class="body">
+          <span class="title">הערה — Loose objects מול Packfiles</span>
+          האובייקטים שראינו נשמרים כקבצים נפרדים ("loose"), כל אחד מכווץ ב-zlib. כשמצטברים הרבה, Git אורז אותם ל-<strong>packfile</strong> אחד דחוס (ב-<code>git gc</code> / push) — שם הוא <em>כן</em> משתמש בדלתות (deltas) לחיסכון מקום. אבל זו רק אופטימיזציית אחסון; <strong>המודל הלוגי תמיד נשאר 4 האובייקטים + snapshots</strong>.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="index.html">
+        <span class="dir">→ חזרה</span>
+        <span class="ttl">עמוד הבית</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

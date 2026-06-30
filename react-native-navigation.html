@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React Native · מעבר בין מסכים (Navigation)</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ה-RN Navigation — ורוד/מג'נטה */
+    .lesson-header.rnnav {
+      background: linear-gradient(135deg, rgba(244,141,167,0.16), rgba(124,92,255,0.08));
+    }
+    .lesson-header.rnnav .kicker { color: #f48da7; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.6rem; margin:1.4rem 0; justify-content:center; }
+    .flow .step { flex:1 1 150px; min-width:140px; padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.88rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.2rem; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.4rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    .filemap { display:flex; flex-direction:column; gap:.5rem; margin:1.4rem 0; }
+    .filemap .node { padding:.7rem 1rem; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--border); }
+    .filemap .child { margin-inline-start:1.6rem; border-inline-start:2px solid var(--border-strong); }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🗺️ React Native · מעבר בין מסכים</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header rnnav">
+      <div class="kicker">React Native · Navigation</div>
+      <h1>React Native עם כמה מסכים — Stack Navigator</h1>
+      <p>זה <strong>מקביל כמעט אחד-לאחד</strong> ל-React Router שכבר ראינו — רק עם השמות של <code>React Navigation</code>. אותו רעיון בדיוק: ה-<code>App</code> הופך ממסך-יחיד ל<strong>מפת ניתוב</strong>, וכל מסך הוא קומפוננטה רגילה. אם הבנת את ה-Router של ה-web — אתה כבר יודע את זה; צריך רק להחליף שמות.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט — אם אתה מכיר React Router, אתה כבר כאן</span>
+        כל מה שלמדנו ב-<a class="link" href="react-routing.html">React (web) — Router</a> תקף: <code>App</code> = מפת ניתוב, כל מסך עצמאי, מ-2 מסכים ל-N זה אותו דפוס. ההבדל היחיד הוא <strong>שמות הרכיבים</strong> (<code>NavigationContainer</code> במקום <code>BrowserRouter</code> וכו') ושהמפתח הוא <strong>שם</strong> (<code>"AddPlant"</code>) במקום <strong>URL</strong> (<code>/add</code>).
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#app">1️⃣ מה משתנה ב-<code>App</code> — נכנס Stack Navigator</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#nav">2️⃣ איך מנווטים — ה-prop <code>navigation</code></a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#exercise">3️⃣ תרגיל מלא — Plant Shop (פתרון קובץ-קובץ)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#parallel">4️⃣ ההקבלה הסופית web ↔ RN</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="app">
+      <h2><span class="step-tag">1️⃣</span> מה משתנה ב-<code>App</code> — נכנס Stack Navigator</h2>
+      <p>בדיוק כמו ב-web, ה-<code>App</code> הופך ממסך-יחיד למפת ניתוב:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import Home from './Home';
+import AddPlant from './AddPlant';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen name="Home"     component={Home} /&gt;
+        &lt;Stack.Screen name="AddPlant" component={AddPlant} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+      </div>
+      <p>ההקבלה ל-web — זה כל מה שצריך לזכור:</p>
+      <table>
+        <thead><tr><th>RN (React Navigation)</th><th>web (React Router)</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>NavigationContainer</code></td><td><code>BrowserRouter</code></td><td>עוטף הכל</td></tr>
+          <tr><td><code>Stack.Navigator</code></td><td><code>Switch</code></td><td>מנהל את ערימת המסכים</td></tr>
+          <tr><td><code>&lt;Stack.Screen name="X" component={Y}/&gt;</code></td><td><code>&lt;Route path="/x" component={Y}/&gt;</code></td><td>ממפה שם→מסך</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ההבדל היחיד: שם במקום URL</span>
+          ב-web המפתח של כל מסך הוא <strong>URL</strong> (<code>/add</code>); ב-RN זה <strong>שם</strong> (<code>"AddPlant"</code>) — כי לאפליקציית מובייל אין שורת כתובת. זהו. כל השאר זהה במהות.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">📚</span>
+        <div class="body">
+          <span class="title">למה "Stack"?</span>
+          <code>createStackNavigator</code> בונה ניווט מסוג <strong>ערימה (stack)</strong>: כל מסך חדש "נדחף" מעל הקודם (עם אנימציית מעבר וכפתור "חזור" אוטומטי בראש). זה הדפוס הנפוץ ביותר במובייל — בדיוק כמו שפתיחת מסך חדש בטלפון "דוחפת" אותו מעל הנוכחי, ולחיצה על "אחורה" מסירה אותו.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="nav">
+      <h2><span class="step-tag">2️⃣</span> איך מנווטים — ה-prop <code>navigation</code></h2>
+      <p>כאן יש הקלה לעומת ה-web: ב-RN, <strong>כל קומפוננטת מסך מקבלת אוטומטית prop בשם <code>navigation</code></strong> — לא צריך hook כמו <code>useHistory</code>. פשוט שולפים אותו וקוראים לו:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · ניווט מתוך מסך</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Home({ navigation }) {     // ← navigation מגיע אוטומטית כ-prop
+  // ...
+  &lt;Button title="Add Plant" onPress={() =&gt; navigation.navigate('AddPlant')} /&gt;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>navigation.navigate('AddPlant')</code></span>
+          "עבור למסך הזה". זה <strong>השקול ל-<code>history.push('/add')</code> ול-<code>&lt;Link&gt;</code> ביחד</strong> — גם ניווט מהקוד וגם הדרך הסטנדרטית לעבור מסך. שים לב: מעבירים את <strong>שם המסך</strong> (כפי שהוגדר ב-<code>&lt;Stack.Screen name="..."&gt;</code>), לא URL.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎁</span>
+        <div class="body">
+          <span class="title">למה לא צריך hook?</span>
+          ה-<code>Stack.Navigator</code> "מזריק" את ה-prop <code>navigation</code> לכל קומפוננטה שרשומה כ-<code>&lt;Stack.Screen&gt;</code> — אוטומטית. לכן <code>Home</code> ו-<code>AddPlant</code> מקבלים אותו "חינם". (ב-web היינו צריכים <code>useHistory()</code> כי אין מנגנון כזה.)
+        </div>
+      </div>
+
+      <h3><span class="num">2.1</span> העברת נתון בין מסכים (להכללה)</h3>
+      <p>אם רוצים להעביר מידע למסך הבא — שמים אותו כאובייקט שני ב-<code>navigate</code>, ובמסך היעד שולפים מה-prop <code>route</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · העברת פרמטר</span><button class="copy-btn">העתק</button></div>
+        <pre><code>// מסך שולח:
+navigation.navigate('Details', { id: plant._id });
+
+// מסך מקבל:
+function Details({ route }) {        // ← route מגיע אוטומטית כ-prop
+  const { id } = route.params;       // שולף את מה שנשלח
+  // ... fetch לפי id ...
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">ההקבלה — <code>route.params</code> מול <code>useParams</code></span>
+          <code>navigation.navigate('Details', { id })</code> + <code>route.params.id</code> ב-RN = <code>&lt;Link to={`/plants/${id}`}&gt;</code> + <code>useParams()</code> ב-web. (זה ה-<code>putExtra</code>/params בניב RN.) <strong>למבחן ברמה הזו — בד"כ לא צריך</strong>, אבל טוב לדעת.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="exercise">
+      <h2><span class="step-tag">3️⃣</span> תרגיל מלא — Plant Shop (RN)</h2>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">התרגיל</span>
+          <strong>Plant Shop</strong> ב-RN עם שני מסכים (אותו תרגיל כמו ב-web — להשוואה ישירה):
+          <ul style="margin:.3rem 0 0">
+            <li><strong>Home</strong> — רשימת צמחים (GET) + כפתור מחיקה לכל אחד, וכפתור "Add Plant" שמוביל למסך השני.</li>
+            <li><strong>AddPlant</strong> — טופס (שם, זן, מחיר). בשליחה: POST, ואז חזרה אוטומטית ל-Home.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="filemap">
+        <div class="node">📄 <code>index.js</code> — נקודת הכניסה (רושם את <code>App</code>)</div>
+        <div class="node child">📄 <code>App.js</code> — מפת הניתוב (Stack Navigator)</div>
+        <div class="node child">📄 <code>Home.js</code> — רשימה + ניווט להוספה</div>
+        <div class="node child">📄 <code>AddPlant.js</code> — טופס, ואחרי POST → חזרה ל-Home</div>
+        <div class="node child">📄 <code>PlantCard.js</code> — צמח בודד + מחיקה (ללא שינוי)</div>
+      </div>
+
+      <h3><span class="num">3.1</span> <code>index.js</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { registerRootComponent } from 'expo';
+import App from './App';
+registerRootComponent(App);</code></pre>
+      </div>
+
+      <h3><span class="num">3.2</span> <code>App.js</code> — מפת הניתוב</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import Home from './Home';
+import AddPlant from './AddPlant';
+
+const Stack = createStackNavigator();
+
+export default function App() {
+  return (
+    &lt;NavigationContainer&gt;
+      &lt;Stack.Navigator&gt;
+        &lt;Stack.Screen name="Home"     component={Home} /&gt;
+        &lt;Stack.Screen name="AddPlant" component={AddPlant} /&gt;
+      &lt;/Stack.Navigator&gt;
+    &lt;/NavigationContainer&gt;
+  );
+}</code></pre>
+      </div>
+
+      <h3><span class="num">3.3</span> <code>Home.js</code> — רשימה + ניווט למסך ההוספה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · Home.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React, { useState, useEffect } from 'react';
+import { View, Button, FlatList, StyleSheet } from 'react-native';
+import PlantCard from './PlantCard';
+
+const BASE_URL = 'http://10.0.2.2:3000';
+
+export default function Home({ navigation }) {
+  const [plants, setPlants] = useState([]);
+
+  async function loadPlants() {
+    const res = await fetch(`${BASE_URL}/api/plants`);
+    const data = await res.json();
+    setPlants(data);
+  }
+
+  useEffect(() =&gt; { loadPlants(); }, []);
+
+  async function handleDelete(id) {
+    await fetch(`${BASE_URL}/api/plants/${id}`, { method: 'DELETE' });
+    loadPlants();
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;Button title="+ Add Plant" onPress={() =&gt; navigation.navigate('AddPlant')} /&gt;
+      &lt;FlatList
+        data={plants}
+        keyExtractor={(item) =&gt; item._id}
+        renderItem={({ item }) =&gt; &lt;PlantCard plant={item} onDelete={handleDelete} /&gt;}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({ container: { flex: 1, padding: 20 } });</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">המסך הזה כבר מוכר לך</span>
+          זה בדיוק ה-<code>Home</code> של RN ממסך יחיד (state + <code>useEffect</code> + <code>fetch</code> + <code>FlatList</code> + מחיקה דרך prop) — <strong>התוספת היחידה</strong>: <code>{ navigation }</code> ב-props, וכפתור שקורא ל-<code>navigation.navigate('AddPlant')</code>. הטופס עבר למסך נפרד.
+        </div>
+      </div>
+
+      <h3><span class="num">3.4</span> <code>AddPlant.js</code> — טופס, ואחרי POST → חזרה ל-Home</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · AddPlant.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React, { useState } from 'react';
+import { View, TextInput, Button, StyleSheet } from 'react-native';
+
+const BASE_URL = 'http://10.0.2.2:3000';
+
+export default function AddPlant({ navigation }) {
+  const [name, setName]       = useState('');
+  const [species, setSpecies] = useState('');
+  const [price, setPrice]     = useState('');
+
+  async function handleAdd() {
+    await fetch(`${BASE_URL}/api/plants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, species, price: Number(price) })
+    });
+    navigation.navigate('Home');     // ← חזרה ל-Home אחרי ההוספה
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;TextInput style={styles.input} placeholder="Name"    value={name}    onChangeText={setName} /&gt;
+      &lt;TextInput style={styles.input} placeholder="Species" value={species} onChangeText={setSpecies} /&gt;
+      &lt;TextInput style={styles.input} placeholder="Price"   value={price}   onChangeText={setPrice} keyboardType="numeric" /&gt;
+      &lt;Button title="Save" onPress={handleAdd} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  input: { borderWidth: 1, padding: 8, marginBottom: 8 }
+});</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">אותה לוגיקה כמו ב-web</span>
+          אחרי ה-<code>POST</code> פשוט <code>navigation.navigate('Home')</code> — בדיוק כמו <code>history.push('/')</code> ב-web. כשחוזרים ל-<code>Home</code>, ה-<code>useEffect</code> שלו ירוץ ויטען את הרשימה מחדש, כך שהצמח החדש יופיע. שים לב לאירועי RN: <code>onChangeText</code> (לא <code>onChange</code>) ו-<code>onPress</code> (לא <code>onClick</code>).
+        </div>
+      </div>
+
+      <h3><span class="num">3.5</span> <code>PlantCard.js</code> — ללא שינוי</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · PlantCard.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+
+export default function PlantCard({ plant, onDelete }) {
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Text style={styles.title}&gt;{plant.name}&lt;/Text&gt;
+      &lt;Text&gt;{plant.species} · ${plant.price}&lt;/Text&gt;
+      &lt;Button title="Delete" onPress={() =&gt; onDelete(plant._id)} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { padding: 12, borderWidth: 1, marginBottom: 8 },
+  title: { fontWeight: 'bold', fontSize: 18 }
+});</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧩</span>
+        <div class="body">
+          <span class="title">הכרטיס לא יודע דבר על ניווט</span>
+          בדיוק כמו ב-web — הוא מקבל <code>plant</code> ו-<code>onDelete</code> ב-props ולוחץ. אין בו <code>navigation</code> כי הוא לא מסך (הוא לא רשום כ-<code>&lt;Stack.Screen&gt;</code>). הניווט הוא עניין של המסכים בלבד.
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="step"><b>Home</b>רשימה + Delete + כפתור "Add Plant"</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>navigate('AddPlant')</b>ה-Stack דוחף את מסך ההוספה</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>AddPlant</b>ממלאים טופס → Save → POST</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>navigate('Home')</b>חזרה ל-Home → useEffect טוען מחדש</div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="parallel">
+      <h2><span class="step-tag">4️⃣</span> ההקבלה הסופית web ↔ RN</h2>
+      <table>
+        <thead><tr><th></th><th>web (React Router)</th><th>RN (React Navigation)</th></tr></thead>
+        <tbody>
+          <tr><td>עוטף הכל</td><td><code>BrowserRouter</code></td><td><code>NavigationContainer</code></td></tr>
+          <tr><td>מיכל מסכים</td><td><code>Switch</code></td><td><code>Stack.Navigator</code></td></tr>
+          <tr><td>הגדרת מסך</td><td><code>&lt;Route path component&gt;</code></td><td><code>&lt;Stack.Screen name component&gt;</code></td></tr>
+          <tr><td>ניווט</td><td><code>history.push('/add')</code> / <code>&lt;Link&gt;</code></td><td><code>navigation.navigate('AddPlant')</code></td></tr>
+          <tr><td>נתון מ-App</td><td>מגיע אוטומטית ל-<code>component</code></td><td><code>navigation</code> מגיע כ-prop אוטומטית</td></tr>
+          <tr><td>פרמטר בנתיב</td><td><code>:id</code> + <code>useParams()</code></td><td><code>navigate('X', {id})</code> + <code>route.params.id</code></td></tr>
+          <tr><td>המפתח של מסך</td><td>URL (<code>/add</code>)</td><td>שם (<code>"AddPlant"</code>)</td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>אותו רעיון בדיוק, שמות אחרים.</strong> <code>App</code> = מפת ניתוב (<code>NavigationContainer</code> + <code>Stack.Navigator</code> + <code>Stack.Screen</code>-ים). מנווטים עם <code>navigation.navigate('Name')</code> (מגיע אוטומטית כ-prop). מסך נוסף = עוד <code>&lt;Stack.Screen&gt;</code> + עוד קובץ.
+        </div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">מלכודות RN שעדיין תקפות</span>
+          גם כאן: כל טקסט בתוך <code>&lt;Text&gt;</code>, אירועים <code>onPress</code>/<code>onChangeText</code> (לא <code>onClick</code>/<code>onChange</code>), עיצוב עם <code>style={styles.x}</code> + <code>StyleSheet.create</code>, וכתובת שרת מלאה (<code>10.0.2.2</code>). הניווט לא משנה את הכללים האלה.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="react-routing.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">🧭 React Router (web)</span>
+      </a>
+      <a class="next" href="react-native.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">📱 RN — מסך יחיד</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

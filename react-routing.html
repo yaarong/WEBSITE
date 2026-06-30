@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React (web) · מעבר בין מסכים (Router)</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד הניתוב — סגול React */
+    .lesson-header.router {
+      background: linear-gradient(135deg, rgba(124,92,255,0.16), rgba(91,140,255,0.08));
+    }
+    .lesson-header.router .kicker { color: #b9a7ff; }
+    .step-tag { font-size:1.4rem; margin-inline-end:.3rem; }
+    /* תרשים זרימה */
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.6rem; margin:1.4rem 0; justify-content:center; }
+    .flow .step { flex:1 1 150px; min-width:140px; padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.88rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.2rem; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.4rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    /* מפת קבצים */
+    .filemap { display:flex; flex-direction:column; gap:.5rem; margin:1.4rem 0; }
+    .filemap .node { padding:.7rem 1rem; border-radius:var(--radius-sm); background:var(--surface); border:1px solid var(--border); }
+    .filemap .child { margin-inline-start:1.6rem; border-inline-start:2px solid var(--border-strong); }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">🧭 React · מעבר בין מסכים</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header router">
+      <div class="kicker">React (web) · Routing</div>
+      <h1>React עם כמה מסכים — ניתוב (Router)</h1>
+      <p>עד עכשיו בנינו אפליקציות של <strong>מסך אחד</strong> — ה-<code>App</code> פשוט החזיר את <code>&lt;Home/&gt;</code>. עכשיו נראה איך עוברים ל<strong>כמה מסכים</strong>: ה-<code>App</code> הופך ל"שוטר תנועה" שמחליט איזה URL מציג איזה מסך. נלמד את התיאוריה לעומק, נראה את שתי דרכי הניווט, ואז נפתור תרגיל מלא (Plant Shop) קובץ-קובץ.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">קונטקסט — מה משתנה כשעוברים ממסך יחיד לכמה</span>
+        כמעט כלום! כל מסך נשאר <strong>קומפוננטה רגילה</strong> בדיוק כמו <code>Home</code> שאתה כבר מכיר (state, fetch, JSX). מה שמתווסף זה רק שכבה דקה אחת — <strong>Router</strong> — שתפקידה היחיד הוא: "לפי כתובת ה-URL, איזה מסך להציג". מ-2 מסכים ל-10 זה בדיוק אותו דפוס — עוד שורת <code>&lt;Route&gt;</code> לכל מסך.
+      </div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#theory1">1️⃣ מה זה Router? — התיאוריה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#app">2️⃣ מה משתנה ב-<code>App</code> — נכנס Router</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#nav">3️⃣ ניווט בין מסכים — <code>Link</code> מול <code>useHistory</code></a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#exercise">4️⃣ תרגיל מלא — Plant Shop (פתרון קובץ-קובץ)</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#see">5️⃣ 3 הדברים לראות בעיניים</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#params">6️⃣ העשרה — העברת פרמטר בין מסכים (<code>/plants/:id</code>)</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="theory1">
+      <h2><span class="step-tag">1️⃣</span> מה זה Router? — התיאוריה</h2>
+      <p>בדפדפן, כל אתר "רגיל" עובד כך: לוחצים על קישור → הדפדפן <strong>שולח בקשה חדשה לשרת</strong> → השרת מחזיר עמוד HTML חדש → הדף נטען מחדש (הבהוב לבן). זה איטי, וכל מעבר מסך = round-trip לשרת.</p>
+      <p>React הוא <strong>Single Page Application (SPA)</strong> — אפליקציה של "דף אחד". כל הקוד (כל המסכים) נטען <strong>פעם אחת</strong>, ומאז המעבר בין מסכים קורה <strong>בצד הלקוח בלבד</strong>, בלי טעינה מחדש ובלי לפנות לשרת. מי שמנהל את זה הוא ה-<strong>Router</strong> (הספרייה <code>react-router-dom</code>).</p>
+      <div class="callout syntax">
+        <span class="ic">🧭</span>
+        <div class="body">
+          <span class="title">מה Router עושה בפועל</span>
+          ה-Router "מאזין" לכתובת ה-URL בשורת הכתובת. כשהיא משתנה (לחיצה על קישור, או ניווט מהקוד) — הוא <strong>לא</strong> פונה לשרת; במקום זה הוא בודק בטבלת הניתוב שלך "איזו קומפוננטה משויכת לכתובת הזו?", ו<strong>מחליף את המסך המוצג</strong> בלי לרענן את הדף. ה-URL בשורת הכתובת מתעדכן (כדי שאפשר יהיה לסמן/לרענן), אבל הכל קורה מקומית.
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧩</span>
+        <div class="body">
+          <span class="title">3 חלקי הניתוב</span>
+          <ul style="margin:0">
+            <li><strong>הגדרת המסלולים</strong> (Routes) — טבלה שאומרת "כתובת X → קומפוננטה Y". זה ה-<code>App</code>.</li>
+            <li><strong>המסכים</strong> — קומפוננטות רגילות (Home, About...). אחת לכל מסלול.</li>
+            <li><strong>הניווט</strong> — איך עוברים: קישור (<code>&lt;Link&gt;</code>) או קוד (<code>history.push</code>).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="app">
+      <h2><span class="step-tag">2️⃣</span> מה משתנה ב-<code>App</code> — נכנס Router</h2>
+      <p>עד עכשיו (מסך יחיד) ה-<code>App</code> שלך פשוט החזיר <code>&lt;Home/&gt;</code>. עכשיו ה-<code>App</code> הופך ל"שוטר תנועה": הוא מגדיר איזה URL מציג איזה מסך. זה כל התפקיד שלו:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function App() {
+  const { BrowserRouter, Switch, Route } = ReactRouterDOM;
+  return (
+    &lt;BrowserRouter&gt;
+      &lt;Switch&gt;
+        &lt;Route exact path="/"      component={Home} /&gt;
+        &lt;Route       path="/about" component={About} /&gt;
+      &lt;/Switch&gt;
+    &lt;/BrowserRouter&gt;
+  );
+}
+window.App = App;</code></pre>
+      </div>
+      <p>נפרק שורה-שורה:</p>
+      <table>
+        <thead><tr><th>חלק</th><th>מה הוא עושה</th></tr></thead>
+        <tbody>
+          <tr><td><code>BrowserRouter</code></td><td>עוטף את הכל ומפעיל את מנגנון הניתוב. <strong>בלעדיו אין ניתוב</strong> — חייב להיות ברמה העליונה.</td></tr>
+          <tr><td><code>Switch</code></td><td>מסתכל על ה-URL ומציג את ה-<code>Route</code> <strong>הראשון שמתאים — ורק אותו</strong> (לא כמה במקביל).</td></tr>
+          <tr><td><code>Route path="/x" component={Screen}</code></td><td>"אם ה-URL הוא <code>/x</code> → הצג את הקומפוננטה <code>Screen</code>".</td></tr>
+          <tr><td><code>exact</code> (על <code>"/"</code>)</td><td>בלי זה, <code>/</code> היה מתאים ל<em>כל</em> נתיב (כי כל נתיב מתחיל ב-<code>/</code>). <code>exact</code> = "התאמה מדויקת בלבד".</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title"><code>App</code> כבר לא מחזיק UI אמיתי</span>
+          הוא רק <strong>מפת הניתוב</strong>. אין בו טפסים, רשימות או state — כל אלה עברו למסכים עצמם. כל מסך הוא קומפוננטה נפרדת, וה-Router בוחר מי מהם מוצג לפי הכתובת.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה <code>const { BrowserRouter, Switch, Route } = ReactRouterDOM;</code></span>
+          כשטוענים את <code>react-router-dom</code> מ-CDN דרך <code>&lt;script&gt;</code> (כמו ב-Babel-in-browser שהקורס משתמש בו), הוא יושב על המשתנה הגלובלי <code>ReactRouterDOM</code>. ה-destructuring רק שולף ממנו את הרכיבים שאנחנו צריכים. (בפרויקט עם build אמיתי היינו כותבים <code>import { BrowserRouter } from 'react-router-dom'</code>.)
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="nav">
+      <h2><span class="step-tag">3️⃣</span> ניווט בין מסכים — <code>Link</code> מול <code>useHistory</code></h2>
+      <p>מסך נוסף הוא בדיוק קומפוננטה רגילה כמו שאתה כבר יודע. מה שחדש זה רק <strong>איך מנווטים</strong> אליו וממנו. יש שתי דרכים, ולכל אחת מקום מתאים:</p>
+
+      <h3><span class="num">3.1</span> <code>&lt;Link&gt;</code> — ניווט הצהרתי (כמו <code>&lt;a&gt;</code>)</h3>
+      <p>קישור שהמשתמש לוחץ עליו. בדרך כלל בתוך תפריט/כפתור ניווט:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · Link</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Home() {
+  const { Link } = ReactRouterDOM;
+  // ... כל הלוגיקה של המסך כמו קודם ...
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Plant Shop&lt;/h1&gt;
+      &lt;Link to="/about"&gt;About&lt;/Link&gt;     {/* לחיצה → עוברים ל-/about */}
+      {/* ... הטופס והרשימה ... */}
+    &lt;/div&gt;
+  );
+}
+window.Home = Home;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">למה <code>&lt;Link&gt;</code> ולא <code>&lt;a&gt;</code>?</span>
+          <code>&lt;a href&gt;</code> רגיל היה גורם ל<strong>טעינה מחדש</strong> של כל הדף (round-trip לשרת) — בדיוק מה שאנחנו מנסים להימנע ממנו. <code>&lt;Link to&gt;</code> מבצע את המעבר <strong>בצד הלקוח</strong>, בלי רענון. מבחוץ הוא נראה כמו קישור רגיל.
+        </div>
+      </div>
+
+      <h3><span class="num">3.2</span> <code>useHistory()</code> — ניווט תכנותי (מתוך הקוד)</h3>
+      <p>כשרוצים לנווט <strong>מתוך פונקציה</strong> — למשל אחרי פעולה מוצלחת (POST הסתיים → תחזור הביתה):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · useHistory</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function About() {
+  const { useHistory } = ReactRouterDOM;
+  const history = useHistory();
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;About Us&lt;/h1&gt;
+      &lt;p&gt;Plant Shop — the best plants in town 🌱&lt;/p&gt;
+      &lt;button onClick={() =&gt; history.push('/')}&gt;Back to Home&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+window.About = About;</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>history.push('/')</code></span>
+          "עבור למסך הזה — מתוך הקוד". משתמשים בזה כשהמעבר הוא תוצאה של <em>פעולה</em> ולא של לחיצה ישירה על קישור (למשל: בסיום שמירה, אחרי התחברות מוצלחת). זה <strong>השקול</strong> ל-<code>navigation.navigate('Home')</code> שתראה ב-React Native.
+        </div>
+      </div>
+
+      <h3><span class="num">3.3</span> אל תשכח — <code>&lt;script&gt;</code> לכל מסך חדש ב-<code>index.html</code></h3>
+      <p>בקורס טוענים את הקומפוננטות דרך תגי <code>&lt;script&gt;</code> ב-<code>index.html</code>. כל מסך חדש = עוד שורה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;script type="text/babel" src="/components/About.jsx"&gt;&lt;/script&gt;</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">סדר הטעינה חשוב</span>
+          קומפוננטה חייבת להיטען <strong>לפני</strong> מי שמשתמש בה. לכן <code>App.jsx</code> (שמשתמש ב-<code>Home</code>, <code>About</code>...) נטען <strong>אחרון</strong>, וה-mount (<code>ReactDOM...render(&lt;App/&gt;)</code>) אחרי כולם.
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">סיכום ההכללה</span>
+          <ul style="margin:0">
+            <li><strong>App</strong> = מפת הניתוב (Router + Routes). מוסיף מסך = מוסיף שורת <code>&lt;Route&gt;</code>.</li>
+            <li><strong>כל מסך</strong> = קומפוננטה רגילה. מנווטים עם <code>&lt;Link to="..."&gt;</code> (הצהרתי) או <code>history.push('...')</code> (תכנותי).</li>
+            <li>מ-2 מסכים ל-10 — בדיוק אותו דבר: עוד <code>&lt;Route&gt;</code> לכל מסך.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="exercise">
+      <h2><span class="step-tag">4️⃣</span> תרגיל מלא — Plant Shop</h2>
+      <div class="callout syntax">
+        <span class="ic">📝</span>
+        <div class="body">
+          <span class="title">התרגיל</span>
+          אפליקציית <strong>Plant Shop</strong> ב-React עם שני מסכים:
+          <ul style="margin:.3rem 0 0">
+            <li><strong>מסך בית (<code>/</code>)</strong> — מציג את רשימת הצמחים (GET), לכל צמח כפתור מחיקה. בראש המסך קישור "Add Plant" שמוביל למסך השני.</li>
+            <li><strong>מסך הוספה (<code>/add</code>)</strong> — טופס (שם, זן, מחיר). בשליחה: POST לשרת, ואז חזרה אוטומטית למסך הבית.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="filemap">
+        <div class="node">📄 <code>App.jsx</code> — מפת הניתוב (2 מסלולים)</div>
+        <div class="node child">📄 <code>Home.jsx</code> — רשימת הצמחים + קישור להוספה</div>
+        <div class="node child">📄 <code>AddPlant.jsx</code> — טופס הוספה, ואחרי POST → חזרה הביתה</div>
+        <div class="node child">📄 <code>PlantCard.jsx</code> — צמח בודד + כפתור מחיקה (ללא שינוי)</div>
+      </div>
+
+      <h3><span class="num">4.1</span> <code>index.html</code> — רשימת ה-scripts</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">html · index.html (רק החלק שמשתנה)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;script type="text/babel" src="/components/PlantCard.jsx"&gt;&lt;/script&gt;
+&lt;script type="text/babel" src="/components/Home.jsx"&gt;&lt;/script&gt;
+&lt;script type="text/babel" src="/components/AddPlant.jsx"&gt;&lt;/script&gt;
+&lt;script type="text/babel" src="/components/App.jsx"&gt;&lt;/script&gt;</code></pre>
+      </div>
+
+      <h3><span class="num">4.2</span> <code>App.jsx</code> — מפת הניתוב</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function App() {
+  const { BrowserRouter, Switch, Route } = ReactRouterDOM;
+  return (
+    &lt;BrowserRouter&gt;
+      &lt;Switch&gt;
+        &lt;Route exact path="/"    component={Home} /&gt;
+        &lt;Route       path="/add" component={AddPlant} /&gt;
+      &lt;/Switch&gt;
+    &lt;/BrowserRouter&gt;
+  );
+}
+window.App = App;</code></pre>
+      </div>
+
+      <h3><span class="num">4.3</span> <code>Home.jsx</code> — רשימה + קישור למסך ההוספה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · Home.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function Home() {
+  const { Link } = ReactRouterDOM;
+  const [plants, setPlants] = React.useState([]);
+
+  async function loadPlants() {
+    const res = await fetch('/api/plants');
+    const data = await res.json();
+    setPlants(data);
+  }
+
+  React.useEffect(() =&gt; { loadPlants(); }, []);
+
+  async function handleDelete(id) {
+    await fetch(`/api/plants/${id}`, { method: 'DELETE' });
+    loadPlants();
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Plant Shop&lt;/h1&gt;
+      &lt;Link to="/add"&gt;+ Add Plant&lt;/Link&gt;
+
+      {plants.map(plant =&gt; (
+        &lt;PlantCard key={plant._id} plant={plant} onDelete={handleDelete} /&gt;
+      ))}
+    &lt;/div&gt;
+  );
+}
+window.Home = Home;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">המסך הזה כבר מוכר לך</span>
+          זה בדיוק ה-<code>Home</code> ממסך יחיד (state + <code>useEffect</code> + <code>fetch</code> + <code>map</code> + מחיקה דרך prop) — <strong>התוספת היחידה</strong> היא שורת ה-<code>&lt;Link to="/add"&gt;</code>. שים לב שהטופס <em>כבר לא כאן</em> — הוא עבר למסך נפרד.
+        </div>
+      </div>
+
+      <h3><span class="num">4.4</span> <code>AddPlant.jsx</code> — טופס, ואחרי POST → חזרה הביתה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · AddPlant.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function AddPlant() {
+  const { useHistory } = ReactRouterDOM;
+  const history = useHistory();
+
+  const [name, setName]       = React.useState('');
+  const [species, setSpecies] = React.useState('');
+  const [price, setPrice]     = React.useState('');
+
+  async function handleAdd() {
+    await fetch('/api/plants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, species, price: Number(price) })
+    });
+    history.push('/');     // ← חזרה אוטומטית למסך הבית אחרי ההוספה
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;Add Plant&lt;/h1&gt;
+      &lt;input placeholder="Name"    value={name}    onChange={e =&gt; setName(e.target.value)} /&gt;
+      &lt;input placeholder="Species" value={species} onChange={e =&gt; setSpecies(e.target.value)} /&gt;
+      &lt;input placeholder="Price"   value={price}   onChange={e =&gt; setPrice(e.target.value)} /&gt;
+      &lt;button onClick={handleAdd}&gt;Save&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+window.AddPlant = AddPlant;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">הנקודה החשובה כאן</span>
+          אחרי ה-<code>POST</code> אנחנו לא צריכים לרענן רשימה (אין כאן רשימה) — אנחנו פשוט <strong>חוזרים הביתה</strong> עם <code>history.push('/')</code>. וכשנגיע ל-<code>Home</code>, ה-<code>useEffect</code> שלו ירוץ ו<strong>יטען את הרשימה מחדש</strong> — כך הצמח החדש יופיע. זה הניווט התכנותי בפעולה.
+        </div>
+      </div>
+
+      <h3><span class="num">4.5</span> <code>PlantCard.jsx</code> — ללא שינוי</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · PlantCard.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function PlantCard({ plant, onDelete }) {
+  return (
+    &lt;div className="card"&gt;
+      &lt;h3&gt;{plant.name}&lt;/h3&gt;
+      &lt;p&gt;{plant.species} · ${plant.price}&lt;/p&gt;
+      &lt;button onClick={() =&gt; onDelete(plant._id)}&gt;Delete&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+window.PlantCard = PlantCard;</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧩</span>
+        <div class="body">
+          <span class="title">הכרטיס לא יודע דבר על ניתוב</span>
+          הוא נשאר בדיוק כמו שהיה — מקבל <code>plant</code> ו-<code>onDelete</code> ב-props ולוחץ. הניתוב הוא עניין של ה-<code>App</code> והמסכים, לא של רכיבי-תצוגה קטנים. הפרדת אחריות נקייה.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="see">
+      <h2><span class="step-tag">5️⃣</span> 3 הדברים לראות בעיניים</h2>
+      <div class="callout tip">
+        <span class="ic">👀</span>
+        <div class="body">
+          <span class="title">מה בדיוק קרה כאן</span>
+          <ol style="margin:0">
+            <li><strong>App הפך למפת ניתוב בלבד</strong> — שתי שורות <code>&lt;Route&gt;</code>. הטופס שהיה בתוך <code>Home</code> עבר למסך נפרד (<code>AddPlant</code>).</li>
+            <li><strong>שתי דרכי הניווט בפעולה</strong> — <code>&lt;Link to="/add"&gt;</code> (לחיצה הצהרתית) ב-<code>Home</code>, ו-<code>history.push('/')</code> (תכנותי, אחרי ה-POST) ב-<code>AddPlant</code>.</li>
+            <li><strong>כל מסך מנהל את ה-state שלו</strong> — <code>Home</code> טוען את הרשימה, <code>AddPlant</code> מחזיק את שדות הטופס. אין שיתוף — כל מסך עצמאי.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="flow">
+        <div class="step"><b>Home (/)</b>רשימה + Delete + קישור "Add Plant"</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>Link to="/add"</b>הדפדפן עובר ל-<code>/add</code> (בלי רענון)</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>AddPlant (/add)</b>ממלאים טופס → Save → POST</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>history.push('/')</b>חזרה ל-Home → useEffect טוען מחדש</div>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🔀</span>
+        <div class="body">
+          <span class="title">שיתוף נתון בין מסכים?</span>
+          במבחן ברמה הזו — <strong>לא צריך</strong>. כל מסך עצמאי, וה"מקור האמת" המשותף הוא ה-<strong>שרת</strong> (כל מסך עושה fetch משלו). אם בכל זאת נדרש לשתף state ישירות בין מסכים בלי לרדת לשרת — זה היה עובר דרך <strong>Context</strong> (או הרמת state לקומפוננטת אב משותפת), אבל זה מעבר לנדרש כאן.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 6 ════════════════════════ -->
+    <section id="params">
+      <h2><span class="step-tag">6️⃣</span> העשרה — העברת פרמטר בין מסכים (<code>/plants/:id</code>)</h2>
+      <p>מה אם נרצה מסך <strong>פרטים</strong> — לחיצה על צמח פותחת עמוד עם המידע המלא שלו? זה הדפוס האחרון שמשלים כיסוי מלא. הרעיון: <strong>שמים את ה-id בתוך ה-URL</strong>, והמסך שולף אותו ועושה fetch לפי ה-id.</p>
+
+      <h3><span class="num">6.1</span> מוסיפים מסלול עם פרמטר ב-<code>App</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · App.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>&lt;Route exact path="/"           component={Home} /&gt;
+&lt;Route       path="/add"        component={AddPlant} /&gt;
+&lt;Route       path="/plants/:id" component={PlantDetails} /&gt;   {/* :id = פרמטר */}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>:id</code> — חלק דינמי בנתיב</span>
+          הנקודתיים אומרות "כאן יבוא ערך משתנה". <code>/plants/42</code>, <code>/plants/7</code> — כולם מתאימים ל-<code>/plants/:id</code>, וה-<code>id</code> יהיה <code>"42"</code> / <code>"7"</code> בהתאמה.
+        </div>
+      </div>
+
+      <h3><span class="num">6.2</span> מנווטים אל המסך עם ה-id (מתוך הכרטיס)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · PlantCard.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function PlantCard({ plant, onDelete }) {
+  const { Link } = ReactRouterDOM;
+  return (
+    &lt;div className="card"&gt;
+      &lt;Link to={`/plants/${plant._id}`}&gt;{plant.name}&lt;/Link&gt;   {/* שם הצמח → קישור לפרטים */}
+      &lt;p&gt;{plant.species} · ${plant.price}&lt;/p&gt;
+      &lt;button onClick={() =&gt; onDelete(plant._id)}&gt;Delete&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}
+window.PlantCard = PlantCard;</code></pre>
+      </div>
+
+      <h3><span class="num">6.3</span> המסך החדש שולף את ה-id עם <code>useParams</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · PlantDetails.jsx</span><button class="copy-btn">העתק</button></div>
+        <pre><code>function PlantDetails() {
+  const { useParams } = ReactRouterDOM;
+  const { id } = useParams();                 // שולף את ה-:id מה-URL
+  const [plant, setPlant] = React.useState(null);
+
+  React.useEffect(() =&gt; {
+    async function load() {
+      const res = await fetch(`/api/plants/${id}`);   // fetch לפי ה-id
+      setPlant(await res.json());
+    }
+    load();
+  }, [id]);                                   // ירוץ מחדש אם ה-id משתנה
+
+  if (!plant) return &lt;p&gt;Loading...&lt;/p&gt;;        // עד שהנתון מגיע
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;{plant.name}&lt;/h1&gt;
+      &lt;p&gt;{plant.species} · ${plant.price}&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}
+window.PlantDetails = PlantDetails;</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">הדפוס המלא של "מסך פרטים"</span>
+          <strong>(1)</strong> מסלול עם <code>:id</code> ב-<code>App</code> · <strong>(2)</strong> <code>&lt;Link to={`/plants/${id}`}&gt;</code> שמנווט אליו · <strong>(3)</strong> <code>useParams()</code> ששולף את ה-id, ו-<code>fetch</code> לפי ה-id ב-<code>useEffect</code>. שים לב ל-<code>if (!plant) return ...</code> — בזמן שה-fetch רץ, <code>plant</code> עדיין <code>null</code>, אז מציגים "Loading".
+        </div>
+      </div>
+      <div class="callout info">
+        <span class="ic">📌</span>
+        <div class="body">
+          <span class="title">למה <code>[id]</code> ב-<code>useEffect</code> ולא <code>[]</code>?</span>
+          כדי שאם המשתמש עובר מ-<code>/plants/1</code> ל-<code>/plants/2</code> בלי לצאת מהמסך — ה-<code>useEffect</code> ירוץ <strong>שוב</strong> ויביא את הצמח החדש. <code>[]</code> היה רץ פעם אחת בלבד ונשאר תקוע על הצמח הראשון.
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>App</strong> = מפת ניתוב (<code>BrowserRouter</code> + <code>Switch</code> + <code>Route</code>-ים). כל <strong>מסך</strong> = קומפוננטה רגילה ועצמאית. מנווטים עם <strong><code>&lt;Link&gt;</code></strong> (לחיצה) או <strong><code>history.push</code></strong> (קוד). פרמטר בנתיב = <code>:id</code> + <code>useParams()</code>. וזהו — מ-2 מסכים ל-N זה אותו דפוס בדיוק.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="react-native.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">📱 React Native</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

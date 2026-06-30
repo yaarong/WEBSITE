@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>React Native למבחן · מסך יחיד (Movies)</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>" />
+  <style>
+    /* גוון מיוחד לעמוד ה-RN — תכלת React */
+    .lesson-header.rn {
+      background: linear-gradient(135deg, rgba(91,140,255,0.16), rgba(22,194,163,0.08));
+    }
+    .lesson-header.rn .kicker { color: #79c0ff; }
+    .step-tag { font-size: 1.4rem; margin-inline-end:.3rem; }
+    /* תרשים זרימה */
+    .flow { display:flex; flex-wrap:wrap; align-items:stretch; gap:.6rem; margin:1.4rem 0; justify-content:center; }
+    .flow .step { flex:1 1 150px; min-width:140px; padding:.9rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.88rem; }
+    .flow .step b { color:#fff; display:block; margin-bottom:.2rem; }
+    .flow .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.4rem; }
+    @media (max-width:560px){ .flow .arrow{ transform:rotate(90deg); } }
+    /* מפת מבנה הקבצים */
+    .filemap { display:flex; flex-direction:column; gap:.5rem; margin:1.4rem 0; }
+    .filemap .node {
+      padding:.7rem 1rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border);
+    }
+    .filemap .node code { font-size:.9em; }
+    .filemap .child { margin-inline-start:1.6rem; border-inline-start:2px solid var(--border-strong); }
+  </style>
+</head>
+<body>
+  <nav class="topbar">
+    <a class="back" href="index.html">→ חזרה לעמוד הבית</a>
+    <span class="crumb">📱 React Native · מסך יחיד</span>
+  </nav>
+
+  <main class="lesson">
+    <header class="lesson-header rn">
+      <div class="kicker">נושא נוסף · React Native</div>
+      <h1>React Native למבחן — אפליקציית מסך יחיד</h1>
+      <p>במבחן, אפליקציית RN של <strong>מסך אחד</strong> מכסה כמעט הכל: <code>state</code>, <code>fetch</code> מול שרת, טופס הוספה, רשימה, מחיקה ו-props. כאן נבנה בדיוק כזו — רשימת סרטים — ונפרק אותה לשלבים. הקוד נראה <em>זהה</em> ל-React רגיל; רק התגים מתחלפים (<code>&lt;View&gt;</code> במקום <code>&lt;div&gt;</code>, <code>&lt;Text&gt;</code> במקום <code>&lt;p&gt;</code>) והלוגיקה (useState/useEffect/fetch) — <strong>זהה לחלוטין</strong>.</p>
+    </header>
+
+    <div class="callout info">
+      <span class="ic">🧭</span>
+      <div class="body">
+        <span class="title">המבנה הנכון: App → Home + Card</span>
+        <code>App</code> זעיר — תפקידו <strong>רק להחזיר את <code>Home</code></strong>. כל ה"בשר" יושב ב-<code>Home</code> (state + fetch + טופס + רשימה). כל סרט מוצג ע"י <code>MovieCard</code> נפרד. <strong>עיקרון מפתח שנראה כאן:</strong> ה-state והבקשות (fetch) חיים ב-<code>Home</code>; ה-<code>MovieCard</code> רק מקבל <em>נתונים ופונקציות</em> ב-props.
+      </div>
+    </div>
+
+    <div class="filemap">
+      <div class="node">📄 <code>index.js</code> — נקודת הכניסה (רושם את <code>App</code>)</div>
+      <div class="node child">📄 <code>App.js</code> — מעטפת זעירה, מחזירה את <code>Home</code></div>
+      <div class="node child">📄 <code>Home.js</code> — הקומפוננטה הגדולה: state, fetch, טופס, רשימה</div>
+      <div class="node child">📄 <code>MovieCard.js</code> — סרט בודד + כפתור מחיקה</div>
+    </div>
+
+    <div class="toc">
+      <div class="toc-title">📑 תוכן העניינים</div>
+      <ol>
+        <li><a class="link" href="#s0">0️⃣ נקודת הכניסה — <code>index.js</code> + <code>App.js</code></a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s1">1️⃣ <code>Home.js</code> — פירוק שלב-שלב</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#s2">2️⃣ <code>MovieCard.js</code> — סרט בודד + מחיקה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#principle">3️⃣ העיקרון — מי מחזיק state, מי מבצע, מי לוחץ</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#flow">4️⃣ הזרימה המלאה</a></li>
+        <li style="margin-top:.35rem"><a class="link" href="#traps">5️⃣ מלכודות המבחן + צ'יט-שיט RN מול web</a></li>
+      </ol>
+    </div>
+
+    <!-- ════════════════════════ 0 ════════════════════════ -->
+    <section id="s0">
+      <h2><span class="step-tag">0️⃣</span> נקודת הכניסה — <code>index.js</code> + <code>App.js</code></h2>
+      <p><code>index.js</code> הוא מה שמריץ את האפליקציה: הוא "רושם" את הקומפוננטה הראשית <code>App</code> כשורש:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · index.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import { registerRootComponent } from 'expo';
+import App from './App';
+
+registerRootComponent(App);</code></pre>
+      </div>
+      <p><code>App.js</code> הוא מעטפת של <strong>3 שורות</strong> — רק מחזיר את <code>Home</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · App.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import Home from './Home';
+
+export default function App() {
+  return &lt;Home /&gt;;
+}</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">למה <code>App</code> כל כך קטן?</span>
+          זהו ה"שער". ב-web זה היה <code>App</code> עם ה-<strong>Router</strong> שמחליט איזה מסך להציג. כאן — <strong>מסך יחיד</strong>, אז אין Router; פשוט מחזירים את <code>&lt;Home /&gt;</code>. שים לב ל-<code>export default</code> (כך ש-<code>App.js</code> ו-<code>index.js</code> יכולים לייבא אותו).
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 1 ════════════════════════ -->
+    <section id="s1">
+      <h2><span class="step-tag">1️⃣</span> <code>Home.js</code> — הקומפוננטה הגדולה</h2>
+      <p>זה הלב. נפרק אותו לחלקים, ואז נראה אותו במלואו (כולל המחיקה).</p>
+
+      <h3><span class="num">1.1</span> ייבוא — הרכיבים של RN</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · imports</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React, { useState, useEffect } from 'react';
+import { View, TextInput, Button, FlatList, StyleSheet } from 'react-native';
+import MovieCard from './MovieCard';</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">📦</span>
+        <div class="body">
+          <span class="title">חובה לייבא כל רכיב RN</span>
+          ב-RN אין תגי HTML מובנים — כל רכיב (<code>View</code>, <code>Text</code>, <code>TextInput</code>, <code>Button</code>, <code>FlatList</code>, <code>StyleSheet</code>) <strong>מיובא במפורש</strong> מ-<code>'react-native'</code>. שכחת לייבא → שגיאה.
+        </div>
+      </div>
+
+      <h3><span class="num">1.2</span> כתובת השרת — <code>BASE_URL</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const BASE_URL = 'http://10.0.2.2:3000';</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title"><code>10.0.2.2</code> — לא <code>localhost</code>!</span>
+          RN רץ באמולטור/מכשיר נפרד מהשרת, ולכן מתחבר ב-<strong>כתובת מלאה</strong> (לא נתיב יחסי כמו ב-web). <code>10.0.2.2</code> = מכונת ה-host כפי שנראית מ<strong>אמולטור אנדרואיד</strong> (ב-iOS simulator זה <code>localhost</code>; במכשיר אמיתי — ה-IP ברשת).
+        </div>
+      </div>
+
+      <h3><span class="num">1.3</span> ה-state — רשימה + שדות הטופס</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const [movies, setMovies] = useState([]);   // הרשימה מהשרת
+const [title, setTitle]   = useState('');   // שדות הטופס
+const [genre, setGenre]   = useState('');
+const [year,  setYear]    = useState('');</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🧠</span>
+        <div class="body">
+          <span class="title">4 חתיכות state</span>
+          אחת לרשימה (<code>movies</code>, מתחיל ריק <code>[]</code>), ואחת לכל שדה בטופס. כל הקלדה תעדכן את ה-state המתאים, וכל <code>setState</code> גורם ל-React לצייר מחדש.
+        </div>
+      </div>
+
+      <h3><span class="num">1.4</span> טעינת הרשימה — <code>loadMovies</code> (GET)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function loadMovies() {
+  const res  = await fetch(`${BASE_URL}/api/movies`);
+  const data = await res.json();
+  setMovies(data);   // שומר את התוצאה ב-state → ציור מחדש
+}</code></pre>
+      </div>
+
+      <h3><span class="num">1.5</span> טעינה פעם אחת — <code>useEffect</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>useEffect(() =&gt; { loadMovies(); }, []);   // [] → רץ פעם אחת, בטעינת המסך</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⚠️</span>
+        <div class="body">
+          <span class="title">למה <code>useEffect</code> ולא לקרוא ל-fetch ישר?</span>
+          אם נקרא ל-<code>loadMovies()</code> בגוף הקומפוננטה — הוא ירוץ <strong>בכל ציור מחדש</strong> (אינסוף). ה-<code>[]</code> בסוף אומר "רוץ <strong>פעם אחת</strong> בלבד, כשהמסך נטען".
+        </div>
+      </div>
+
+      <h3><span class="num">1.6</span> הוספת סרט — <code>handleAdd</code> (POST)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function handleAdd() {
+  await fetch(`${BASE_URL}/api/movies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, genre, year: Number(year) })
+  });
+  setTitle(''); setGenre(''); setYear('');   // מרוקן את הטופס
+  loadMovies();                               // רענון הרשימה
+}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔢</span>
+        <div class="body">
+          <span class="title"><code>Number(year)</code></span>
+          ערך מ-<code>TextInput</code> תמיד <strong>מחרוזת</strong>. אם השרת מצפה ל-מספר (<code>year</code>), ממירים עם <code>Number(...)</code> לפני השליחה. אחרי הוספה: מרוקנים את הטופס ו<strong>טוענים מחדש</strong> כדי שהרשימה תתעדכן.
+        </div>
+      </div>
+
+      <h3><span class="num">1.7</span> מחיקת סרט — <code>handleDelete</code> (DELETE)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>async function handleDelete(id) {
+  await fetch(`${BASE_URL}/api/movies/${id}`, { method: 'DELETE' });
+  loadMovies();   // רענון הרשימה אחרי מחיקה
+}</code></pre>
+      </div>
+      <div class="callout info">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המחיקה חיה ב-<code>Home</code> — לא ב-Card</span>
+          ה-<code>fetch</code> של המחיקה נשאר ב-<code>Home</code> <strong>כי שם ה-state והרשימה</strong> (רק <code>Home</code> יכול לקרוא ל-<code>loadMovies</code>). מקבל את ה-<code>id</code> שצריך למחוק, פונה לשרת, ומרענן. את ה-<code>handleDelete</code> נעביר ל-Card כ-prop (נראה בשלב 1.8 ובמחלקה 3).
+        </div>
+      </div>
+
+      <h3><span class="num">1.8</span> ה-JSX — טופס + רשימה</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">jsx · return</span><button class="copy-btn">העתק</button></div>
+        <pre><code>return (
+  &lt;View style={styles.container}&gt;
+    &lt;TextInput style={styles.input} placeholder="Title" value={title} onChangeText={setTitle} /&gt;
+    &lt;TextInput style={styles.input} placeholder="Genre" value={genre} onChangeText={setGenre} /&gt;
+    &lt;TextInput style={styles.input} placeholder="Year"  value={year}  onChangeText={setYear} keyboardType="numeric" /&gt;
+    &lt;Button title="Add Movie" onPress={handleAdd} /&gt;
+
+    &lt;FlatList
+      data={movies}
+      keyExtractor={(item) =&gt; item._id}
+      renderItem={({ item }) =&gt; &lt;MovieCard movie={item} onDelete={handleDelete} /&gt;}
+    /&gt;
+  &lt;/View&gt;
+);</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>FlatList</code> — הרשימה של RN</span>
+          <ul style="margin:0">
+            <li><code>data={movies}</code> — מערך הנתונים.</li>
+            <li><code>keyExtractor={(item) =&gt; item._id}</code> — מזהה ייחודי לכל שורה (כמו <code>key</code> ב-web; כאן ה-<code>_id</code> ממונגו).</li>
+            <li><code>renderItem={({ item }) =&gt; ...}</code> — איך לצייר כל פריט. שים לב לפירוק <code>{ item }</code>. כאן מעבירים ל-<code>MovieCard</code> גם את <code>movie</code> וגם את <code>onDelete</code>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3><span class="num">1.9</span> העיצוב — <code>StyleSheet</code></h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript</span><button class="copy-btn">העתק</button></div>
+        <pre><code>const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  input: { borderWidth: 1, padding: 8, marginBottom: 8 }
+});</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🎨</span>
+        <div class="body">
+          <span class="title">עיצוב ב-RN — <code>style</code>, לא <code>className</code></span>
+          אין <code>main.css</code> ואין <code>className</code>. מגדירים אובייקט עם <code>StyleSheet.create</code> ומחילים עם <code>style={styles.x}</code>. השמות ב-<strong>camelCase</strong> (<code>marginBottom</code>, לא <code>margin-bottom</code>) והערכים מספרים בלי <code>px</code>.
+        </div>
+      </div>
+
+      <h3><span class="num">1.10</span> <code>Home.js</code> המלא (כולל מחיקה)</h3>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · Home.js — מלא</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React, { useState, useEffect } from 'react';
+import { View, TextInput, Button, FlatList, StyleSheet } from 'react-native';
+import MovieCard from './MovieCard';
+
+const BASE_URL = 'http://10.0.2.2:3000';
+
+export default function Home() {
+  const [movies, setMovies] = useState([]);
+  const [title, setTitle] = useState('');
+  const [genre, setGenre] = useState('');
+  const [year, setYear]   = useState('');
+
+  async function loadMovies() {
+    const res = await fetch(`${BASE_URL}/api/movies`);
+    const data = await res.json();
+    setMovies(data);
+  }
+
+  useEffect(() =&gt; { loadMovies(); }, []);
+
+  async function handleAdd() {
+    await fetch(`${BASE_URL}/api/movies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, genre, year: Number(year) })
+    });
+    setTitle(''); setGenre(''); setYear('');
+    loadMovies();
+  }
+
+  async function handleDelete(id) {
+    await fetch(`${BASE_URL}/api/movies/${id}`, { method: 'DELETE' });
+    loadMovies();
+  }
+
+  return (
+    &lt;View style={styles.container}&gt;
+      &lt;TextInput style={styles.input} placeholder="Title" value={title} onChangeText={setTitle} /&gt;
+      &lt;TextInput style={styles.input} placeholder="Genre" value={genre} onChangeText={setGenre} /&gt;
+      &lt;TextInput style={styles.input} placeholder="Year"  value={year}  onChangeText={setYear} keyboardType="numeric" /&gt;
+      &lt;Button title="Add Movie" onPress={handleAdd} /&gt;
+
+      &lt;FlatList
+        data={movies}
+        keyExtractor={(item) =&gt; item._id}
+        renderItem={({ item }) =&gt; &lt;MovieCard movie={item} onDelete={handleDelete} /&gt;}
+      /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  input: { borderWidth: 1, padding: 8, marginBottom: 8 }
+});</code></pre>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 2 ════════════════════════ -->
+    <section id="s2">
+      <h2><span class="step-tag">2️⃣</span> <code>MovieCard.js</code> — סרט בודד + מחיקה</h2>
+      <p>קומפוננטה קטנה שמקבלת ב-props את <code>movie</code> (מה להציג) ואת <code>onDelete</code> (הפונקציה ללחיצה). כל כרטיס <strong>מוחק את עצמו</strong> — אבל רק קורא לפונקציה שקיבל מ-<code>Home</code>:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · MovieCard.js — מלא</span><button class="copy-btn">העתק</button></div>
+        <pre><code>import React from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';   // + Button
+
+export default function MovieCard({ movie, onDelete }) {          // + onDelete
+  return (
+    &lt;View style={styles.card}&gt;
+      &lt;Text style={styles.title}&gt;{movie.title}&lt;/Text&gt;
+      &lt;Text&gt;{movie.genre} · {movie.year}&lt;/Text&gt;
+      &lt;Button title="Delete" onPress={() =&gt; onDelete(movie._id)} /&gt;
+    &lt;/View&gt;
+  );
+}
+
+const styles = StyleSheet.create({
+  card: { padding: 12, borderWidth: 1, marginBottom: 8 },
+  title: { fontWeight: 'bold', fontSize: 18 }
+});</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">⭐</span>
+        <div class="body">
+          <span class="title">שתי נקודות קריטיות בכרטיס</span>
+          <ul style="margin:0">
+            <li>כל טקסט <strong>חייב</strong> להיות בתוך <code>&lt;Text&gt;</code> — אין "טקסט עירום" ב-RN (מפיל הרבה).</li>
+            <li><code>onPress={() =&gt; onDelete(movie._id)}</code> — עוטפים בחץ כדי <strong>להעביר את ה-<code>id</code></strong>. אם נכתוב <code>onPress={onDelete(movie._id)}</code> (בלי החץ) — זה <em>יקרא</em> לפונקציה מיד בציור, לא בלחיצה!</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title"><code>{ movie, onDelete }</code> — destructuring של props</span>
+          הקומפוננטה מקבלת אובייקט <code>props</code>, ואנחנו שולפים ממנו ישר את השדות. <code>movie</code> = הנתונים להצגה; <code>onDelete</code> = פונקציה שהאב (<code>Home</code>) נתן. הכרטיס לא יודע (ולא צריך לדעת) <em>איך</em> המחיקה עובדת — הוא רק לוחץ.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 3 ════════════════════════ -->
+    <section id="principle">
+      <h2><span class="step-tag">3️⃣</span> העיקרון — מי מחזיק state, מי מבצע, מי לוחץ</h2>
+      <p>זה התבנית החשובה ביותר ב-React/RN, ומה שחמי בודק: <strong>ה-state חי במקום אחד (האב), והבן רק מקבל נתונים ופונקציות ב-props.</strong></p>
+      <table>
+        <thead><tr><th></th><th><code>Home</code> (האב)</th><th><code>MovieCard</code> (הבן)</th></tr></thead>
+        <tbody>
+          <tr><td>מחזיק את ה-state (<code>movies</code>)</td><td>✅ כן</td><td>❌ לא</td></tr>
+          <tr><td>מבצע את ה-<code>fetch</code></td><td>✅ <code>handleDelete</code>, <code>handleAdd</code></td><td>❌ לא</td></tr>
+          <tr><td>מרענן את הרשימה (<code>loadMovies</code>)</td><td>✅ כן</td><td>❌ לא</td></tr>
+          <tr><td>מקבל נתונים/פונקציה ב-props</td><td>—</td><td>✅ <code>movie</code> + <code>onDelete</code></td></tr>
+          <tr><td>לוחץ (מפעיל את הפונקציה)</td><td>—</td><td>✅ <code>onPress={() =&gt; onDelete(movie._id)}</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">🔁</span>
+        <div class="body">
+          <span class="title">למה לא לעשות את ה-fetch בתוך הכרטיס?</span>
+          כי אחרי המחיקה צריך <strong>לרענן את הרשימה</strong> — וה-state של הרשימה (<code>setMovies</code>) חי ב-<code>Home</code>, לא בכרטיס. אם הכרטיס היה מוחק לבד, הוא לא היה יכול לעדכן את הרשימה של האב. לכן: <strong>הבן מודיע לאב ("מחק את ה-id הזה"), והאב מבצע ומרענן</strong>. בדיוק אותו עיקרון כמו הוספה.
+        </div>
+      </div>
+      <div class="flow">
+        <div class="step"><b>Card</b>המשתמש לחץ "Delete"</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>קורא ל-prop</b><code>onDelete(movie._id)</code></div>
+        <div class="arrow">←</div>
+        <div class="step"><b>Home מבצע</b><code>handleDelete(id)</code> → fetch DELETE</div>
+        <div class="arrow">←</div>
+        <div class="step"><b>רענון</b><code>loadMovies()</code> → הרשימה מתעדכנת</div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 4 ════════════════════════ -->
+    <section id="flow">
+      <h2><span class="step-tag">4️⃣</span> הזרימה המלאה של האפליקציה</h2>
+      <ol>
+        <li>האפליקציה עולה: <code>index.js</code> → <code>App</code> → <code>Home</code>.</li>
+        <li><code>Home</code> מצייר את הטופס והרשימה (ריקה), ואז <code>useEffect</code> מריץ <code>loadMovies</code> פעם אחת.</li>
+        <li><code>loadMovies</code> עושה <code>GET /api/movies</code> → <code>setMovies(data)</code> → הרשימה מצוירת מחדש, כל סרט כ-<code>MovieCard</code>.</li>
+        <li>המשתמש ממלא טופס ולוחץ <strong>Add Movie</strong> → <code>handleAdd</code> עושה <code>POST</code> → מרוקן טופס → <code>loadMovies</code> מרענן.</li>
+        <li>המשתמש לוחץ <strong>Delete</strong> בכרטיס → הכרטיס קורא ל-<code>onDelete(id)</code> → <code>Home</code> עושה <code>DELETE</code> → <code>loadMovies</code> מרענן.</li>
+      </ol>
+      <div class="callout info">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">צד השרת (Backend)</span>
+          זה אותו שרת Express + MongoDB מהתרגילים: <code>GET /api/movies</code> (כל הסרטים), <code>POST /api/movies</code> (יצירה), <code>DELETE /api/movies/:id</code> (מחיקה). ה-RN הוא רק ה-<strong>Frontend</strong> שמדבר איתו ב-<code>fetch</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════ 5 ════════════════════════ -->
+    <section id="traps">
+      <h2><span class="step-tag">5️⃣</span> מלכודות המבחן + צ'יט-שיט RN מול web</h2>
+      <div class="callout danger">
+        <span class="ic">🪤</span>
+        <div class="body">
+          <span class="title">3 המלכודות שהכי מפילות</span>
+          <ul style="margin:0">
+            <li><strong>טקסט עירום</strong> — כל טקסט חייב בתוך <code>&lt;Text&gt;</code>.</li>
+            <li><strong>אירועים</strong> — <code>onPress</code>/<code>onChangeText</code>, לא <code>onClick</code>/<code>onChange</code>.</li>
+            <li><strong>עיצוב</strong> — <code>style={styles.x}</code>, לא <code>className</code>.</li>
+          </ul>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>נושא</th><th>React (web)</th><th>React Native</th></tr></thead>
+        <tbody>
+          <tr><td>מיכל/קופסה</td><td><code>&lt;div&gt;</code></td><td><code>&lt;View&gt;</code></td></tr>
+          <tr><td>טקסט</td><td><code>&lt;p&gt;&lt;span&gt;&lt;h1&gt;</code></td><td><code>&lt;Text&gt;</code> (חובה לעטוף!)</td></tr>
+          <tr><td>שדה קלט</td><td><code>&lt;input&gt;</code></td><td><code>&lt;TextInput&gt;</code></td></tr>
+          <tr><td>כפתור</td><td><code>&lt;button&gt;</code></td><td><code>&lt;Button title="..." /&gt;</code></td></tr>
+          <tr><td>רשימה</td><td><code>map</code> + <code>&lt;ul&gt;</code></td><td><code>&lt;FlatList&gt;</code> + <code>renderItem</code></td></tr>
+          <tr><td>מפתח ברשימה</td><td><code>key={...}</code></td><td><code>keyExtractor={...}</code></td></tr>
+          <tr><td>לחיצה</td><td><code>onClick</code></td><td><code>onPress</code></td></tr>
+          <tr><td>הקלדה</td><td><code>onChange={(e)=&gt;set(e.target.value)}</code></td><td><code>onChangeText={set}</code> (ערך ישר!)</td></tr>
+          <tr><td>עיצוב</td><td><code>className</code> + CSS</td><td><code>style={styles.x}</code> + <code>StyleSheet.create</code></td></tr>
+          <tr><td>ייבוא/ייצוא</td><td><code>window.X</code> / <code>&lt;script&gt;</code></td><td><code>export default</code> / <code>import</code></td></tr>
+          <tr><td>כתובת שרת</td><td>נתיב יחסי <code>/api/...</code></td><td>כתובת מלאה <code>http://10.0.2.2:3000/api/...</code></td></tr>
+        </tbody>
+      </table>
+      <div class="callout tip">
+        <span class="ic">✅</span>
+        <div class="body">
+          <span class="title">מה זהה לחלוטין (לא משתנה מ-web)</span>
+          <code>useState</code>, <code>useEffect</code>, <code>fetch</code>, props + <code>{ }</code>, מבנה קומפוננטה (פונקציה → <code>return</code> JSX), והעיקרון של אב-מחזיק-state / בן-מקבל-props. רק התגים והאירועים מתחלפים.
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">המשפט אחד לזכור</span>
+          <strong>App</strong> מחזיר את <strong>Home</strong>; <strong>Home</strong> מחזיק את ה-state ועושה את כל ה-<code>fetch</code> (load/add/delete); <strong>MovieCard</strong> רק מציג סרט ומקבל <code>onDelete</code> ב-prop. כל פעולה מסתיימת ב-<code>loadMovies()</code> כדי לרענן.
+        </div>
+      </div>
+    </section>
+
+    <nav class="lesson-nav">
+      <a class="prev" href="auth-exercise.html">
+        <span class="dir">→ הקודם</span>
+        <span class="ttl">🔐 הזדהות JWT</span>
+      </a>
+      <a class="next" href="exam-prep.html">
+        <span class="dir">הבא ←</span>
+        <span class="ttl">🎯 מדריך מבחן</span>
+      </a>
+    </nav>
+  </main>
+
+  <script>
+    document.querySelectorAll('.code-block').forEach(block => {
+      const btn = block.querySelector('.copy-btn');
+      const code = block.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.innerText);
+          const original = btn.textContent;
+          btn.textContent = '✓ הועתק';
+          btn.classList.add('done');
+          setTimeout(() => { btn.textContent = original; btn.classList.remove('done'); }, 1500);
+        } catch (e) { btn.textContent = 'שגיאה'; }
+      });
+    });
+  </script>
+</body>
+</html>

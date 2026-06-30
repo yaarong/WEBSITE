@@ -3,503 +3,697 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>הרצאה 12 · Android — ארכיטקטורה (ViewModel, LiveData, Retrofit)</title>
+  <title>הרצאה 12 · Docker, CI/CD ו-Branching</title>
   <link rel="stylesheet" href="../assets/style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+  <style>
+    .pipeline { display:flex; flex-wrap:wrap; align-items:stretch; gap:.5rem; margin:1.4rem 0; justify-content:center; }
+    .pipeline .st { flex:1 1 130px; min-width:120px; padding:.8rem .9rem; border-radius:var(--radius-sm);
+      background:var(--surface); border:1px solid var(--border); text-align:center; font-size:.85rem; }
+    .pipeline .st b { color:#fff; display:block; margin-bottom:.2rem; }
+    .pipeline .st small { color:var(--lecture-2); font-family:'Fira Code',monospace; }
+    .pipeline .arrow { display:flex; align-items:center; color:var(--text-faint); font-size:1.3rem; }
+    @media (max-width:560px){ .pipeline .arrow{ transform:rotate(90deg); } }
+    /* בלוק פלט/טרמינל */
+    .term { margin:1rem 0; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--code-border); background:var(--code-bg); }
+    .term .term-head { padding:.4rem 1rem; font-size:.74rem; font-weight:700; direction:ltr;
+      background:rgba(255,255,255,0.03); color:var(--text-faint); border-bottom:1px solid var(--code-border);
+      font-family:'Fira Code', monospace; text-align:left; }
+    .term pre { margin:0; padding:.8rem 1.2rem; direction:ltr; text-align:left;
+      font-family:'Fira Code', monospace; font-size:.82rem; line-height:1.6; color:#c7d2e6; white-space:pre; overflow-x:auto; }
+    .term .c { color:#7df0d6; } .term .o { color:#8a93a8; } .term .g { color:#36d399; } .term .r { color:#ff8f8f; }
+  </style>
 </head>
 <body>
   <nav class="topbar">
     <a class="back" href="../index.html">→ חזרה לעמוד הבית</a>
-    <span class="crumb">🎓 הרצאה 12 · Android — ארכיטקטורה</span>
+    <span class="crumb">🎓 הרצאה 12 · Docker, CI/CD ו-Branching</span>
   </nav>
 
   <main class="lesson">
     <header class="lesson-header">
       <div class="kicker">הרצאה 12</div>
-      <h1>ארכיטקטורת Android — ViewModel, LiveData, Repository ו-Retrofit</h1>
-      <p>בהרצאה 11 בנינו את אבני הבניין של Android, אבל ערבבנו הכל ב-Activity: גם UI, גם נתונים, גם רשת. ההרצאה הזו עוסקת ב<strong>ארכיטקטורה נכונה</strong> — איך לסדר את החלקים כך שהאפליקציה תהיה ניתנת לתחזוקה ועמידה לשינויי מצב. נכיר את <strong>Architecture Components</strong> של Google: <strong>ViewModel</strong> (מחזיק נתונים ל-UI), <strong>LiveData</strong> (נתונים נצפים), <strong>Repository</strong> ("מקור אמת יחיד"), ולבסוף <strong>Retrofit</strong> לצריכת API — וכך נחבר את האפליקציה לשרת מהרצאה 9.</p>
+      <h1>Docker, CI/CD ו-Branching</h1>
+      <p>נושאים שמשלימים את הקורס. <strong>חלק א' — Docker:</strong> איך אורזים אפליקציה ל"קופסה" שרצה זהה בכל מקום — Dockerfile, layers, multi-stage builds ו-docker-compose. ואז מודל חזותי של ה-<strong>Event Loop</strong>, אז <strong>CI/CD</strong> — אוטומציה של בנייה, בדיקות ופריסה ב-GitHub Actions, ולבסוף <strong>Branching strategies</strong> (Git Flow והסביבות).</p>
     </header>
 
     <div class="callout info">
       <span class="ic">🗺️</span>
       <div class="body">
-        <span class="title">קונטקסט כללי — למה צריך ארכיטקטורה</span>
-        ב-Android, ה-Activity <em>נהרס ונבנה מחדש</em> בכל שינוי מצב (סיבוב מסך!). אם הנתונים יושבים ב-Activity — הם אובדים. בנוסף, Activity שמכיל גם UI, גם גישה לנתונים וגם רשת מפר את ה-SRP (הרצאה 2) והופך לבלתי-ניתן לתחזוקה. ה-Architecture Components פותרים את שתי הבעיות: מפרידים אחריות, ומחזיקים נתונים במקום ששורד שינויי-מצב.
+        <span class="title">קונטקסט כללי</span>
+        עד עכשיו כתבנו קוד והרצנו אותו — בלי לשאול מה קורה כשעובדים בצוות ופורסים לפרודקשן. הרצאה זו עוסקת בכלים של עולם ה-DevOps: <strong>Docker</strong> (אריזת סביבת ההרצה כך ש"אצלי זה עובד" יהפוך ל"זה עובד בכל מקום"), <strong>CI/CD</strong> (אוטומציה של בנייה ובדיקות) ו-<strong>Branching</strong> (איך צוות מנהל את זרימת הקוד).
       </div>
     </div>
 
     <div class="toc">
       <div class="toc-title">📑 תוכן העניינים</div>
       <ol>
-        <li><strong>חלק א' — רקע</strong>
-          <ol style="margin-top:.4rem">
-            <li><a class="link" href="#room-recap">Room — תזכורת (ORM מקומי)</a></li>
+        <li><strong>חלק א' — Docker</strong>
+          <ol style="margin-top:.3rem">
+            <li><a class="link" href="#docker-what">הרעיון + Dockerfile</a></li>
+            <li><a class="link" href="#docker-run">build, run ומיפוי פורטים</a></li>
+            <li><a class="link" href="#layers">Layers וה-cache</a></li>
+            <li><a class="link" href="#multistage">.dockerignore ו-Multi-stage</a></li>
+            <li><a class="link" href="#compose">docker-compose (כמה שירותים)</a></li>
+            <li><a class="link" href="#mongo-compose">Mongo, networking, volumes</a></li>
           </ol>
         </li>
-        <li style="margin-top:.5rem"><strong>חלק ב' — Architecture Components</strong>
-          <ol style="margin-top:.4rem">
-            <li><a class="link" href="#viewmodel">ViewModel — מחזיק הנתונים ל-UI</a></li>
-            <li><a class="link" href="#livedata">LiveData — נתונים נצפים</a></li>
-            <li><a class="link" href="#architecture">התמונה המלאה — Repository</a></li>
+        <li style="margin-top:.4rem"><a class="link" href="#eventloop">חלק ב' — מודל ה-Event Loop</a></li>
+        <li style="margin-top:.4rem"><strong>חלק ג' — CI/CD</strong>
+          <ol style="margin-top:.3rem">
+            <li><a class="link" href="#cicd-what">שלושת המושגים</a></li>
+            <li><a class="link" href="#cicd-actions">GitHub Actions — Workflows</a></li>
+            <li><a class="link" href="#cicd-catch">ה-CI תופס באגים</a></li>
+            <li><a class="link" href="#cicd-cd">ה-CD — push image ל-Docker Hub</a></li>
           </ol>
         </li>
-        <li style="margin-top:.5rem"><strong>חלק ג' — אפליקציית הדגמה</strong>
-          <ol style="margin-top:.4rem">
-            <li><a class="link" href="#demo-ui">ה-UI — RecyclerView + ViewModel</a></li>
-            <li><a class="link" href="#demo-repo">Repository ו-LiveData</a></li>
-            <li><a class="link" href="#retrofit">Retrofit — צריכת API</a></li>
+        <li style="margin-top:.4rem"><strong>חלק ד' — Branching Strategies</strong>
+          <ol style="margin-top:.3rem">
+            <li><a class="link" href="#branching-overview">אסטרטגיות נפוצות</a></li>
+            <li><a class="link" href="#gitflow">Git Flow — 5 הענפים והתהליך</a></li>
+            <li><a class="link" href="#environments">סביבות (Environments)</a></li>
           </ol>
         </li>
       </ol>
     </div>
 
-    <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · רקע</h2>
-
-    <!-- 1 -->
-    <section id="room-recap">
-      <h3><span class="num">1.</span> Room — תזכורת קצרה</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          ראינו את Room בהרצאה 11 — נחזור עליו בקצרה כי הוא הבסיס לאחסון המקומי בארכיטקטורה. <strong>Room</strong> = ספריית מיפוי אובייקטים-SQL מעל SQLite (כלומר ORM, כמו בהרצאה 9). שלושה חלקים:
-        </div>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">שלושת החלקים</span>
-          <ul style="margin:0">
-            <li><code>@Entity</code> — מחלקה שמוגדרת כטבלה.</li>
-            <li><code>@Dao</code> — Data Access Object: ממשק עם פעולות שליפה/עדכון.</li>
-            <li><code>@Database</code> — מחלקה ייעודית שמנהלת את הגישה ל-DB.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · Entity + Dao + Database</span><button class="copy-btn">העתק</button></div>
-        <pre><code>@Entity
-public class Post {
-    @PrimaryKey(autoGenerate = true)
-    private int id;
-    private String content;
-    public Post(String content) { this.content = content; }
-    // getters / setters ...
-}
-
-@Dao
-public interface PostDao {
-    @Query("SELECT * FROM post")            List&lt;Post&gt; index();
-    @Query("SELECT * FROM post WHERE id = :id") Post get(int id);
-    @Insert void insert(Post... posts);
-    @Update void update(Post... posts);
-    @Delete void delete(Post... posts);
-}
-
-@Database(entities = {Post.class}, version = 1)
-public abstract class AppDB extends RoomDatabase {
-    public abstract PostDao postDao();
-}</code></pre>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ב' · Architecture Components</h2>
-
-    <!-- 2 -->
-    <section id="viewmodel">
-      <h3><span class="num">2.</span> ViewModel — מחזיק הנתונים ל-UI</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט — הבעיה</span>
-          ה-Activity/Fragment נהרס ונוצר מחדש בכל <em>configuration change</em> (סיבוב מסך, שינוי שפה). אם הנתונים יושבים בו — הם אובדים, וצריך לטעון אותם מחדש. <strong>ViewModel</strong> פותר זאת: הוא מחזיק את הנתונים של ה-UI, ו<strong>שורד</strong> את שינויי המצב (הוא לא נהרס עם ה-Activity).
-        </div>
-      </div>
-      <pre class="ascii-diagram"><code>   ┌────────────────────────┐   operation (אירוע UI)   ┌─────────────┐
-   │  Activity / Fragment   │ ─────────────────────────▶│  ViewModel  │
-   │  (מציג את הנתונים)     │ ◀───────────────────────── │ (מחזיק data)│
-   └────────────────────────┘   notification (data שונה) └─────────────┘</code></pre>
-      <div class="callout tip">
-        <span class="ic">💡</span>
-        <div class="body">
-          <span class="title">מאפיינים</span>
-          ה-ViewModel הוא ה-<em>"model עבור ה-UI"</em>: הוא <strong>שורד configuration changes</strong>, ו<strong>ניתן לשיתוף בין fragments</strong> של אותו Activity. (הרעיון מזכיר את ה-state בהרצאה 8 — מקום מרכזי לנתוני המסך — אבל כאן הוא חי <em>מחוץ</em> למחזור החיים של ה-UI.)
-        </div>
-      </div>
-    </section>
-
-    <!-- 3 -->
-    <section id="livedata">
-      <h3><span class="num">3.</span> LiveData — נתונים נצפים (observable)</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          <strong>LiveData</strong> נותן <strong>תצפיתיות (observability)</strong> לערך מאוחסן: כשהנתון משתנה — כל ה-<strong>observers</strong> מקבלים הודעה אוטומטית ומתעדכנים. <code>MutableLiveData</code> מאפשר גם <em>לשנות</em> את הערך. זו תבנית ה-<strong>Observer</strong> (קרובת משפחה של ה-Listener מהרצאה 8): נרשמים לערך, ומקבלים עדכון כשהוא משתנה.
-        </div>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · ViewModel עם LiveData</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class SampleViewModel extends ViewModel {
-    private MutableLiveData&lt;String&gt; foo;
-
-    public MutableLiveData&lt;String&gt; getFoo() {
-        if (foo == null) {
-            foo = new MutableLiveData&lt;String&gt;();
-        }
-        return foo;
-    }
-}</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · ה-Activity נרשם כ-observer</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class MainActivity extends AppCompatActivity {
-    private SampleViewModel viewModel;
-
-    @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        viewModel = ViewModelProviders.of(this).get(SampleViewModel.class);
-
-        // נרשמים לשינויים: כש-foo משתנה, onChanged ירוץ אוטומטית
-        viewModel.getFoo().observe(this, new Observer&lt;String&gt;() {
-            @Override
-            public void onChanged(@Nullable final String foo) {
-                getSupportActionBar().setTitle(foo);
-            }
-        });
-
-        FloatingActionButton btnAdd = findViewById(R.id.btnAdd);
-        btnAdd.setOnClickListener(view -&gt; {
-            String currentDateTime = DateFormat.getDateTimeInstance().format(new Date());
-            viewModel.getFoo().setValue(currentDateTime);   // משנים → ה-observer מתעדכן
-        });
-    }
-}</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">observe / setValue</span>
-          <ul style="margin:0">
-            <li><code>ViewModelProviders.of(this).get(...)</code> — מקבל את ה-ViewModel (אותו מופע שורד אם ה-Activity נבנה מחדש).</li>
-            <li><code>liveData.observe(owner, observer)</code> — רושם observer. <code>onChanged</code> ירוץ בכל שינוי, וגם הוא מודע ל-lifecycle (לא יעדכן UI שנהרס).</li>
-            <li><code>liveData.setValue(x)</code> — משנה את הערך → כל ה-observers מקבלים <code>onChanged</code>. <strong>זה בדיוק הרעיון "UI = פונקציה של state" מהרצאה 8</strong>: משנים נתון, וה-UI מתעדכן לבד.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4 -->
-    <section id="architecture">
-      <h3><span class="num">4.</span> התמונה המלאה — Repository כ"מקור אמת יחיד"</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          מחברים את הכל לארכיטקטורה מומלצת. ה-<strong>Repository</strong> הוא שכבה שמרכזת את <em>כל</em> מקורות הנתונים (מסד מקומי + שרת מרוחק) ומציגה אותם כ<strong>"מקור אמת יחיד" (single source of truth)</strong>. ה-UI לא יודע מאיפה הנתונים מגיעים — הוא רק צופה ב-LiveData.
-        </div>
-      </div>
-      <pre class="ascii-diagram"><code>  ┌─────────────────┐  operation   ┌───────────┐   ┌──────────────┐
-  │ Activity/Fragment│ ────────────▶│ ViewModel │──▶│  Repository  │
-  │  (RecyclerView)  │ ◀──────────  │           │   │ (מקור אמת   │
-  └─────────────────┘  Live&lt;List&gt;  └───────────┘   │   יחיד)      │
-                                                     └──────┬───────┘
-                                              ┌─────────────┴─────────────┐
-                                              ▼                           ▼
-                                       ┌────────────┐            ┌────────────────┐
-                                       │ Room(SQLite)│            │  Web-service   │
-                                       │ אחסון מקומי │            │  (API מרוחק)   │
-                                       └────────────┘            └────────────────┘</code></pre>
-      <div class="callout tip">
-        <span class="ic">🔗</span>
-        <div class="body">
-          <span class="title">השוו לארכיטקטורת השרת מהרצאה 9</span>
-          זה אותו רעיון בדיוק של שכבות! בהרצאה 9 בצד השרת: controller → service → model. כאן בצד הלקוח: UI → ViewModel → Repository → (Room / Web-service). בכל מקרה — כל שכבה אחראית לדבר אחד, וההפרדה מאפשרת להחליף חלקים בלי לשבור את השאר (SRP מהרצאה 2).
-        </div>
-      </div>
-    </section>
-
-    <!-- ════════════════════════════════════════════════════════ -->
-    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3rem">חלק ג' · אפליקציית הדגמה</h2>
+    <!-- ════════ חלק א' ════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px">חלק א' · Docker</h2>
 
     <div class="callout info">
-      <span class="ic">🧱</span>
+      <span class="ic">🐳</span>
       <div class="body">
-        <span class="title">מה נבנה</span>
-        אפליקציית פוסטים: <strong>RecyclerView</strong> שמציג רשימה, עם משיכה-לרענון (pull-to-refresh) וכפתור הוספה. הנתונים זורמים מ-<strong>Repository</strong> דרך <strong>LiveData</strong>, מגובים ב-<strong>Room</strong> מקומית ומסונכרנים עם <strong>API מרוחק</strong> דרך <strong>Retrofit</strong>.
+        <span class="title">קונטקסט — מה Docker פותר</span>
+        Docker אורז את האפליקציה <strong>יחד עם כל סביבת ההרצה</strong> (מערכת הפעלה, Node, ספריות) ל"קופסה" אחת — <strong>image</strong> — שרצה זהה בכל מחשב. זה מחסל את "אצלי זה עובד ואצלך לא". <strong>Image</strong> = התבנית הקפואה · <strong>Container</strong> = מופע פעיל של ה-image. נראה את הרעיונות המרכזיים על אפליקציית Express קטנה.
       </div>
     </div>
 
-    <!-- 5 -->
-    <section id="demo-ui">
-      <h3><span class="num">5.</span> ה-UI — RecyclerView + ViewModel</h3>
-      <p>ה-layout: <code>RecyclerView</code> בתוך <code>SwipeRefreshLayout</code> (משיכה-לרענון) + כפתור צף להוספה:</p>
+    <section id="docker-what">
+      <h3><span class="num">1.</span> ה-Dockerfile — המתכון</h3>
+      <p>נתחיל מאפליקציית Express מינימלית (<code>app.js</code> שמחזיר "Hello world" על פורט 3000). ה-<code>dockerfile</code> מתאר שלב-שלב איך לבנות את ה-image:</p>
       <div class="code-block">
-        <div class="code-head"><span class="lang">xml · activity_main.xml</span><button class="copy-btn">העתק</button></div>
-        <pre><code>&lt;androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-    android:id="@+id/refreshLayout"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"&gt;
-
-    &lt;androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/lstPosts"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" /&gt;
-&lt;/androidx.swiperefreshlayout.widget.SwipeRefreshLayout&gt;</code></pre>
-      </div>
-
-      <p>ה-<strong>ViewModel</strong> חושף את הרשימה כ-LiveData ומאציל הכל ל-Repository:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · PostsViewModel.java</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class PostsViewModel extends ViewModel {
-    private PostsRepository repository;
-    private LiveData&lt;List&lt;Post&gt;&gt; posts;
-
-    public PostsViewModel() {
-        repository = new PostsRepository();
-        posts = repository.getAll();
-    }
-
-    public LiveData&lt;List&lt;Post&gt;&gt; get() { return posts; }
-    public void add(Post post)    { repository.add(post); }
-    public void delete(Post post) { repository.delete(post); }
-    public void reload()          { repository.reload(); }
-}</code></pre>
-      </div>
-
-      <p>ה-<strong>Activity</strong> מחבר הכל: יוצר ViewModel, נרשם ל-LiveData, ומחבר את הרענון:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · MainActivity.java</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class MainActivity extends AppCompatActivity {
-    private PostsViewModel viewModel;
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        viewModel = new ViewModelProvider(this).get(PostsViewModel.class);
-
-        RecyclerView lstPosts = findViewById(R.id.lstPosts);
-        final PostsListAdapter adapter = new PostsListAdapter(this);
-        lstPosts.setAdapter(adapter);
-        lstPosts.setLayoutManager(new LinearLayoutManager(this));
-
-        SwipeRefreshLayout refreshLayout = findViewById(R.id.refreshLayout);
-        refreshLayout.setOnRefreshListener(() -&gt; viewModel.reload());
-
-        // ה-observer: כשהרשימה משתנה — מעדכנים את ה-adapter, אוטומטית
-        viewModel.get().observe(this, posts -&gt; {
-            adapter.setPosts(posts);
-            refreshLayout.setRefreshing(false);
-        });
-    }
-}</code></pre>
+        <div class="code-head"><span class="lang">dockerfile</span><button class="copy-btn">העתק</button></div>
+        <pre><code>FROM node:lts-alpine3.21    # תמונת בסיס — Node על Alpine (Linux קטן)
+WORKDIR /app               # תיקיית העבודה בתוך הקופסה
+COPY . .                   # העתק את כל הקוד מהמחשב לקופסה
+RUN npm install            # התקן תלויות (בזמן הבנייה)
+EXPOSE 3000                # הצהר שהאפליקציה מאזינה ל-3000
+CMD ["node", "app.js"]     # הפקודה שמריצה את האפליקציה</code></pre>
       </div>
       <div class="callout syntax">
         <span class="ic">🔤</span>
         <div class="body">
-          <span class="title">הזרימה</span>
-          ה-Activity <em>לא</em> מחזיק נתונים ולא יודע על רשת/מסד — הוא רק (1) יוצר ViewModel, (2) צופה ב-LiveData ומעדכן את ה-adapter ב-<code>onChanged</code>, (3) מבקש <code>reload()</code> במשיכה. כל הלוגיקה עברה החוצה. זו הפרדת אחריות במיטבה.
-        </div>
-      </div>
-    </section>
-
-    <!-- 6 -->
-    <section id="demo-repo">
-      <h3><span class="num">6.</span> Repository ו-LiveData</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
-        <div class="body">
-          <span class="title">קונטקסט</span>
-          ה-<strong>Repository</strong> מחזיק את ה-<code>PostDao</code> (Room) ואת ה-LiveData. שימו לב שהשליפה מה-DB רצה על <strong>thread נפרד</strong> (אסור לחסום את ה-UI thread — הרצאה 11!), ומעדכנת את ה-LiveData עם <code>postValue</code>.
-        </div>
-      </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · PostsRepository.java</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class PostsRepository {
-    private PostDao dao;
-    private PostListData postListData;
-
-    public PostsRepository() {
-        LocalDatabase db = LocalDatabase.getInstance();
-        dao = db.postDao();
-        postListData = new PostListData();
-    }
-
-    // LiveData מותאם שטוען מה-DB ברגע שמתחילים לצפות בו
-    class PostListData extends MutableLiveData&lt;List&lt;Post&gt;&gt; {
-        public PostListData() {
-            super();
-            setValue(new LinkedList&lt;Post&gt;());
-        }
-        @Override
-        protected void onActive() {           // כשמישהו מתחיל לצפות
-            super.onActive();
-            new Thread(() -&gt; {                 // thread נפרד — לא חוסם UI
-                postListData.postValue(dao.get());
-            }).start();
-        }
-    }
-
-    public LiveData&lt;List&lt;Post&gt;&gt; getAll() { return postListData; }
-}</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">setValue מול postValue, ו-onActive</span>
+          <span class="title">ההוראות העיקריות</span>
           <ul style="margin:0">
-            <li><code>setValue</code> — מעדכן את ה-LiveData <em>מה-UI thread</em>. <code>postValue</code> — מעדכן מ-<em>thread אחר</em> (בטוח לקרוא מ-background). ההבחנה קריטית.</li>
-            <li><code>onActive()</code> — נקרא כשמתחילים לצפות ב-LiveData; כאן זו ההזדמנות לטעון נתונים מה-DB ברקע.</li>
+            <li><code>FROM</code> — מאיזו תמונת בסיס מתחילים (<code>alpine</code> = הפצת Linux זעירה → image קטן).</li>
+            <li><code>WORKDIR</code> — קובע את הספרייה הפעילה בתוך הקופסה.</li>
+            <li><code>COPY</code> — מעתיק קבצים מהמחשב אל ה-image.</li>
+            <li><code>RUN</code> — מריץ פקודה <em>בזמן הבנייה</em> (התקנות, קומפילציה).</li>
+            <li><code>EXPOSE</code> — תיעוד של הפורט שהקונטיינר מאזין לו.</li>
+            <li><code>CMD</code> — הפקודה שתרוץ <em>כשהקונטיינר עולה</em>.</li>
           </ul>
         </div>
       </div>
     </section>
 
-    <!-- 7 -->
-    <section id="retrofit">
-      <h3><span class="num">7.</span> Retrofit — צריכת API מרוחק</h3>
-      <div class="callout info">
-        <span class="ic">🧭</span>
+    <section id="docker-run">
+      <h3><span class="num">2.</span> build, run ומיפוי פורטים</h3>
+      <div class="term">
+        <div class="term-head">terminal</div>
+<pre><span class="c">$ docker build -t best_app_image .</span>   <span class="o"># בונה image בשם best_app_image</span>
+<span class="o">[+] Building ... FINISHED</span>
+
+<span class="c">$ docker run -p 4000:3000 best_app_image</span>  <span class="o"># מריץ container</span></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔌</span>
         <div class="body">
-          <span class="title">קונטקסט — סוגרים את המעגל</span>
-          הגענו לחיבור עם השרת! <strong>Retrofit</strong> היא ספרייה לצריכת REST APIs ב-Android. מגדירים <strong>ממשק</strong> שמתאר את ה-endpoints עם annotations, ו-Retrofit מייצר את המימוש. זה ה-client שמדבר עם ה-API שבנינו בהרצאה 9 (Express + MongoDB).
+          <span class="title"><code>-p 4000:3000</code> — מיפוי פורטים (host:container)</span>
+          הקונטיינר מאזין בפנים ל-<code>3000</code>, אבל אנחנו "מחברים" אותו לפורט <code>4000</code> של המחשב. לכן בדפדפן ניגשים ל-<code>localhost:4000</code> ורואים "Hello world". <strong>השמאלי = פורט המחשב, הימני = פורט הקונטיינר.</strong>
         </div>
       </div>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · WebServiceAPI.java — ממשק ה-API</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public interface WebServiceAPI {
-    @GET("posts")
-    Call&lt;List&lt;Post&gt;&gt; getPosts();
+      <p>אפשר לראות ב-Docker Desktop את ה-image (עם גודלו, למשל ~232MB), ולצפות בקונטיינר הרץ — סטטיסטיקות (CPU, זיכרון, רשת), ואפילו את <strong>מערכת הקבצים בתוכו</strong> (תיקיות לינוקס סטנדרטיות <code>bin</code>, <code>etc</code>, <code>app</code>... — קופסה שלמה!).</p>
+    </section>
 
-    @POST("posts")
-    Call&lt;Void&gt; createPost(@Body Post post);
-
-    @DELETE("posts/{id}")
-    Call&lt;Void&gt; deletePost(@Path("id") int id);
-}</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
+    <section id="layers">
+      <h3><span class="num">3.</span> Layers — שכבות וה-cache</h3>
+      <div class="callout danger">
+        <span class="ic">🥞</span>
         <div class="body">
-          <span class="title">Annotations של Retrofit = REST</span>
-          <code>@GET("posts")</code>, <code>@POST("posts")</code>, <code>@DELETE("posts/{id}")</code> — כל מתודה ממופה ל-endpoint ולמתודת HTTP. <code>@Body</code> שולח אובייקט כגוף הבקשה (יומר ל-JSON), <code>@Path</code> מזריק ערך ל-URL. <strong>זה בדיוק ה-REST API מהרצאה 9</strong> — רק מהצד שצורך אותו (client) במקום מהצד ששירת (server).
-        </div>
-      </div>
-
-      <p>בונים מופע Retrofit ומבצעים קריאה <strong>אסינכרונית</strong> עם <code>enqueue</code>:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · PostAPI.java</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class PostAPI {
-    private MutableLiveData&lt;List&lt;Post&gt;&gt; postListData;
-    private PostDao dao;
-    Retrofit retrofit;
-    WebServiceAPI webServiceAPI;
-
-    public PostAPI(MutableLiveData&lt;List&lt;Post&gt;&gt; postListData, PostDao dao) {
-        this.postListData = postListData;
-        this.dao = dao;
-
-        retrofit = new Retrofit.Builder()
-            .baseUrl(MyApplication.context.getString(R.string.BaseUrl))
-            .addConverterFactory(GsonConverterFactory.create())
-            .build();
-        webServiceAPI = retrofit.create(WebServiceAPI.class);
-    }
-
-    public void get() {
-        Call&lt;List&lt;Post&gt;&gt; call = webServiceAPI.getPosts();
-        call.enqueue(new Callback&lt;List&lt;Post&gt;&gt;() {
-            @Override
-            public void onResponse(Call&lt;List&lt;Post&gt;&gt; call, Response&lt;List&lt;Post&gt;&gt; response) {
-                new Thread(() -&gt; {
-                    dao.clear();
-                    dao.insertList(response.body());        // שמירה מקומית
-                    postListData.postValue(dao.get());      // עדכון ה-LiveData
-                }).start();
-            }
-            @Override
-            public void onFailure(Call&lt;List&lt;Post&gt;&gt; call, Throwable t) { }
-        });
-    }
-}</code></pre>
-      </div>
-      <div class="callout syntax">
-        <span class="ic">🔤</span>
-        <div class="body">
-          <span class="title">enqueue, GsonConverter, ו-onResponse</span>
+          <span class="title">הרעיון המרכזי</span>
           <ul style="margin:0">
-            <li><code>GsonConverterFactory</code> — ממיר אוטומטית JSON ↔ אובייקטי Java (כמו ש-Mongoose עשה ל-documents בהרצאה 9).</li>
-            <li><code>call.enqueue(callback)</code> — מבצע את הבקשה <strong>אסינכרונית</strong> (לא חוסם UI). כשמגיעה תשובה — <code>onResponse</code> (הצלחה) או <code>onFailure</code> (כשל). שוב Listener/Callback pattern.</li>
-            <li>בהצלחה: שומרים מקומית ל-Room, ואז מעדכנים את ה-LiveData עם <code>postValue</code> → ה-UI מתעדכן אוטומטית. <strong>זה ה-"single source of truth"</strong>: גם offline (מ-Room) וגם online (מהשרת) — דרך אותו LiveData.</li>
+            <li><strong>כל פקודה ב-Dockerfile = שכבה (layer).</strong></li>
+            <li><strong>אם שכבה משתנה — כל השכבות שאחריה חייבות להיבנות מחדש.</strong></li>
           </ul>
         </div>
       </div>
-
-      <p>ולבסוף — ה-Repository מאחד מסד מקומי + API מאחורי ממשק אחד:</p>
-      <div class="code-block">
-        <div class="code-head"><span class="lang">java · PostsRepository — מאחד הכל</span><button class="copy-btn">העתק</button></div>
-        <pre><code>public class PostsRepository {
-    private PostDao dao;
-    private PostListData postListData;
-    private PostAPI api;
-
-    public PostsRepository() {
-        LocalDatabase db = LocalDatabase.getInstance();
-        dao = db.postDao();
-        postListData = new PostListData();
-        api = new PostAPI(postListData, dao);
-    }
-
-    public LiveData&lt;List&lt;Post&gt;&gt; getAll() { return postListData; }
-    public void add(final Post post)    { api.add(post); }
-    public void delete(final Post post) { api.delete(post); }
-    public void reload()                { api.get(); }
-}</code></pre>
+      <p>בבנייה חוזרת, Docker מציג <code>CACHED</code> על שכבות שלא השתנו ומדלג עליהן — מה שמאיץ מאוד. אבל זה אומר שסדר הפקודות <strong>קריטי לביצועים</strong>.</p>
+      <div class="callout warn">
+        <span class="ic">⚡</span>
+        <div class="body">
+          <span class="title">מלכודת ה-cache — ואיך לתקן</span>
+          ב-Dockerfile הראשון כתבנו <code>COPY . .</code> ואז <code>RUN npm install</code>. בעיה: <strong>כל</strong> שינוי בקוד מבטל את ה-cache של <code>COPY</code>, וגורם ל-<code>npm install</code> לרוץ <em>מחדש</em> (איטי!) גם אם התלויות לא השתנו. הפתרון: להעתיק <strong>קודם רק את <code>package.json</code></strong>, להתקין, ורק אז להעתיק את הקוד:
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">dockerfile · ממוטב ל-cache</span><button class="copy-btn">העתק</button></div>
+            <pre><code>FROM node:lts-alpine3.21
+WORKDIR /app
+COPY package*.json ./    # 1. רק קבצי התלויות
+RUN npm install          # 2. שכבה זו תשתמש ב-cache כל עוד package.json לא השתנה
+COPY ./src ./src         # 3. הקוד — שינוי כאן לא מבטל את ה-npm install
+CMD ["node", "./src/app.js"]</code></pre>
+          </div>
+          עכשיו שינוי בקוד מבטל רק את שכבת ה-<code>COPY ./src</code> — וה-<code>npm install</code> היקר נשאר CACHED.
+        </div>
       </div>
     </section>
 
-    <!-- Summary -->
-    <section id="summary">
-      <h3><span class="num">★</span> סיכום ההרצאה</h3>
+    <section id="multistage">
+      <h3><span class="num">4.</span> .dockerignore ו-Multi-stage builds</h3>
+      <div class="callout syntax">
+        <span class="ic">🚫</span>
+        <div class="body">
+          <span class="title"><code>.dockerignore</code></span>
+          כמו <code>.gitignore</code> — אומר ל-Docker מה <strong>לא</strong> להעתיק ל-image (ל-build context). בעיקר <code>node_modules</code> (נבנה מחדש בתוך הקופסה ב-<code>npm install</code>), <code>build</code>, <code>.git</code> וכו'. מקטין את ה-context ומזרז.
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">.dockerignore</span><button class="copy-btn">העתק</button></div>
+            <pre><code>node_modules
+build
+.dockerignore
+.gitignore
+Dockerfile
+README.md</code></pre>
+          </div>
+        </div>
+      </div>
+      <p><strong>Multi-stage build</strong> — לאפליקציית React, ה-image עם כל ה-<code>node_modules</code> ענק (~756MB). הטריק: <strong>שלב בנייה</strong> שמייצר את קבצי ה-static, ואז <strong>שלב סופי קטן</strong> (nginx) שמגיש רק אותם — וזורק את כל כלי הבנייה:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">dockerfile · multi-stage (frontend)</span><button class="copy-btn">העתק</button></div>
+        <pre><code>FROM node:lts-alpine3.21 AS build    # ← שלב 1: "build"
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build                    # מייצר /app/build (static)
+
+FROM nginx:alpine                    # ← שלב 2: image סופי קטן
+COPY --from=build /app/build /usr/share/nginx/html   # מעתיק רק את התוצר
+EXPOSE 80</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">📉</span>
+        <div class="body">
+          <span class="title">התוצאה</span>
+          <code>COPY --from=build</code> מעתיק <strong>רק את התוצר הסופי</strong> מהשלב הראשון אל nginx. כל הכלים, ה-<code>node_modules</code> וקבצי הביניים נשארים מאחור. ה-image יורד מ-~756MB ל-<strong>~81MB</strong>.
+        </div>
+      </div>
+    </section>
+
+    <section id="compose">
+      <h3><span class="num">5.</span> docker-compose — כמה שירותים יחד</h3>
+      <p>אפליקציה אמיתית = כמה קונטיינרים (backend, frontend, DB). במקום להריץ כל אחד ידנית, <code>docker-compose.yml</code> מתאר את כולם, ו-<code>docker-compose up --build</code> בונה ומריץ הכל בפקודה אחת:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">yaml · docker-compose.yml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>services:
+  backend:
+    build: ./backend         # בנה מה-Dockerfile שבתיקייה
+    ports:
+      - "4000:3000"
+  frontend:
+    build: ./frontend
+    ports:
+      - "5000:80"
+    depends_on:
+      - backend              # frontend עולה אחרי backend</code></pre>
+      </div>
+      <div class="callout warn">
+        <span class="ic">🌐</span>
+        <div class="body">
+          <span class="title">מלכודת ה-CORS</span>
+          ה-frontend (ב-<code>localhost:5000</code>) עושה <code>fetch</code> ל-backend (<code>localhost:4000</code>) — <strong>origin שונה</strong> → הדפדפן חוסם עם <code>CORS error</code>. הפתרון בצד השרת: להתקין ולהפעיל את חבילת <code>cors</code>.
+          <div class="code-block" style="margin-top:.5rem">
+            <div class="code-head"><span class="lang">javascript · backend</span><button class="copy-btn">העתק</button></div>
+            <pre><code>const cors = require('cors');
+const app = express();
+app.use(cors());        // ← מתיר בקשות cross-origin</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="mongo-compose">
+      <h3><span class="num">6.</span> Mongo ב-compose — networking, volumes, env</h3>
+      <p>מוסיפים שירות <code>db</code> עם image מוכן של <code>mongo</code>. שלוש נקודות חשובות:</p>
+
+      <h4 style="color:#b9a7ff;margin-top:1.4rem">א. רשת — מתחברים לפי <em>שם השירות</em>, לא localhost</h4>
+      <div class="callout danger">
+        <span class="ic">🔌</span>
+        <div class="body">
+          <span class="title">ECONNREFUSED על <code>localhost:27017</code></span>
+          ה-backend ניסה <code>mongoose.connect('mongodb://localhost:27017/news')</code> ונכשל — כי בתוך הקונטיינר, <code>localhost</code> זה <em>הקונטיינר עצמו</em>, לא ה-DB. ב-compose, כל שירות נגיש לאחרים <strong>לפי שמו</strong>. התיקון: <code>mongodb://<strong>db</strong>:27017/news</code>.
+        </div>
+      </div>
+
+      <h4 style="color:#b9a7ff;margin-top:1.4rem">ב. Volumes — שמירת מידע (persistence)</h4>
+      <div class="callout warn">
+        <span class="ic">💾</span>
+        <div class="body">
+          <span class="title">בלי volume — המידע נמחק עם הקונטיינר</span>
+          קונטיינר הוא חולף; כשמוחקים אותו, כל מה שבתוכו נעלם. כדי שה-DB <strong>ישרוד</strong>, ממפים <strong>named volume</strong> לתיקיית הנתונים של Mongo (<code>/data/db</code>). ה-volume חי בנפרד מהקונטיינר ונשאר גם אחרי מחיקתו.
+        </div>
+      </div>
+
+      <h4 style="color:#b9a7ff;margin-top:1.4rem">ג. Init script + env_file</h4>
+      <p>אפשר לזרוע נתונים התחלתיים: סקריפט <code>init-mongo.js</code> שממופה ל-<code>/docker-entrypoint-initdb.d/</code> ירוץ <strong>פעם אחת</strong> כשה-DB נוצר. ו-<code>env_file: .env</code> מזריק משתני סביבה (כמו <code>MONGO_URI</code>) — כך אין סודות בקוד.</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">yaml · docker-compose.yml מלא</span><button class="copy-btn">העתק</button></div>
+        <pre><code>services:
+  backend:
+    build: ./backend
+    ports: ["4000:3000"]
+    env_file:
+      - .env                 # מזריק MONGO_URI וכו'
+    depends_on:
+      - db
+  frontend:
+    build: ./frontend
+    ports: ["5000:80"]
+    depends_on:
+      - backend
+  db:
+    image: mongo:latest
+    restart: always
+    volumes:
+      - ./init/db/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js  # seed
+      - mongo_data:/data/db  # ← persistence
+
+volumes:
+  mongo_data:                # named volume</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">javascript · init/db/init-mongo.js</span><button class="copy-btn">העתק</button></div>
+        <pre><code>db = db.getSiblingDB('news');
+db.articles.insertMany([
+    { title: "foo" },
+    { title: "bar" },
+    { title: "caz" }
+]);</code></pre>
+      </div>
       <div class="callout tip">
         <span class="ic">🎯</span>
         <div class="body">
-          <span class="title">התמונה המלאה</span>
-          <ul style="margin:0">
-            <li><strong>הבעיה:</strong> Activity נהרס בשינויי-מצב (אובדן נתונים) + ערבוב אחריות (UI+data+רשת ביחד).</li>
-            <li><strong>ViewModel</strong> — מחזיק את נתוני ה-UI ו<em>שורד</em> configuration changes; ניתן לשיתוף בין fragments.</li>
-            <li><strong>LiveData</strong> — ערך נצפה: משתנה → ה-observers מתעדכנים אוטומטית (Observer pattern). <code>setValue</code> (UI thread) מול <code>postValue</code> (background).</li>
-            <li><strong>Repository</strong> — "מקור אמת יחיד" שמאחד Room (מקומי) + Web-service (מרוחק) מאחורי ממשק אחד.</li>
-            <li><strong>Retrofit</strong> — client ל-REST API: ממשק עם <code>@GET</code>/<code>@POST</code>/<code>@DELETE</code>, המרת JSON עם Gson, קריאה אסינכרונית עם <code>enqueue</code>.</li>
-            <li><strong>הזרימה:</strong> UI צופה ב-ViewModel → Repository מביא מ-Room/Retrofit → מעדכן LiveData → ה-UI מתעדכן לבד. הכל על threads נכונים.</li>
-          </ul>
-        </div>
-      </div>
-      <div class="callout info">
-        <span class="ic">🔗</span>
-        <div class="body">
-          <span class="title">חיבורים — סוגרים את כל הקורס</span>
-          הארכיטקטורה כאן = אותן <strong>שכבות</strong> מהשרת בהרצאה 9 (controller→service→model), בצד הלקוח (UI→ViewModel→Repository). ה-<strong>Retrofit</strong> צורך בדיוק את ה-REST API (Express+MongoDB) מהרצאה 9. ה-<strong>LiveData</strong> הוא "UI = פונקציה של state" מהרצאה 8, בניב Android. <strong>Room</strong> = ה-ORM מהרצאה 9. וההפרדה לשכבות = ה-SRP מהרצאה 2. <strong>Foo News / פוסטים</strong> ליווה אותנו לאורך כל הדרך — web, server, מסד נתונים, React, מובייל cross-platform ו-native.
+          <span class="title">סיכום Docker בשורה</span>
+          <strong>Dockerfile</strong> בונה image בשכבות (סדר חכם = cache טוב), <strong>multi-stage</strong> מקטין אותו, ו-<strong>compose</strong> מריץ כמה שירותים שמדברים לפי שם, עם <strong>volumes</strong> לשמירת מידע ו-<strong>env_file</strong> לסודות.
         </div>
       </div>
     </section>
 
-    <!-- ניווט -->
+    <!-- ════════ חלק ב' ════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3.5rem" id="eventloop">חלק ב' · מודל ה-Event Loop</h2>
+
+    <p>המצגת מסכמת עם <strong>מודל חזותי</strong> של איך JavaScript מטפלת בקוד אסינכרוני. ארבעה שחקנים:</p>
+    <div class="pipeline">
+      <div class="st"><b>Stack / Heap</b>הקוד הסינכרוני שרץ עכשיו</div>
+      <div class="arrow">→</div>
+      <div class="st"><b>Web APIs</b>טיימרים, רשת — רצים "בצד"</div>
+      <div class="arrow">→</div>
+      <div class="st"><b>Task queue</b>callbacks של setTimeout וכו'</div>
+    </div>
+    <div class="callout info">
+      <span class="ic">🔁</span>
+      <div class="body">
+        <span class="title">איך זה עובד — הדוגמה <code>setTimeout(fn, 2000)</code></span>
+        <ol style="margin:0">
+          <li>ה-<code>setTimeout</code> רץ ב-stack, אבל ה-callback שלו <strong>נשלח ל-Web APIs</strong> (שם רץ הטיימר) — וה-stack ממשיך הלאה (מדפיס <code>bar</code>).</li>
+          <li>כשהטיימר מסתיים, ה-callback <strong>עובר ל-Task queue</strong>.</li>
+          <li>ה-<strong>Event loop</strong> בודק: אם ה-stack ריק — הוא לוקח משימה מהתור ומריץ אותה.</li>
+        </ol>
+      </div>
+    </div>
+
+    <h3><span class="num">▸</span> מחזור החיים של Promise</h3>
+    <p>ל-Promise יש אובייקט ב-heap עם <strong>State</strong> (<code>pending</code> → <code>fulfilled</code>), <strong>OnFulfilled</strong> (ה-callback שנרשם ב-<code>.then</code>) ו-<strong>Result</strong>. כשה-<code>resolve(42)</code> רץ, ה-state הופך ל-<code>fulfilled</code>, ה-result נשמר (<code>42</code>), וה-callback של <code>.then</code> נשלח ל...<strong>Microtasks queue</strong>:</p>
+    <div class="callout danger">
+      <span class="ic">⚡</span>
+      <div class="body">
+        <span class="title">שני התורים — וסדר העדיפויות</span>
+        <ul style="margin:0">
+          <li>ל-<strong>Microtasks queue</strong> (callbacks של Promises/<code>.then</code>) יש <strong>עדיפות על ה-Task queue</strong> (setTimeout).</li>
+          <li>ה-event loop מרוקן את <strong>כל</strong> ה-microtasks; רק כשהוא <em>ריק</em> — לוקחים <strong>משימה אחת</strong> מה-task queue.</li>
+          <li>אחרי שאותה משימה הסתיימה — בודקים <em>שוב</em> את ה-microtasks. וחוזר חלילה.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout tip">
+      <span class="ic">🎯</span>
+      <div class="body">
+        <span class="title">רוצה לתרגל את זה לעומק?</span>
+        המודל הזה הוא בדיוק מה שפותר את "חידות הפלט" (מה הסדר של <code>setTimeout</code> מול <code>Promise.then</code> מול <code>await</code>). יש עמוד נפרד עם <strong>תיאוריה מלאה + 5 חידות פתורות שורה-שורה + 5 דוגמאות נוספות</strong>: <a class="link" href="../async-await.html">⏳ Promise · async · await — Event Loop</a>.
+      </div>
+    </div>
+
+    <!-- ════════ חלק ג' ════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3.5rem" id="cicd">חלק ג' · CI/CD ⚙️</h2>
+
+    <div class="callout info">
+      <span class="ic">🔄</span>
+      <div class="body">
+        <span class="title">קונטקסט — מה הבעיה ש-CI/CD פותר</span>
+        כשעובדים בצוות, כל שינוי קוד חייב להיבדק (build, tests) לפני שמתמזג, ובסוף — להגיע לפרודקשן. לעשות את זה <strong>ידנית</strong> בכל פעם זה איטי ומועד לטעויות. <strong>CI/CD</strong> = להפוך את כל הצינור הזה ל<strong>אוטומטי</strong>: כל <code>push</code> בונה, בודק, ומדווח — ובסוף אפילו פורס לבד.
+      </div>
+    </div>
+
+    <section id="cicd-what">
+      <h3><span class="num">7.</span> שלושת המושגים</h3>
+      <div class="pipeline">
+        <div class="st" style="border-inline-start:4px solid #36d399"><b>Code</b></div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #36d399"><b>Build</b></div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #36d399"><b>Test</b></div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #36d399"><b>Integrate</b></div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #5b8cff"><b>Release</b></div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #c084fc"><b>Deploy</b></div>
+      </div>
+      <table>
+        <thead><tr><th>מושג</th><th>מה כולל</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Continuous Integration</strong> (CI)</td><td>Code → Build → Test → Integrate. כל שינוי <strong>נבנה ונבדק אוטומטית</strong> ומשתלב לקוד הראשי.</td></tr>
+          <tr><td><strong>Continuous Delivery</strong> (CD)</td><td>ממשיך עד <strong>Release</strong>, אבל ה-<strong>Deploy ידני</strong> (לחיצת כפתור אנושית).</td></tr>
+          <tr><td><strong>Continuous Deployment</strong> (CD)</td><td>הכל אוטומטי — כולל <strong>Deploy אוטומטי</strong> לפרודקשן, בלי התערבות.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">ההבדל בין שני ה-CD</span>
+          ב-<strong>Delivery</strong> הקוד <em>מוכן</em> לפריסה בכל רגע, אבל מישהו לוחץ "deploy". ב-<strong>Deployment</strong> אפילו זה אוטומטי — מה שעבר את כל הבדיקות עולה לאוויר מעצמו.
+        </div>
+      </div>
+    </section>
+
+    <section id="cicd-actions">
+      <h3><span class="num">8.</span> GitHub Actions — Workflows</h3>
+      <p>ב-GitHub, ה-CI/CD מוגדר בקובצי <strong>workflow</strong> מסוג YAML שיושבים ב-<code>.github/workflows/</code>. כל קובץ מתאר: <strong>מתי</strong> לרוץ ו<strong>מה</strong> לעשות. דוגמה — בדיקת אפליקציית Python:</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">yaml · .github/workflows/python-app.yml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>name: Python application
+
+on:                          # ← מתי להריץ (triggers)
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest   # ← על איזה "מחשב" (runner) לרוץ
+    steps:
+      - uses: actions/checkout@v3            # מושך את הקוד
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Lint with flake8
+        run: flake8 .
+      - name: Test with pytest
+        run: pytest</code></pre>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">מבנה ה-workflow</span>
+          <ul style="margin:0">
+            <li><code>name</code> — שם ה-workflow.</li>
+            <li><code>on</code> — ה<strong>טריגרים</strong>: מתי לרוץ (כאן: <code>push</code> או <code>pull_request</code> לענף main).</li>
+            <li><code>jobs</code> — מה לעשות. כל job רץ על <strong>runner</strong> (<code>runs-on: ubuntu-latest</code>).</li>
+            <li><code>steps</code> — הצעדים בתוך ה-job. <code>uses:</code> = פעולה מוכנה מה-Marketplace (כמו <code>checkout</code>); <code>run:</code> = פקודת shell.</li>
+          </ul>
+        </div>
+      </div>
+      <p>אחרי commit, ה-workflow רץ <strong>אוטומטית</strong>. בלשונית <strong>Actions</strong> רואים אותו עובר: <code>Queued</code> → <code>In progress</code> → <strong>✓ Success</strong> (או ✗ נכשל). אפשר לפתוח כל job ולראות את הפלט של כל צעד (למשל <code>1 passed</code> מ-pytest).</p>
+      <div class="callout info">
+        <span class="ic">🖥️</span>
+        <div class="body">
+          <span class="title">Runners</span>
+          המחשבים שמריצים את ה-jobs. <strong>GitHub-hosted</strong> (סטנדרטי, מנוהל ע"י GitHub — Linux/Windows/Mac) או <strong>Self-hosted</strong> (מחשב משלך). יש מכסת דקות חינמית חודשית.
+        </div>
+      </div>
+    </section>
+
+    <section id="cicd-catch">
+      <h3><span class="num">9.</span> ה-CI בפעולה — תופס באגים</h3>
+      <p>הערך האמיתי: כשמשהו נשבר, ה-CI <strong>עוצר את זה לפני המיזוג</strong>. נדגים שני מקרים מתוך ה-demo:</p>
+
+      <h4 style="color:#b9a7ff;margin-top:1.4rem">א. טסט נכשל (דרך Pull Request)</h4>
+      <p>משנים את <code>hello()</code> שיחזיר <code>'world2'</code> במקום <code>'world'</code>, ופותחים PR. ה-checks רצים על ה-PR ונכשלים:</p>
+      <div class="term">
+        <div class="term-head">Test with pytest — FAILED</div>
+<pre><span class="o">    def test_hello():
+&gt;       assert hello() == 'world'</span>
+<span class="r">E       AssertionError: assert 'world2' == 'world'</span>
+<span class="o">test_demo.py:6: AssertionError
+1 failed</span>
+<span class="r">Error: Process completed with exit code 1.</span></pre>
+      </div>
+      <div class="callout danger">
+        <span class="ic">🛑</span>
+        <div class="body">
+          <span class="title">"All checks have failed"</span>
+          ב-PR מופיע <strong>✗ אדום</strong> — הקוד הבעייתי <em>לא ימוזג</em> ל-main. כך באג נתפס אוטומטית לפני שהוא מגיע לקוד הראשי. (אפשר אפילו לדרוש שכל ה-checks יעברו כתנאי למיזוג.)
+        </div>
+      </div>
+
+      <h4 style="color:#b9a7ff;margin-top:1.4rem">ב. תלות חסרה</h4>
+      <p>מוסיפים <code>import numpy as np</code> בלי להתקין — ה-CI נכשל עם <code>ModuleNotFoundError: No module named 'numpy'</code>. התיקון: קובץ <code>requirements.txt</code> (שה-workflow מתקין ממנו):</p>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">requirements.txt</span><button class="copy-btn">העתק</button></div>
+        <pre><code>numpy</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">💡</span>
+        <div class="body">
+          <span class="title">הלקח</span>
+          ה-CI רץ בסביבה <strong>נקייה</strong> בכל פעם — אז הוא חושף "אצלי זה עבד" שנובע מתלויות לא-מוצהרות. כל תלות חייבת ב-<code>requirements.txt</code> (או <code>package.json</code>).
+        </div>
+      </div>
+    </section>
+
+    <section id="cicd-cd">
+      <h3><span class="num">10.</span> ה-CD בפעולה — push image ל-Docker Hub</h3>
+      <p>החלק השני: אחרי שהקוד תקין, <strong>בונים image ודוחפים אותו</strong> ל-Docker Hub אוטומטית. לשם כך צריך אישורי התחברות — ואסור לשים אותם בקוד.</p>
+      <div class="callout warn">
+        <span class="ic">🔑</span>
+        <div class="body">
+          <span class="title">Secrets — סודות מוצפנים</span>
+          ב-<strong>Settings → Secrets and variables → Actions</strong> מגדירים סודות מוצפנים (למשל <code>DOCKER_USERNAME</code>, <code>DOCKER_PASSWORD</code> = access token מ-Docker Hub). ה-workflow ניגש אליהם דרך <code>${{ secrets.NAME }}</code> — הם <strong>אף פעם לא מופיעים בקוד או בלוגים</strong>.
+        </div>
+      </div>
+      <div class="code-block">
+        <div class="code-head"><span class="lang">yaml · .github/workflows/push-to-hub.yml</span><button class="copy-btn">העתק</button></div>
+        <pre><code>name: Publish Docker image
+
+on:
+  release:
+    types: [published]       # ← רץ כשמפרסמים Release חדש
+
+jobs:
+  push_to_registry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@...
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}    # ← מהסודות
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@...
+        with:
+          images: &lt;user&gt;/demo
+      - name: Build and push Docker image
+        uses: docker/build-push-action@...
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true                            # ← דוחף ל-registry
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}</code></pre>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🚀</span>
+        <div class="body">
+          <span class="title">הזרימה המלאה</span>
+          יוצרים <strong>Release</strong> ב-GitHub (תגית כמו <code>v1.0.0</code>) → ה-trigger <code>on: release</code> מפעיל את ה-workflow → הוא מתחבר ל-Docker Hub, בונה את ה-image ו<strong>דוחף אותו</strong>. אחר כך ב-Docker Hub מופיע ה-image עם התגיות <code>latest</code> ו-<code>v1.0.0</code>. זהו <strong>Continuous Deployment</strong> בפעולה — מגרסה ל-image באוויר, אוטומטית.
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">Release ו-Semantic Versioning</span>
+          <strong>Release</strong> = "צילום" רשמי של גרסה, עם <strong>תגית (tag)</strong>. נהוג <code>v1.0.0</code> (major.minor.patch — "semantic versioning"), ולגרסאות לא-יציבות סיומת כמו <code>v0.2.0-alpha</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════ חלק ד' ════════ -->
+    <h2 style="font-size:2rem;border-bottom-width:2px;margin-top:3.5rem" id="branching">חלק ד' · Branching Strategies 🌿</h2>
+
+    <div class="callout info">
+      <span class="ic">🌳</span>
+      <div class="body">
+        <span class="title">קונטקסט — למה צריך אסטרטגיית ענפים</span>
+        כשהרבה מפתחים עובדים על אותו קוד, לא יכולים כולם לדחוף ישר ל-<code>main</code> — זה כאוס ומסוכן ללקוחות. <strong>אסטרטגיית branching</strong> מגדירה <em>אילו ענפים קיימים, מה התפקיד של כל אחד, ואיך הקוד זורם ביניהם</em> — מהמפתח הבודד ועד הפרודקשן. (זה נשען על מנגנון הענפים מ-<a class="link" href="../git-internals.html">Git Internals</a> — ענף = מצביע ל-commit.)
+      </div>
+    </div>
+
+    <section id="branching-overview">
+      <h3><span class="num">11.</span> אסטרטגיות נפוצות — סקירה</h3>
+      <table>
+        <thead><tr><th>אסטרטגיה</th><th>הרעיון</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Trunk-based</strong></td><td>כולם עובדים על ענף אחד ("trunk") עם commits קטנים ותכופים. פשוט, אבל דורש משמעת ובדיקות אוטומטיות חזקות.</td></tr>
+          <tr><td><strong>Feature branch</strong></td><td>כל פיצ'ר מקבל ענף משלו, שמתפצל מ-<code>develop</code> וחוזר אליו במיזוג. כך עבודות לא דורכות אחת לשנייה.</td></tr>
+          <tr><td><strong>Fork</strong></td><td>כל מתורם משכפל את כל המאגר לחשבון שלו, עובד אצלו, ושולח Pull Request. נפוץ בקוד פתוח.</td></tr>
+          <tr><td><strong>GitHub flow</strong></td><td>גרסה פשוטה: <code>main</code> + ענפי פיצ'ר קצרי-חיים, כל מיזוג דרך PR. מתאים ל-deploy תכוף.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="gitflow">
+      <h3><span class="num">12.</span> Git Flow — חמשת הענפים והתהליך</h3>
+      <p>האסטרטגיה המפורטת ביותר. יש בה <strong>חמישה סוגי ענפים</strong>, וזה מה שכל שם אומר:</p>
+      <table>
+        <thead><tr><th>ענף</th><th>מה הוא</th><th>מתפצל מ-</th><th>ממוזג ל-</th></tr></thead>
+        <tbody>
+          <tr><td style="color:#5b8cff"><strong>main / master</strong></td><td>הקוד ה"אמיתי" — הגרסה שהלקוחות משתמשים בה. יציב תמיד.</td><td>—</td><td>—</td></tr>
+          <tr><td style="color:#c0264f"><strong>develop</strong></td><td>ענף האינטגרציה — "קוד שבפיתוח". כאן מצטברים הפיצ'רים לפני שחרור.</td><td>main</td><td>(דרך release)</td></tr>
+          <tr><td style="color:#ff8c2b"><strong>feature/*</strong></td><td>ענף לכל פיצ'ר בודד (למשל <code>feature/add-button</code>). יכולים להתקיים כמה במקביל.</td><td>develop</td><td>develop</td></tr>
+          <tr><td style="color:#c9a92b"><strong>release</strong></td><td>הכנת גרסה לשחרור. מייצבים, מתקנים באגים אחרונים — בלי לחסום פיתוח חדש על develop.</td><td>develop</td><td>main <strong>+</strong> develop</td></tr>
+          <tr><td style="color:#e63946"><strong>hotfix</strong></td><td>תיקון <em>דחוף</em> לבאג קריטי שהתגלה בפרודקשן. עוקף את develop כדי לתקן מהר.</td><td>main</td><td>main <strong>+</strong> develop</td></tr>
+        </tbody>
+      </table>
+
+      <div class="term" style="border-color:var(--border)">
+        <div class="term-head" style="color:var(--text-faint)">Git Flow — תרשים הזרימה</div>
+        <div style="padding:1rem;overflow-x:auto;direction:ltr;background:#fbfbfe">
+          <svg viewBox="0 0 760 300" style="min-width:680px;width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+            <style>
+              .lane{stroke-width:3.5;fill:none;stroke-linecap:round}
+              .nd{fill:#fff;stroke-width:2.5}
+              .lbl{font:600 12px sans-serif}
+            </style>
+            <!-- labels -->
+            <text class="lbl" x="6" y="34"  fill="#e63946">hotfix</text>
+            <text class="lbl" x="6" y="79"  fill="#5b8cff">main/master</text>
+            <text class="lbl" x="6" y="129" fill="#c9a92b">release</text>
+            <text class="lbl" x="6" y="189" fill="#c0264f">develop</text>
+            <text class="lbl" x="6" y="249" fill="#ff8c2b">feature/add-button</text>
+            <!-- main -->
+            <path class="lane" stroke="#5b8cff" d="M150,75 H710"/>
+            <!-- develop: branch off main, run, merge back to main -->
+            <path class="lane" stroke="#c0264f" d="M185,75 C190,120 200,150 215,185 H600 C640,150 670,110 690,75"/>
+            <!-- feature/add-button -->
+            <path class="lane" stroke="#ff8c2b" d="M255,185 C262,205 268,222 278,245 H378 C408,222 414,205 432,185"/>
+            <!-- release: branch off develop up, merge to main and back to develop -->
+            <path class="lane" stroke="#c9a92b" d="M470,185 C488,158 498,145 518,125 H588 C612,108 628,92 648,75"/>
+            <path class="lane" stroke="#c9a92b" d="M588,125 C596,150 612,170 630,185"/>
+            <!-- hotfix: branch off main up, merge back to main -->
+            <path class="lane" stroke="#e63946" d="M650,75 C656,52 660,45 668,28"/>
+            <path class="lane" stroke="#e63946" d="M668,28 C678,46 686,58 698,75"/>
+            <!-- nodes -->
+            <circle class="nd" stroke="#5b8cff" cx="150" cy="75"  r="7"/>
+            <circle class="nd" stroke="#5b8cff" cx="710" cy="75"  r="7"/>
+            <circle class="nd" stroke="#c0264f" cx="215" cy="185" r="7"/>
+            <circle class="nd" stroke="#c0264f" cx="600" cy="185" r="7"/>
+            <circle class="nd" stroke="#ff8c2b" cx="278" cy="245" r="7"/>
+            <circle class="nd" stroke="#ff8c2b" cx="328" cy="245" r="7"/>
+            <circle class="nd" stroke="#ff8c2b" cx="378" cy="245" r="7"/>
+            <circle class="nd" stroke="#c9a92b" cx="518" cy="125" r="7"/>
+            <circle class="nd" stroke="#c9a92b" cx="588" cy="125" r="7"/>
+            <circle class="nd" stroke="#e63946" cx="668" cy="28"  r="7"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="callout info">
+        <span class="ic">🔄</span>
+        <div class="body">
+          <span class="title">התהליך בגרף — שלב-שלב</span>
+          <ol style="margin:0">
+            <li><strong>main</strong> מחזיק את הקוד היציב, אבל אי אפשר לקפוץ עליו מגרסה לגרסה (יותר מדי מפתחים, סיכון ללקוחות).</li>
+            <li>פותחים <strong>develop</strong> לקוד שבפיתוח. אבל גם שם הרבה מפתחים — אז כל אחד פותח <strong>feature branch</strong> משלו מ-develop.</li>
+            <li>מסיימים פיצ'ר → <strong>ממזגים חזרה ל-develop</strong>. אם develop לא השתנה בינתיים — מיזוג <strong>fast-forward</strong> (פשוט מזיזים את המצביע קדימה, בלי commit מיזוג).</li>
+            <li>אם develop <em>כן</em> השתנה (פיצ'ר אחר מוזג) — אי אפשר fast-forward. מושכים (<code>pull</code>) את השינויים <strong>לתוך</strong> ה-feature branch, ממזגים, ורק אז חוזרים ל-develop.</li>
+            <li>כש-develop מוכן → פותחים <strong>release</strong> branch עם הפיצ'רים. מייצבים ומתקנים שם באגים — ובמקביל develop ממשיך להתקדם בלי הפרעה.</li>
+            <li>הגרסה אושרה → ממזגים את release ל-<strong>main</strong> (שחרור!) <strong>וגם בחזרה ל-develop</strong> (כדי שהתיקונים לא יאבדו).</li>
+            <li>באג קריטי בפרודקשן → פותחים <strong>hotfix</strong> מ-main, מתקנים, וממזגים <strong>ישירות ל-main</strong> (מהר!) <strong>וגם ל-develop</strong>.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="callout syntax">
+        <span class="ic">🔤</span>
+        <div class="body">
+          <span class="title">"אל תשכח את develop"</span>
+          הכלל החוזר: <strong>כל מה שמתמזג ל-main (release או hotfix) חייב להתמזג גם בחזרה ל-develop</strong> — אחרת develop "פיגר" אחרי הקוד שבפרודקשן, והבאג יחזור בגרסה הבאה.
+        </div>
+      </div>
+    </section>
+
+    <section id="environments">
+      <h3><span class="num">13.</span> סביבות (Environments)</h3>
+      <p>מפתחים כותבים, מריצים ובודקים קוד <strong>מקומית</strong>. אבל כשהקוד "מוכן" — איך הוא מגיע ללקוחות? לפרוס <strong>ישירות</strong> מהמחשב המקומי לפרודקשן זה <strong>מסוכן</strong>: הסביבות לרוב לא זהות, יש באגים, וצריך בדיקות ידניות. לכן מכניסים <strong>סביבות ביניים</strong>:</p>
+      <div class="pipeline">
+        <div class="st" style="border-inline-start:4px solid #ff8c2b"><b>Local</b>המחשב של המפתח</div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #c0264f"><b>Development / Testing</b>בדיקות אינטגרציה</div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #c9a92b"><b>Staging / Pre-prod</b>"חזרה גנרלית" — זהה לפרודקשן</div>
+        <div class="arrow">→</div>
+        <div class="st" style="border-inline-start:4px solid #5b8cff"><b>Production</b>הלקוחות</div>
+      </div>
+      <div class="callout tip">
+        <span class="ic">🔗</span>
+        <div class="body">
+          <span class="title">איך זה מתחבר ל-Git Flow</span>
+          הסביבות ממופות לענפים: <strong>feature branches → Local</strong>, <strong>develop → Testing</strong>, <strong>release → Staging</strong>, <strong>main → Production</strong>. כל מעבר קדימה הוא הזדמנות לתפוס בעיות לפני שהן מגיעות ללקוח.
+        </div>
+      </div>
+    </section>
+
+    <!-- סיכום -->
+    <section>
+      <h2 style="font-size:1.8rem;border-bottom-width:2px;margin-top:3rem">★ סיכום ההרצאה</h2>
+      <div class="callout tip">
+        <span class="ic">🎯</span>
+        <div class="body">
+          <span class="title">מה לקחנו</span>
+          <ul style="margin:0">
+            <li><strong>Docker:</strong> Dockerfile בונה image ב-<strong>שכבות</strong> (סדר חכם = cache); <strong>multi-stage</strong> מקטין; <strong>compose</strong> מריץ כמה שירותים שמדברים לפי שם, עם <strong>volumes</strong> (persistence), <strong>env_file</strong> (סודות), ופתרון <strong>CORS</strong>.</li>
+            <li><strong>Event Loop:</strong> stack → Web APIs → task queue, עם <strong>microtasks (Promises) בעדיפות</strong> על tasks (setTimeout).</li>
+            <li><strong>CI/CD:</strong> אוטומציה של Code→Build→Test→Integrate (CI) ועד Release→Deploy (CD). ב-GitHub Actions: workflow ב-<code>.github/workflows/*.yml</code> עם <code>on</code> (טריגרים) ו-<code>jobs/steps</code>; ה-CI תופס באגים לפני מיזוג; <strong>secrets</strong> לאישורים; release → build &amp; push image ל-Docker Hub.</li>
+            <li><strong>Branching:</strong> Git Flow עם 5 ענפים — <strong>main</strong> (פרודקשן), <strong>develop</strong> (אינטגרציה), <strong>feature/*</strong> (פיצ'ר), <strong>release</strong> (הכנת גרסה), <strong>hotfix</strong> (תיקון דחוף). מה שמתמזג ל-main חוזר גם ל-develop. + 4 סביבות (Local→Testing→Staging→Production).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <nav class="lesson-nav">
       <a class="prev" href="lecture-11.html">
         <span class="dir">→ הקודם</span>
-        <span class="ttl">הרצאה 11 · פיתוח Android</span>
+        <span class="ttl">הרצאה 11</span>
       </a>
       <a class="next" href="../index.html">
-        <span class="dir">סיום ←</span>
-        <span class="ttl">חזרה לעמוד הבית</span>
+        <span class="dir">הבא ←</span>
+        <span class="ttl">עמוד הבית</span>
       </a>
     </nav>
   </main>
